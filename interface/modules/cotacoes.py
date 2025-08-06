@@ -10,16 +10,16 @@ from pdf_generators.cotacao_nova import gerar_pdf_cotacao_nova
 
 class CotacoesModule(BaseModule):
     def setup_ui(self):
-        # Container principal
+        # Container principal - usando toda a tela
         container = tk.Frame(self.frame, bg='#f8fafc')
-        container.pack(fill="both", expand=True, padx=20, pady=20)
+        container.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Header
+        # Header compacto
         self.create_header(container)
         
-        # Notebook para organizar seções
+        # Notebook para organizar seções - usando todo o espaço restante
         self.notebook = ttk.Notebook(container)
-        self.notebook.pack(fill="both", expand=True, pady=(20, 0))
+        self.notebook.pack(fill="both", expand=True, pady=(10, 0))
         
         # Aba: Nova Cotação
         self.create_nova_cotacao_tab()
@@ -36,10 +36,10 @@ class CotacoesModule(BaseModule):
         
     def create_header(self, parent):
         header_frame = tk.Frame(parent, bg='#f8fafc')
-        header_frame.pack(fill="x", pady=(0, 20))
+        header_frame.pack(fill="x", pady=(0, 10))
         
         title_label = tk.Label(header_frame, text="Gestão de Cotações", 
-                               font=('Arial', 18, 'bold'),
+                               font=('Arial', 16, 'bold'),
                                bg='#f8fafc',
                                fg='#1e293b')
         title_label.pack(side="left")
@@ -69,7 +69,7 @@ class CotacoesModule(BaseModule):
         self.create_cotacao_content(self.scrollable_cotacao)
         
     def create_cotacao_content(self, parent):
-        content_frame = tk.Frame(parent, bg='white', padx=20, pady=20)
+        content_frame = tk.Frame(parent, bg='white', padx=10, pady=10)
         content_frame.pack(fill="both", expand=True)
         
         # Seção: Dados da Cotação
@@ -83,7 +83,7 @@ class CotacoesModule(BaseModule):
         
     def create_dados_cotacao_section(self, parent):
         section_frame = self.create_section_frame(parent, "Dados da Cotação")
-        section_frame.pack(fill="x", pady=(0, 15))
+        section_frame.pack(fill="x", pady=(0, 10))
         
         # Grid de campos
         fields_frame = tk.Frame(section_frame, bg='white')
@@ -223,7 +223,7 @@ class CotacoesModule(BaseModule):
         
     def create_itens_cotacao_section(self, parent):
         section_frame = self.create_section_frame(parent, "Itens da Cotação")
-        section_frame.pack(fill="both", expand=True, pady=(0, 15))
+        section_frame.pack(fill="both", expand=True, pady=(0, 10))
         
         # Frame para adicionar item
         add_item_frame = tk.Frame(section_frame, bg='white')

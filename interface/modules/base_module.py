@@ -34,10 +34,10 @@ class BaseModule:
         if hasattr(self.main_window, 'emit_event'):
             self.main_window.emit_event(event_type, data)
     
-    def create_section_frame(self, parent, title, padx=15, pady=15):
+    def create_section_frame(self, parent, title, padx=10, pady=10):
         """Criar frame de seção com título"""
         section_frame = tk.LabelFrame(parent, text=title, 
-                                      font=('Arial', 12, 'bold'),
+                                      font=('Arial', 11, 'bold'),
                                       bg='white',
                                       padx=padx, pady=pady)
         return section_frame

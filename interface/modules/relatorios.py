@@ -10,16 +10,16 @@ from pdf_generators.relatorio_tecnico import gerar_pdf_relatorio
 
 class RelatoriosModule(BaseModule):
     def setup_ui(self):
-        # Container principal
+        # Container principal - usando toda a tela
         container = tk.Frame(self.frame, bg='#f8fafc')
-        container.pack(fill="both", expand=True, padx=20, pady=20)
+        container.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Header
+        # Header compacto
         self.create_header(container)
         
-        # Notebook para organizar seções
+        # Notebook para organizar seções - usando todo o espaço restante
         self.notebook = ttk.Notebook(container)
-        self.notebook.pack(fill="both", expand=True, pady=(20, 0))
+        self.notebook.pack(fill="both", expand=True, pady=(10, 0))
         
         # Aba: Novo Relatório
         self.create_novo_relatorio_tab()
@@ -37,10 +37,10 @@ class RelatoriosModule(BaseModule):
         
     def create_header(self, parent):
         header_frame = tk.Frame(parent, bg='#f8fafc')
-        header_frame.pack(fill="x", pady=(0, 20))
+        header_frame.pack(fill="x", pady=(0, 10))
         
         title_label = tk.Label(header_frame, text="Relatórios Técnicos", 
-                               font=('Arial', 18, 'bold'),
+                               font=('Arial', 16, 'bold'),
                                bg='#f8fafc',
                                fg='#1e293b')
         title_label.pack(side="left")
@@ -70,7 +70,7 @@ class RelatoriosModule(BaseModule):
         self.create_relatorio_content(self.scrollable_relatorio)
         
     def create_relatorio_content(self, parent):
-        content_frame = tk.Frame(parent, bg='white', padx=20, pady=20)
+        content_frame = tk.Frame(parent, bg='white', padx=10, pady=10)
         content_frame.pack(fill="both", expand=True)
         
         # Seção: Identificação do Cliente
@@ -93,7 +93,7 @@ class RelatoriosModule(BaseModule):
         
     def create_cliente_section(self, parent):
         section_frame = self.create_section_frame(parent, "Identificação do Cliente")
-        section_frame.pack(fill="x", pady=(0, 15))
+        section_frame.pack(fill="x", pady=(0, 10))
         
         # Grid de campos
         fields_frame = tk.Frame(section_frame, bg='white')
@@ -121,7 +121,7 @@ class RelatoriosModule(BaseModule):
         
     def create_servico_section(self, parent):
         section_frame = self.create_section_frame(parent, "Dados do Serviço")
-        section_frame.pack(fill="x", pady=(0, 15))
+        section_frame.pack(fill="x", pady=(0, 10))
         
         # Grid de campos
         fields_frame = tk.Frame(section_frame, bg='white')
