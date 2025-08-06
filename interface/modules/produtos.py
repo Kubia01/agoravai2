@@ -580,7 +580,7 @@ class ProdutosModule(BaseModule):
             conn.close()
             
     def carregar_produtos(self):
-        """Carregar lista de produtos"""
+        """Carregar lista de produtos agrupados por tipo"""
         # Limpar lista atual
         for item in self.produtos_tree.get_children():
             self.produtos_tree.delete(item)
@@ -589,20 +589,39 @@ class ProdutosModule(BaseModule):
         c = conn.cursor()
         
         try:
+            # Buscar produtos agrupados por tipo
             c.execute("""
                 SELECT id, nome, tipo, valor_unitario, ativo
                 FROM produtos
-                ORDER BY nome
+                ORDER BY tipo, nome
             """)
             
+            produtos_por_tipo = {}
             for row in c.fetchall():
                 produto_id, nome, tipo, valor, ativo = row
-                self.produtos_tree.insert("", "end", values=(
-                    nome,
-                    tipo,
-                    format_currency(valor),
-                    "Sim" if ativo else "Não"
-                ), tags=(produto_id,))
+                if tipo not in produtos_por_tipo:
+                    produtos_por_tipo[tipo] = []
+                produtos_por_tipo[tipo].append((produto_id, nome, valor, ativo))
+            
+            # Inserir produtos agrupados por tipo
+            for tipo in ["Produto", "Serviço", "Kit"]:
+                if tipo in produtos_por_tipo:
+                    # Inserir cabeçalho do tipo
+                    tipo_item = self.produtos_tree.insert("", "end", values=(
+                        f"=== {tipo.upper()} ===",
+                        "",
+                        "",
+                        ""
+                    ), tags=("header",))
+                    
+                    # Inserir produtos do tipo
+                    for produto_id, nome, valor, ativo in produtos_por_tipo[tipo]:
+                        self.produtos_tree.insert("", "end", values=(
+                            f"  {nome}",
+                            tipo,
+                            format_currency(valor),
+                            "Sim" if ativo else "Não"
+                        ), tags=(produto_id,))
                 
         except sqlite3.Error as e:
             self.show_error(f"Erro ao carregar produtos: {e}")

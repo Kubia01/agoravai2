@@ -199,7 +199,7 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None):
                 cli.id AS cliente_id, cli.nome AS cliente_nome, cli.nome_fantasia, cli.endereco, cli.email, 
                 cli.telefone, cli.site, cli.cnpj, cli.cidade, cli.estado, cli.cep,
                 usr.id AS responsavel_id, usr.nome_completo, usr.email AS usr_email, usr.telefone AS usr_telefone, usr.username,
-                cot.moeda, cot.relacao_pecas, cot.filial_id
+                cot.moeda, cot.relacao_pecas, cot.filial_id, cot.esboco_servico, cot.relacao_pecas_substituir
             FROM cotacoes AS cot
             JOIN clientes AS cli ON cot.cliente_id = cli.id
             JOIN usuarios AS usr ON cot.responsavel_id = usr.id
@@ -218,7 +218,7 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None):
             cliente_telefone, cliente_site, cliente_cnpj, cliente_cidade, 
             cliente_estado, cliente_cep,
             responsavel_id, responsavel_nome, responsavel_email, responsavel_telefone, responsavel_username,
-            moeda, relacao_pecas, filial_id
+            moeda, relacao_pecas, filial_id, esboco_servico, relacao_pecas_substituir
         ) = cotacao_data
 
         # Obter dados da filial
@@ -252,7 +252,7 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None):
             SELECT 
                 id, tipo, item_nome, quantidade, descricao, 
                 valor_unitario, valor_total_item, 
-                mao_obra, deslocamento, estadia, produto_id
+                mao_obra, deslocamento, estadia, produto_id, tipo_operacao
             FROM itens_cotacao 
             WHERE cotacao_id=?
         """, (cotacao_id,))
@@ -477,6 +477,32 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         pdf.ln(10)
         
         # =====================================================
+        # PÁGINA 4: ESBOÇO DO SERVIÇO A SER EXECUTADO
+        # =====================================================
+        if esboco_servico:
+            pdf.add_page()
+            pdf.set_y(45)
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 10, clean_text("ESBOÇO DO SERVIÇO A SER EXECUTADO"), 0, 1, 'C')
+            pdf.ln(10)
+            
+            pdf.set_font("Arial", '', 11)
+            pdf.multi_cell(0, 6, clean_text(esboco_servico))
+        
+        # =====================================================
+        # PÁGINA 5: RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS
+        # =====================================================
+        if relacao_pecas_substituir:
+            pdf.add_page()
+            pdf.set_y(45)
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 10, clean_text("RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS"), 0, 1, 'C')
+            pdf.ln(10)
+            
+            pdf.set_font("Arial", '', 11)
+            pdf.multi_cell(0, 6, clean_text(relacao_pecas_substituir))
+        
+        # =====================================================
         # PÁGINAS SEGUINTES: DETALHES DA PROPOSTA
         # =====================================================
         pdf.add_page()
@@ -561,7 +587,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             for item in itens_cotacao:
                 (item_id, item_tipo, item_nome, quantidade, descricao, 
                  valor_unitario, valor_total_item, 
-                 mao_obra, deslocamento, estadia, produto_id) = item
+                 mao_obra, deslocamento, estadia, produto_id, tipo_operacao) = item
                 
                 # DEBUG: Verificar valores vindos do banco
                 print(f"DEBUG Item {item_counter}:")
@@ -582,13 +608,19 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 # TRATAMENTO ESPECIAL PARA KITS E SERVIÇOS (como modelo antigo)
                 descricao_final = descricao
                 
+                # Adicionar prefixo baseado no tipo de operação
+                if tipo_operacao == "Locação":
+                    prefixo = "Locação - "
+                else:
+                    prefixo = ""
+                
                 if item_tipo == "Kit" and produto_id:
                     # Obter composição do kit
                     composicao = PDFCotacao.obter_composicao_kit(produto_id)
-                    descricao_final = f"Kit: {item_nome}\nComposição:\n" + "\n".join(composicao)
+                    descricao_final = f"{prefixo}Kit: {item_nome}\nComposição:\n" + "\n".join(composicao)
                 
                 elif item_tipo == "Serviço":
-                    descricao_final = f"Serviço: {item_nome}"
+                    descricao_final = f"{prefixo}Serviço: {item_nome}"
                     if mao_obra or deslocamento or estadia:
                         descricao_final += "\nDetalhes:"
                         if mao_obra:
@@ -597,6 +629,9 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                             descricao_final += f"\n- Deslocamento: R${deslocamento:.2f}"
                         if estadia:
                             descricao_final += f"\n- Estadia: R${estadia:.2f}"
+                
+                else:  # Produto
+                    descricao_final = f"{prefixo}{item_nome}"
                 
                 # Calcular altura baseada no número de linhas
                 num_linhas = descricao_final.count('\n') + 1

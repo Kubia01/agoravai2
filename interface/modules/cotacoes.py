@@ -5,6 +5,7 @@ from datetime import datetime
 from .base_module import BaseModule
 from database import DB_NAME
 from utils.formatters import format_currency, format_date, clean_number
+from utils.cotacao_validator import verificar_e_atualizar_status_cotacoes, obter_cotacoes_por_status
 from pdf_generators.cotacao_nova import gerar_pdf_cotacao_nova
 
 class CotacoesModule(BaseModule):
@@ -128,6 +129,7 @@ class CotacoesModule(BaseModule):
         
         self.cliente_combo = ttk.Combobox(cliente_frame, textvariable=self.cliente_var, width=25)
         self.cliente_combo.pack(side="left", fill="x", expand=True)
+        self.cliente_combo.bind("<<ComboboxSelected>>", self.on_cliente_selected)
         
         # Botão para buscar/atualizar clientes
         refresh_clientes_btn = self.create_button(cliente_frame, "🔄", self.refresh_clientes, bg='#10b981')
@@ -184,8 +186,40 @@ class CotacoesModule(BaseModule):
         self.observacoes_text = scrolledtext.ScrolledText(fields_frame, height=3, width=30)
         self.observacoes_text.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
         
+        fields_frame.grid_columnconfigure(1, weight=1)
+        
+        # Seção: Esboço do Serviço
+        self.create_esboco_servico_section(parent)
+        
+        # Seção: Relação de Peças
+        self.create_relacao_pecas_section(parent)
+        
         # Configurar colunas
         fields_frame.grid_columnconfigure(1, weight=1)
+        
+    def create_esboco_servico_section(self, parent):
+        """Criar seção para esboço do serviço"""
+        section_frame = self.create_section_frame(parent, "Esboço do Serviço a Ser Executado")
+        section_frame.pack(fill="x", pady=(0, 15))
+        
+        # Variáveis
+        self.esboco_servico_var = tk.StringVar()
+        
+        # Text area para esboço do serviço
+        self.esboco_servico_text = scrolledtext.ScrolledText(section_frame, height=6, width=80, wrap=tk.WORD)
+        self.esboco_servico_text.pack(fill="both", expand=True, padx=10, pady=10)
+        
+    def create_relacao_pecas_section(self, parent):
+        """Criar seção para relação de peças a serem substituídas"""
+        section_frame = self.create_section_frame(parent, "Relação de Peças a Serem Substituídas")
+        section_frame.pack(fill="x", pady=(0, 15))
+        
+        # Variáveis
+        self.relacao_pecas_var = tk.StringVar()
+        
+        # Text area para relação de peças
+        self.relacao_pecas_text = scrolledtext.ScrolledText(section_frame, height=6, width=80, wrap=tk.WORD)
+        self.relacao_pecas_text.pack(fill="both", expand=True, padx=10, pady=10)
         
     def create_itens_cotacao_section(self, parent):
         section_frame = self.create_section_frame(parent, "Itens da Cotação")
@@ -211,6 +245,7 @@ class CotacoesModule(BaseModule):
         self.item_mao_obra_var = tk.StringVar(value="0.00")
         self.item_deslocamento_var = tk.StringVar(value="0.00")
         self.item_estadia_var = tk.StringVar(value="0.00")
+        self.item_tipo_operacao_var = tk.StringVar(value="Compra")
         
         # Grid de campos
         fields_grid = tk.Frame(parent, bg="white")
@@ -242,6 +277,12 @@ class CotacoesModule(BaseModule):
         
         tk.Label(fields_grid, text="Valor Unit.:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=6, padx=5, sticky="w")
         tk.Entry(fields_grid, textvariable=self.item_valor_var, width=10).grid(row=0, column=7, padx=5)
+        
+        tk.Label(fields_grid, text="Tipo:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=8, padx=5, sticky="w")
+        tipo_operacao_combo = ttk.Combobox(fields_grid, textvariable=self.item_tipo_operacao_var, 
+                                          values=["Compra", "Locação"], 
+                                          width=8, state="readonly")
+        tipo_operacao_combo.grid(row=0, column=9, padx=5)
         
         # Segunda linha - Descrição
         tk.Label(fields_grid, text="Descrição:", font=("Arial", 10, "bold"), bg="white").grid(row=1, column=0, padx=5, sticky="w")
@@ -487,6 +528,58 @@ class CotacoesModule(BaseModule):
         self.update_produtos_combo()
         print("Produtos atualizados")  # Debug
         
+    def on_cliente_selected(self, event=None):
+        """Preencher automaticamente a condição de pagamento baseada no cliente selecionado"""
+        cliente_str = self.cliente_var.get()
+        if not cliente_str:
+            return
+            
+        # Obter ID do cliente
+        cliente_id = self.clientes_dict.get(cliente_str)
+        if not cliente_id:
+            return
+            
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            
+            # Buscar prazo de pagamento do cliente
+            c.execute("SELECT prazo_pagamento FROM clientes WHERE id = ?", (cliente_id,))
+            result = c.fetchone()
+            
+            if result and result[0]:
+                # Preencher automaticamente a condição de pagamento
+                self.condicao_pagamento_var.set(result[0])
+                
+        except sqlite3.Error as e:
+            print(f"Erro ao buscar prazo de pagamento do cliente: {e}")
+        finally:
+            conn.close()
+            
+    def gerar_numero_sequencial(self):
+        """Gerar número sequencial para cotação"""
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            
+            # Buscar o maior número sequencial existente
+            c.execute("SELECT MAX(CAST(SUBSTR(numero_proposta, 6) AS INTEGER)) FROM cotacoes WHERE numero_proposta LIKE 'PROP-%'")
+            result = c.fetchone()
+            
+            if result and result[0]:
+                proximo_numero = result[0] + 1
+            else:
+                proximo_numero = 1
+                
+            return f"PROP-{proximo_numero:06d}"
+            
+        except sqlite3.Error as e:
+            print(f"Erro ao gerar número sequencial: {e}")
+            # Fallback para timestamp
+            return f"PROP-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        finally:
+            conn.close()
+        
     def adicionar_item(self):
         tipo = self.item_tipo_var.get()
         nome = self.item_nome_var.get()
@@ -496,6 +589,7 @@ class CotacoesModule(BaseModule):
         mao_obra_str = self.item_mao_obra_var.get()
         deslocamento_str = self.item_deslocamento_var.get()
         estadia_str = self.item_estadia_var.get()
+        tipo_operacao = self.item_tipo_operacao_var.get()
         
         # Validações
         if not tipo or not nome:
@@ -524,6 +618,7 @@ class CotacoesModule(BaseModule):
             format_currency(deslocamento),
             format_currency(estadia),
             format_currency(valor_total),
+            tipo_operacao,
             descricao
         ))
         
@@ -535,6 +630,7 @@ class CotacoesModule(BaseModule):
         self.item_mao_obra_var.set("0.00")
         self.item_deslocamento_var.set("0.00")
         self.item_estadia_var.set("0.00")
+        self.item_tipo_operacao_var.set("Compra")
         
         # Atualizar total
         self.atualizar_total()
@@ -579,6 +675,8 @@ class CotacoesModule(BaseModule):
         self.condicao_pagamento_var.set("")
         self.prazo_entrega_var.set("")
         self.observacoes_text.delete("1.0", tk.END)
+        self.esboco_servico_text.delete("1.0", tk.END)
+        self.relacao_pecas_text.delete("1.0", tk.END)
         
         # Limpar itens
         for item in self.itens_tree.get_children():
@@ -586,8 +684,8 @@ class CotacoesModule(BaseModule):
             
         self.atualizar_total()
         
-        # Gerar número automático
-        numero = f"PROP-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        # Gerar número sequencial automático
+        numero = self.gerar_numero_sequencial()
         self.numero_var.set(numero)
         
     def salvar_cotacao(self):
@@ -641,13 +739,17 @@ class CotacoesModule(BaseModule):
                     UPDATE cotacoes SET
                         numero_proposta = ?, modelo_compressor = ?, numero_serie_compressor = ?,
                         observacoes = ?, valor_total = ?, status = ?, data_validade = ?,
-                        condicao_pagamento = ?, prazo_entrega = ?, filial_id = ?
+                        condicao_pagamento = ?, prazo_entrega = ?, filial_id = ?,
+                        esboco_servico = ?, relacao_pecas_substituir = ?
                     WHERE id = ?
                 """, (numero, self.modelo_var.get(), self.serie_var.get(),
                      self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
                      self.status_var.get(), self.data_validade_var.get(),
                      self.condicao_pagamento_var.get(), self.prazo_entrega_var.get(),
-                     filial_id, self.current_cotacao_id))
+                     filial_id, 
+                     self.esboco_servico_text.get("1.0", tk.END).strip(),
+                     self.relacao_pecas_text.get("1.0", tk.END).strip(),
+                     self.current_cotacao_id))
                 
                 # Remover itens antigos
                 c.execute("DELETE FROM itens_cotacao WHERE cotacao_id = ?", (self.current_cotacao_id,))
@@ -658,14 +760,16 @@ class CotacoesModule(BaseModule):
                     INSERT INTO cotacoes (numero_proposta, cliente_id, responsavel_id, data_criacao,
                                         modelo_compressor, numero_serie_compressor, observacoes,
                                         valor_total, status, data_validade, condicao_pagamento,
-                                        prazo_entrega, filial_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                        prazo_entrega, filial_id, esboco_servico, relacao_pecas_substituir)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (numero, cliente_id, self.user_id, datetime.now().strftime('%Y-%m-%d'),
                      self.modelo_var.get(), self.serie_var.get(),
                      self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
                      self.status_var.get(), self.data_validade_var.get(),
                      self.condicao_pagamento_var.get(), self.prazo_entrega_var.get(),
-                     filial_id))
+                     filial_id,
+                     self.esboco_servico_text.get("1.0", tk.END).strip(),
+                     self.relacao_pecas_text.get("1.0", tk.END).strip()))
                      
                 cotacao_id = c.lastrowid
                 self.current_cotacao_id = cotacao_id
@@ -673,7 +777,7 @@ class CotacoesModule(BaseModule):
             # Inserir itens
             for item in self.itens_tree.get_children():
                 values = self.itens_tree.item(item)['values']
-                tipo, nome, qtd, valor_unit, mao_obra, desloc, estadia, total, desc = values
+                tipo, nome, qtd, valor_unit, mao_obra, desloc, estadia, total, tipo_operacao, desc = values
                 
                 # Converter valores
                 quantidade = float(qtd)
@@ -686,10 +790,10 @@ class CotacoesModule(BaseModule):
                 c.execute("""
                     INSERT INTO itens_cotacao (cotacao_id, tipo, item_nome, quantidade,
                                              valor_unitario, valor_total_item, descricao,
-                                             mao_obra, deslocamento, estadia)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                             mao_obra, deslocamento, estadia, tipo_operacao)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (cotacao_id, tipo, nome, quantidade, valor_unitario,
-                     valor_total_item, desc, valor_mao_obra, valor_desloc, valor_estadia))
+                     valor_total_item, desc, valor_mao_obra, valor_desloc, valor_estadia, tipo_operacao))
             
             conn.commit()
             self.show_success("Cotação salva com sucesso!")
@@ -737,6 +841,9 @@ class CotacoesModule(BaseModule):
             
     def carregar_cotacoes(self):
         """Carregar lista de cotações"""
+        # Verificar e atualizar cotações expiradas automaticamente
+        cotações_expiradas = verificar_e_atualizar_status_cotacoes()
+        
         # Limpar lista atual
         for item in self.cotacoes_tree.get_children():
             self.cotacoes_tree.delete(item)
