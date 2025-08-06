@@ -7,16 +7,16 @@ from utils.formatters import format_cnpj, format_phone, validate_cnpj, validate_
 
 class ClientesModule(BaseModule):
     def setup_ui(self):
-        # Container principal
+        # Container principal - usando toda a tela
         container = tk.Frame(self.frame, bg='#f8fafc')
-        container.pack(fill="both", expand=True, padx=20, pady=20)
+        container.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Header
+        # Header compacto
         self.create_header(container)
         
-        # Notebook para organizar seções
+        # Notebook para organizar seções - usando todo o espaço restante
         self.notebook = ttk.Notebook(container)
-        self.notebook.pack(fill="both", expand=True, pady=(20, 0))
+        self.notebook.pack(fill="both", expand=True, pady=(10, 0))
         
         # Aba: Dados do Cliente (inclui contatos integrados)
         self.create_cliente_unificado_tab()
@@ -33,10 +33,10 @@ class ClientesModule(BaseModule):
         
     def create_header(self, parent):
         header_frame = tk.Frame(parent, bg='#f8fafc')
-        header_frame.pack(fill="x", pady=(0, 20))
+        header_frame.pack(fill="x", pady=(0, 10))
         
         title_label = tk.Label(header_frame, text="Gestão de Clientes", 
-                               font=('Arial', 18, 'bold'),
+                               font=('Arial', 16, 'bold'),
                                bg='#f8fafc',
                                fg='#1e293b')
         title_label.pack(side="left")
@@ -66,7 +66,7 @@ class ClientesModule(BaseModule):
         self.create_cliente_content(self.scrollable_cliente)
         
     def create_cliente_content(self, parent):
-        content_frame = tk.Frame(parent, bg='white', padx=20, pady=20)
+        content_frame = tk.Frame(parent, bg='white', padx=10, pady=10)
         content_frame.pack(fill="both", expand=True)
         
         # Seção: Dados Básicos
@@ -89,7 +89,7 @@ class ClientesModule(BaseModule):
         
     def create_dados_basicos_section(self, parent):
         section_frame = self.create_section_frame(parent, "Dados Básicos")
-        section_frame.pack(fill="x", pady=(0, 15))
+        section_frame.pack(fill="x", pady=(0, 10))
         
         # Grid de campos
         fields_frame = tk.Frame(section_frame, bg='white')
@@ -106,38 +106,38 @@ class ClientesModule(BaseModule):
         
         # Nome
         tk.Label(fields_frame, text="Nome/Razão Social *:", 
-                 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
+                 font=('Arial', 9, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=3)
         tk.Entry(fields_frame, textvariable=self.nome_var, 
-                 font=('Arial', 10), width=50).grid(row=row, column=1, columnspan=3, sticky="ew", padx=(10, 0), pady=5)
+                 font=('Arial', 9), width=50).grid(row=row, column=1, columnspan=3, sticky="ew", padx=(10, 0), pady=3)
         row += 1
         
         # Nome Fantasia
         tk.Label(fields_frame, text="Nome Fantasia:", 
-                 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
+                 font=('Arial', 9, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=3)
         tk.Entry(fields_frame, textvariable=self.nome_fantasia_var, 
-                 font=('Arial', 10), width=50).grid(row=row, column=1, columnspan=3, sticky="ew", padx=(10, 0), pady=5)
+                 font=('Arial', 9), width=50).grid(row=row, column=1, columnspan=3, sticky="ew", padx=(10, 0), pady=3)
         row += 1
         
         # CNPJ
         tk.Label(fields_frame, text="CNPJ:", 
-                 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
+                 font=('Arial', 9, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=3)
         cnpj_entry = tk.Entry(fields_frame, textvariable=self.cnpj_var, 
-                              font=('Arial', 10), width=20)
-        cnpj_entry.grid(row=row, column=1, sticky="w", padx=(10, 0), pady=5)
+                              font=('Arial', 9), width=20)
+        cnpj_entry.grid(row=row, column=1, sticky="w", padx=(10, 0), pady=3)
         cnpj_entry.bind('<FocusOut>', self.format_cnpj)
         
         # Inscrição Estadual
         tk.Label(fields_frame, text="Inscrição Estadual:", 
-                 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=2, sticky="w", pady=5, padx=(20, 0))
+                 font=('Arial', 9, 'bold'), bg='white').grid(row=row, column=2, sticky="w", pady=3, padx=(20, 0))
         tk.Entry(fields_frame, textvariable=self.inscricao_estadual_var, 
-                 font=('Arial', 10), width=20).grid(row=row, column=3, sticky="ew", padx=(10, 0), pady=5)
+                 font=('Arial', 9), width=20).grid(row=row, column=3, sticky="ew", padx=(10, 0), pady=3)
         row += 1
         
         # Inscrição Municipal
         tk.Label(fields_frame, text="Inscrição Municipal:", 
-                 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
+                 font=('Arial', 9, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=3)
         tk.Entry(fields_frame, textvariable=self.inscricao_municipal_var, 
-                 font=('Arial', 10), width=20).grid(row=row, column=1, sticky="w", padx=(10, 0), pady=5)
+                 font=('Arial', 9), width=20).grid(row=row, column=1, sticky="w", padx=(10, 0), pady=3)
         
         # Configurar colunas
         fields_frame.grid_columnconfigure(3, weight=1)
@@ -145,7 +145,7 @@ class ClientesModule(BaseModule):
     def create_prazo_pagamento_section(self, parent):
         """Criar seção para prazo de pagamento"""
         section_frame = self.create_section_frame(parent, "Prazo de Pagamento")
-        section_frame.pack(fill="x", pady=(0, 15))
+        section_frame.pack(fill="x", pady=(0, 10))
         
         # Grid de campos
         fields_frame = tk.Frame(section_frame, bg='white')
@@ -158,17 +158,17 @@ class ClientesModule(BaseModule):
         
         # Prazo de Pagamento
         tk.Label(fields_frame, text="Prazo de Pagamento:", 
-                 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
+                 font=('Arial', 9, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=3)
         prazo_combo = ttk.Combobox(fields_frame, textvariable=self.prazo_pagamento_var, 
                                   values=["À vista", "15 dias", "30 dias", "45 dias", "60 dias", "90 dias"], 
                                   width=15, state="readonly")
-        prazo_combo.grid(row=row, column=1, sticky="w", padx=(10, 0), pady=5)
+        prazo_combo.grid(row=row, column=1, sticky="w", padx=(10, 0), pady=3)
         
         fields_frame.grid_columnconfigure(1, weight=1)
         
     def create_endereco_section(self, parent):
         section_frame = self.create_section_frame(parent, "Endereço")
-        section_frame.pack(fill="x", pady=(0, 15))
+        section_frame.pack(fill="x", pady=(0, 10))
         
         fields_frame = tk.Frame(section_frame, bg='white')
         fields_frame.pack(fill="x")
@@ -242,7 +242,7 @@ class ClientesModule(BaseModule):
         
     def create_comercial_section(self, parent):
         section_frame = self.create_section_frame(parent, "Informações Comerciais")
-        section_frame.pack(fill="x", pady=(0, 15))
+        section_frame.pack(fill="x", pady=(0, 10))
         
         fields_frame = tk.Frame(section_frame, bg='white')
         fields_frame.pack(fill="x")
