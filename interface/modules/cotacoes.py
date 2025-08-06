@@ -10,6 +10,10 @@ from pdf_generators.cotacao_nova import gerar_pdf_cotacao_nova
 
 class CotacoesModule(BaseModule):
     def setup_ui(self):
+        # Inicializar variáveis primeiro
+        self.current_cotacao_id = None
+        self.current_cotacao_itens = []
+        
         # Container principal - usando toda a tela
         container = tk.Frame(self.frame, bg='#f8fafc')
         container.pack(fill="both", expand=True, padx=10, pady=10)
@@ -26,10 +30,6 @@ class CotacoesModule(BaseModule):
         
         # Aba: Lista de Cotações
         self.create_lista_cotacoes_tab()
-        
-        # Inicializar variáveis
-        self.current_cotacao_id = None
-        self.current_cotacao_itens = []
         
         # Carregar dados iniciais
         self.refresh_all_data()

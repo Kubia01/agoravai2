@@ -10,6 +10,11 @@ from pdf_generators.relatorio_tecnico import gerar_pdf_relatorio
 
 class RelatoriosModule(BaseModule):
     def setup_ui(self):
+        # Inicializar variáveis primeiro
+        self.current_relatorio_id = None
+        self.tecnicos_eventos = {}
+        self.anexos_aba = {1: [], 2: [], 3: [], 4: []}
+        
         # Container principal - usando toda a tela
         container = tk.Frame(self.frame, bg='#f8fafc')
         container.pack(fill="both", expand=True, padx=10, pady=10)
@@ -26,11 +31,6 @@ class RelatoriosModule(BaseModule):
         
         # Aba: Lista de Relatórios
         self.create_lista_relatorios_tab()
-        
-        # Inicializar variáveis
-        self.current_relatorio_id = None
-        self.tecnicos_eventos = {}
-        self.anexos_aba = {1: [], 2: [], 3: [], 4: []}
         
         # Carregar dados iniciais
         self.refresh_all_data()
