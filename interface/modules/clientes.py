@@ -66,41 +66,50 @@ class ClientesModule(BaseModule):
         self.create_cliente_content(self.scrollable_cliente)
         
     def create_cliente_content(self, parent):
-        content_frame = tk.Frame(parent, bg='white', padx=5, pady=5)
+        content_frame = tk.Frame(parent, bg='white', padx=2, pady=2)
         content_frame.pack(fill="both", expand=True)
         
-        # Frame principal com grid 2x2 para maximizar uso do espaço
+        # Frame principal com grid 3x2 para máximo aproveitamento
         main_grid = tk.Frame(content_frame, bg='white')
         main_grid.pack(fill="both", expand=True)
         
         # Configurar grid para usar toda a tela
-        main_grid.grid_columnconfigure(0, weight=1)
-        main_grid.grid_columnconfigure(1, weight=1)
-        main_grid.grid_rowconfigure(0, weight=1)
-        main_grid.grid_rowconfigure(1, weight=1)
+        main_grid.grid_columnconfigure(0, weight=1)  # Dados Básicos
+        main_grid.grid_columnconfigure(1, weight=1)  # Endereço
+        main_grid.grid_columnconfigure(2, weight=1)  # Dashboard
+        main_grid.grid_rowconfigure(0, weight=1)     # Linha superior
+        main_grid.grid_rowconfigure(1, weight=1)     # Linha inferior
         
-        # Coluna 1 - Dados Básicos e Endereço
-        left_column = tk.Frame(main_grid, bg='white')
-        left_column.grid(row=0, column=0, sticky="nsew", padx=(0, 5), pady=(0, 5))
-        left_column.grid_columnconfigure(0, weight=1)
+        # Coluna 1 - Dados Básicos
+        dados_column = tk.Frame(main_grid, bg='white')
+        dados_column.grid(row=0, column=0, sticky="nsew", padx=(0, 2), pady=(0, 2))
+        dados_column.grid_columnconfigure(0, weight=1)
         
-        # Coluna 2 - Informações Comerciais e Prazo
-        right_column = tk.Frame(main_grid, bg='white')
-        right_column.grid(row=0, column=1, sticky="nsew", padx=(5, 0), pady=(0, 5))
-        right_column.grid_columnconfigure(0, weight=1)
+        # Coluna 2 - Endereço e Comercial
+        endereco_column = tk.Frame(main_grid, bg='white')
+        endereco_column.grid(row=0, column=1, sticky="nsew", padx=2, pady=(0, 2))
+        endereco_column.grid_columnconfigure(0, weight=1)
+        
+        # Coluna 3 - Dashboard Expandido
+        dashboard_column = tk.Frame(main_grid, bg='white')
+        dashboard_column.grid(row=0, column=2, sticky="nsew", padx=(2, 0), pady=(0, 2))
+        dashboard_column.grid_columnconfigure(0, weight=1)
         
         # Linha inferior - Contatos e Botões (largura total)
         bottom_row = tk.Frame(main_grid, bg='white')
-        bottom_row.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(5, 0))
+        bottom_row.grid(row=1, column=0, columnspan=3, sticky="nsew", pady=(2, 0))
         bottom_row.grid_columnconfigure(0, weight=1)
         
-        # Seções na coluna esquerda
-        self.create_dados_basicos_section(left_column)
-        self.create_endereco_section(left_column)
+        # Seções na coluna de dados
+        self.create_dados_basicos_section(dados_column)
         
-        # Seções na coluna direita
-        self.create_comercial_section(right_column)
-        self.create_prazo_pagamento_section(right_column)
+        # Seções na coluna de endereço
+        self.create_endereco_section(endereco_column)
+        self.create_comercial_section(endereco_column)
+        self.create_prazo_pagamento_section(endereco_column)
+        
+        # Dashboard expandido na coluna direita
+        self.create_cliente_dashboard_expandido(dashboard_column)
         
         # Seções na linha inferior
         self.create_contatos_integrados_section(bottom_row)
@@ -455,6 +464,224 @@ class ClientesModule(BaseModule):
         
         # Inicializar dados do dashboard
         self.update_cliente_dashboard()
+        
+    def create_cliente_dashboard_expandido(self, parent):
+        """Criar dashboard expandido com mais informações úteis"""
+        # Frame do dashboard
+        dashboard_frame = tk.Frame(parent, bg='white', relief='solid', bd=1)
+        dashboard_frame.pack(fill="both", expand=True)
+        
+        # Título
+        title_label = tk.Label(dashboard_frame, text="📊 Dashboard Completo do Cliente", 
+                               font=('Arial', 12, 'bold'), bg='#f8fafc', fg='#1e293b')
+        title_label.pack(fill="x", pady=(8, 12))
+        
+        # Container para cards com scroll
+        canvas = tk.Canvas(dashboard_frame, bg='white')
+        scrollbar = ttk.Scrollbar(dashboard_frame, orient="vertical", command=canvas.yview)
+        cards_container = tk.Frame(canvas, bg='white')
+        
+        cards_container.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=cards_container, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True, padx=5, pady=(0, 5))
+        scrollbar.pack(side="right", fill="y")
+        
+        # Card 1 - Estatísticas Detalhadas
+        stats_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
+        stats_card.pack(fill="x", pady=(0, 8))
+        
+        tk.Label(stats_card, text="📈 Estatísticas Detalhadas", font=('Arial', 10, 'bold'), 
+                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=8, pady=(8, 4))
+        
+        self.stats_detalhadas_text = tk.Text(stats_card, height=8, width=35, font=('Arial', 9),
+                                            bg='white', relief='solid', bd=1, wrap=tk.WORD)
+        self.stats_detalhadas_text.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        
+        # Card 2 - Histórico Completo
+        history_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
+        history_card.pack(fill="x", pady=(0, 8))
+        
+        tk.Label(history_card, text="🕒 Histórico Completo", font=('Arial', 10, 'bold'), 
+                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=8, pady=(8, 4))
+        
+        self.history_completo_text = tk.Text(history_card, height=10, width=35, font=('Arial', 9),
+                                            bg='white', relief='solid', bd=1, wrap=tk.WORD)
+        self.history_completo_text.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        
+        # Card 3 - Análise Financeira
+        finance_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
+        finance_card.pack(fill="x", pady=(0, 8))
+        
+        tk.Label(finance_card, text="💰 Análise Financeira", font=('Arial', 10, 'bold'), 
+                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=8, pady=(8, 4))
+        
+        self.finance_text = tk.Text(finance_card, height=6, width=35, font=('Arial', 9),
+                                   bg='white', relief='solid', bd=1, wrap=tk.WORD)
+        self.finance_text.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        
+        # Card 4 - Produtos Mais Vendidos
+        produtos_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
+        produtos_card.pack(fill="x", pady=(0, 8))
+        
+        tk.Label(produtos_card, text="📦 Produtos Mais Vendidos", font=('Arial', 10, 'bold'), 
+                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=8, pady=(8, 4))
+        
+        self.produtos_text = tk.Text(produtos_card, height=6, width=35, font=('Arial', 9),
+                                    bg='white', relief='solid', bd=1, wrap=tk.WORD)
+        self.produtos_text.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        
+        # Inicializar dados do dashboard expandido
+        self.update_cliente_dashboard_expandido()
+        
+    def update_cliente_dashboard_expandido(self):
+        """Atualizar dados do dashboard expandido"""
+        if not hasattr(self, 'stats_detalhadas_text'):
+            return
+            
+        # Limpar textos
+        self.stats_detalhadas_text.delete('1.0', tk.END)
+        self.history_completo_text.delete('1.0', tk.END)
+        self.finance_text.delete('1.0', tk.END)
+        self.produtos_text.delete('1.0', tk.END)
+        
+        if self.current_cliente_id:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            
+            try:
+                # Estatísticas detalhadas
+                c.execute("SELECT COUNT(*) FROM cotacoes WHERE cliente_id = ?", (self.current_cliente_id,))
+                total_cotacoes = c.fetchone()[0]
+                
+                c.execute("SELECT COUNT(*) FROM cotacoes WHERE cliente_id = ? AND status = 'Aprovada'", (self.current_cliente_id,))
+                cotacoes_aprovadas = c.fetchone()[0]
+                
+                c.execute("SELECT COUNT(*) FROM cotacoes WHERE cliente_id = ? AND status = 'Rejeitada'", (self.current_cliente_id,))
+                cotacoes_rejeitadas = c.fetchone()[0]
+                
+                c.execute("SELECT COUNT(*) FROM cotacoes WHERE cliente_id = ? AND status = 'Em Aberto'", (self.current_cliente_id,))
+                cotacoes_aberto = c.fetchone()[0]
+                
+                c.execute("SELECT SUM(valor_total) FROM cotacoes WHERE cliente_id = ? AND status = 'Aprovada'", (self.current_cliente_id,))
+                faturamento = c.fetchone()[0] or 0
+                
+                c.execute("SELECT AVG(valor_total) FROM cotacoes WHERE cliente_id = ? AND valor_total > 0", (self.current_cliente_id,))
+                media_valor = c.fetchone()[0] or 0
+                
+                c.execute("SELECT COUNT(*) FROM contatos WHERE cliente_id = ?", (self.current_cliente_id,))
+                total_contatos = c.fetchone()[0]
+                
+                # Taxa de conversão
+                taxa_conversao = (cotacoes_aprovadas / total_cotacoes * 100) if total_cotacoes > 0 else 0
+                
+                stats_info = f"""Total de Cotações: {total_cotacoes}
+Aprovadas: {cotacoes_aprovadas} ({taxa_conversao:.1f}%)
+Rejeitadas: {cotacoes_rejeitadas}
+Em Aberto: {cotacoes_aberto}
+Faturamento Total: R$ {faturamento:,.2f}
+Média por Cotação: R$ {media_valor:,.2f}
+Contatos Cadastrados: {total_contatos}"""
+                
+                self.stats_detalhadas_text.insert('1.0', stats_info)
+                
+                # Histórico completo
+                c.execute("""
+                    SELECT numero_proposta, data_criacao, status, valor_total, 
+                           responsavel_id, data_validade
+                    FROM cotacoes 
+                    WHERE cliente_id = ? 
+                    ORDER BY data_criacao DESC 
+                    LIMIT 10
+                """, (self.current_cliente_id,))
+                
+                historico = c.fetchall()
+                if historico:
+                    history_info = ""
+                    for cotacao in historico:
+                        numero, data, status, valor, resp_id, validade = cotacao
+                        
+                        # Buscar nome do responsável
+                        c.execute("SELECT nome_completo FROM usuarios WHERE id = ?", (resp_id,))
+                        resp_nome = c.fetchone()
+                        resp_nome = resp_nome[0] if resp_nome else "N/A"
+                        
+                        history_info += f"📋 {numero}\n"
+                        history_info += f"   Data: {data}\n"
+                        history_info += f"   Status: {status}\n"
+                        history_info += f"   Valor: R$ {valor:,.2f}\n"
+                        history_info += f"   Responsável: {resp_nome}\n"
+                        history_info += f"   Validade: {validade}\n\n"
+                else:
+                    history_info = "Nenhuma cotação encontrada."
+                
+                self.history_completo_text.insert('1.0', history_info)
+                
+                # Análise financeira
+                c.execute("""
+                    SELECT 
+                        SUM(CASE WHEN status = 'Aprovada' THEN valor_total ELSE 0 END) as aprovado,
+                        SUM(CASE WHEN status = 'Em Aberto' THEN valor_total ELSE 0 END) as em_aberto,
+                        SUM(CASE WHEN status = 'Rejeitada' THEN valor_total ELSE 0 END) as rejeitado
+                    FROM cotacoes 
+                    WHERE cliente_id = ?
+                """, (self.current_cliente_id,))
+                
+                finance_data = c.fetchone()
+                if finance_data:
+                    aprovado, em_aberto, rejeitado = finance_data
+                    aprovado = aprovado or 0
+                    em_aberto = em_aberto or 0
+                    rejeitado = rejeitado or 0
+                    
+                    finance_info = f"""Valor Aprovado: R$ {aprovado:,.2f}
+Valor em Aberto: R$ {em_aberto:,.2f}
+Valor Rejeitado: R$ {rejeitado:,.2f}
+Total Movimentado: R$ {aprovado + em_aberto + rejeitado:,.2f}
+
+Potencial de Faturamento:
+- Em Aberto: R$ {em_aberto:,.2f}"""
+                    
+                    self.finance_text.insert('1.0', finance_info)
+                
+                # Produtos mais vendidos
+                c.execute("""
+                    SELECT ic.item_nome, COUNT(*) as quantidade, SUM(ic.valor_total_item) as valor_total
+                    FROM itens_cotacao ic
+                    JOIN cotacoes c ON ic.cotacao_id = c.id
+                    WHERE c.cliente_id = ? AND c.status = 'Aprovada'
+                    GROUP BY ic.item_nome
+                    ORDER BY quantidade DESC, valor_total DESC
+                    LIMIT 5
+                """, (self.current_cliente_id,))
+                
+                produtos = c.fetchall()
+                if produtos:
+                    produtos_info = ""
+                    for produto in produtos:
+                        nome, qtd, valor = produto
+                        produtos_info += f"📦 {nome}\n"
+                        produtos_info += f"   Qtd: {qtd}\n"
+                        produtos_info += f"   Valor: R$ {valor:,.2f}\n\n"
+                else:
+                    produtos_info = "Nenhum produto vendido ainda."
+                
+                self.produtos_text.insert('1.0', produtos_info)
+                
+            except sqlite3.Error as e:
+                self.stats_detalhadas_text.insert('1.0', f"Erro ao carregar dados: {e}")
+            finally:
+                conn.close()
+        else:
+            self.stats_detalhadas_text.insert('1.0', "Selecione um cliente para ver as estatísticas.")
+            self.history_completo_text.insert('1.0', "Selecione um cliente para ver o histórico.")
+            self.finance_text.insert('1.0', "Selecione um cliente para ver a análise financeira.")
+            self.produtos_text.insert('1.0', "Selecione um cliente para ver os produtos.")
         
     def update_cliente_dashboard(self):
         """Atualizar dados do dashboard"""
@@ -982,8 +1209,9 @@ Contatos Cadastrados: {total_contatos}"""
             # Mudar para a primeira aba
             self.notebook.select(0)
             
-            # Atualizar dashboard
+            # Atualizar dashboards
             self.update_cliente_dashboard()
+            self.update_cliente_dashboard_expandido()
             
         except sqlite3.Error as e:
             self.show_error(f"Erro ao carregar cliente: {e}")
