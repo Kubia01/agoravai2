@@ -574,6 +574,10 @@ class ClientesModule(BaseModule):
                 c.execute("SELECT AVG(valor_total) FROM cotacoes WHERE cliente_id = ? AND valor_total > 0", (self.current_cliente_id,))
                 media_valor = c.fetchone()[0] or 0
                 
+                # Tratar valores None
+                faturamento = faturamento or 0
+                media_valor = media_valor or 0
+                
                 c.execute("SELECT COUNT(*) FROM contatos WHERE cliente_id = ?", (self.current_cliente_id,))
                 total_contatos = c.fetchone()[0]
                 
@@ -611,6 +615,7 @@ Contatos Cadastrados: {total_contatos}"""
                         resp_nome = c.fetchone()
                         resp_nome = resp_nome[0] if resp_nome else "N/A"
                         
+                        valor = valor or 0  # Tratar valor None
                         history_info += f"📋 {numero}\n"
                         history_info += f"   Data: {data}\n"
                         history_info += f"   Status: {status}\n"
@@ -638,6 +643,11 @@ Contatos Cadastrados: {total_contatos}"""
                     aprovado = aprovado or 0
                     em_aberto = em_aberto or 0
                     rejeitado = rejeitado or 0
+                    
+                    # Garantir que são números
+                    aprovado = float(aprovado) if aprovado is not None else 0
+                    em_aberto = float(em_aberto) if em_aberto is not None else 0
+                    rejeitado = float(rejeitado) if rejeitado is not None else 0
                     
                     finance_info = f"""Valor Aprovado: R$ {aprovado:,.2f}
 Valor em Aberto: R$ {em_aberto:,.2f}
