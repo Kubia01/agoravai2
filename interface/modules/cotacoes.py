@@ -72,21 +72,9 @@ class CotacoesModule(BaseModule):
         content_frame = tk.Frame(parent, bg='white', padx=2, pady=2)
         content_frame.pack(fill="both", expand=True)
         
-        # Frame principal com scroll horizontal
-        canvas = tk.Canvas(content_frame, bg='white')
-        h_scrollbar = ttk.Scrollbar(content_frame, orient="horizontal", command=canvas.xview)
-        v_scrollbar = ttk.Scrollbar(content_frame, orient="vertical", command=canvas.yview)
-        
-        main_grid = tk.Frame(canvas, bg='white')
-        
-        # Configurar scroll
-        main_grid.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        
-        canvas.create_window((0, 0), window=main_grid, anchor="nw")
-        canvas.configure(xscrollcommand=h_scrollbar.set, yscrollcommand=v_scrollbar.set)
+        # Frame principal com grid 3x1 para máximo aproveitamento - SEM SCROLL
+        main_grid = tk.Frame(content_frame, bg='white')
+        main_grid.pack(fill="both", expand=True)
         
         # Configurar grid para usar toda a tela
         main_grid.grid_columnconfigure(0, weight=2)  # Dados da Cotação
@@ -115,11 +103,6 @@ class CotacoesModule(BaseModule):
         
         # Botões de ação (largura total)
         self.create_cotacao_buttons(content_frame)
-        
-        # Pack dos elementos de scroll
-        canvas.pack(side="top", fill="both", expand=True)
-        h_scrollbar.pack(side="bottom", fill="x")
-        v_scrollbar.pack(side="right", fill="y")
         
     def create_dados_cotacao_section(self, parent):
         section_frame = self.create_section_frame(parent, "Dados da Cotação")

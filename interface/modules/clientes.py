@@ -73,8 +73,8 @@ class ClientesModule(BaseModule):
         main_grid = tk.Frame(content_frame, bg='white')
         main_grid.pack(fill="both", expand=True)
         
-        # Configurar grid para usar toda a tela
-        main_grid.grid_columnconfigure(0, weight=2)  # Dados Básicos + Endereço
+        # Configurar grid para usar toda a tela - PESOS IGUAIS
+        main_grid.grid_columnconfigure(0, weight=1)  # Dados Básicos + Endereço
         main_grid.grid_columnconfigure(1, weight=1)  # Dashboard
         main_grid.grid_rowconfigure(0, weight=1)     # Linha superior
         main_grid.grid_rowconfigure(1, weight=1)     # Linha inferior
