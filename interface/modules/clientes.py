@@ -142,6 +142,30 @@ class ClientesModule(BaseModule):
         # Configurar colunas
         fields_frame.grid_columnconfigure(3, weight=1)
         
+    def create_prazo_pagamento_section(self, parent):
+        """Criar seção para prazo de pagamento"""
+        section_frame = self.create_section_frame(parent, "Prazo de Pagamento")
+        section_frame.pack(fill="x", pady=(0, 15))
+        
+        # Grid de campos
+        fields_frame = tk.Frame(section_frame, bg='white')
+        fields_frame.pack(fill="x")
+        
+        # Variáveis
+        self.prazo_pagamento_var = tk.StringVar()
+        
+        row = 0
+        
+        # Prazo de Pagamento
+        tk.Label(fields_frame, text="Prazo de Pagamento:", 
+                 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
+        prazo_combo = ttk.Combobox(fields_frame, textvariable=self.prazo_pagamento_var, 
+                                  values=["À vista", "15 dias", "30 dias", "45 dias", "60 dias", "90 dias"], 
+                                  width=15, state="readonly")
+        prazo_combo.grid(row=row, column=1, sticky="w", padx=(10, 0), pady=5)
+        
+        fields_frame.grid_columnconfigure(1, weight=1)
+        
     def create_endereco_section(self, parent):
         section_frame = self.create_section_frame(parent, "Endereço")
         section_frame.pack(fill="x", pady=(0, 15))
@@ -227,7 +251,6 @@ class ClientesModule(BaseModule):
         self.telefone_var = tk.StringVar()
         self.email_var = tk.StringVar()
         self.site_var = tk.StringVar()
-        self.prazo_pagamento_var = tk.StringVar()
         
         row = 0
         
@@ -251,15 +274,6 @@ class ClientesModule(BaseModule):
                  font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
         tk.Entry(fields_frame, textvariable=self.site_var, 
                  font=('Arial', 10), width=30).grid(row=row, column=1, columnspan=2, sticky="ew", padx=(10, 0), pady=5)
-        row += 1
-        
-        # Prazo de Pagamento
-        tk.Label(fields_frame, text="Prazo de Pagamento:", 
-                 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
-        prazo_combo = ttk.Combobox(fields_frame, textvariable=self.prazo_pagamento_var,
-                                  values=["À vista", "15 dias", "30 dias", "45 dias", "60 dias", "90 dias"],
-                                  width=15)
-        prazo_combo.grid(row=row, column=1, sticky="w", padx=(10, 0), pady=5)
         
         # Configurar colunas
         fields_frame.grid_columnconfigure(3, weight=1)
