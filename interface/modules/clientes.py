@@ -7,6 +7,10 @@ from utils.formatters import format_cnpj, format_phone, validate_cnpj, validate_
 
 class ClientesModule(BaseModule):
     def setup_ui(self):
+        # Inicializar variáveis primeiro
+        self.current_cliente_id = None
+        self.contatos_data = []
+        
         # Container principal - usando toda a tela
         container = tk.Frame(self.frame, bg='#f8fafc')
         container.pack(fill="both", expand=True, padx=10, pady=10)
@@ -23,10 +27,6 @@ class ClientesModule(BaseModule):
         
         # Aba: Lista de Clientes
         self.create_lista_clientes_tab()
-        
-        # Inicializar variáveis
-        self.current_cliente_id = None
-        self.contatos_data = []
         
         # Carregar dados
         self.carregar_clientes()
