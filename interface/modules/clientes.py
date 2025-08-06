@@ -78,6 +78,9 @@ class ClientesModule(BaseModule):
         # Seção: Informações Comerciais
         self.create_comercial_section(content_frame)
         
+        # Seção: Prazo de Pagamento
+        self.create_prazo_pagamento_section(content_frame)
+        
         # Seção: Contatos (integrada)
         self.create_contatos_integrados_section(content_frame)
         
@@ -603,6 +606,19 @@ class ClientesModule(BaseModule):
         c = conn.cursor()
         
         try:
+            # Verificar CNPJ duplicado antes de salvar
+            if cnpj:
+                if self.current_cliente_id:
+                    # Verificar se existe outro cliente com o mesmo CNPJ (excluindo o atual)
+                    c.execute("SELECT id FROM clientes WHERE cnpj = ? AND id != ?", (cnpj, self.current_cliente_id))
+                else:
+                    # Verificar se existe cliente com o mesmo CNPJ
+                    c.execute("SELECT id FROM clientes WHERE cnpj = ?", (cnpj,))
+                
+                if c.fetchone():
+                    self.show_error("CNPJ já cadastrado no sistema. Não é possível salvar um CNPJ duplicado.")
+                    return
+            
             # Preparar dados
             dados = (
                 nome,

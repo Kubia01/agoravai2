@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from interface.modules import CotacoesModule, RelatoriosModule, ClientesModule, ProdutosModule, UsuariosModule, DashboardModule, PermissoesModule, EditorTemplatePDFModule
+from interface.modules import CotacoesModule, RelatoriosModule, ClientesModule, ProdutosModule, UsuariosModule, DashboardModule, PermissoesModule, ConsultasModule, EditorTemplatePDFModule
 
 class MainWindow:
     def __init__(self, root, user_id, role, nome_completo):
@@ -124,6 +124,11 @@ class MainWindow:
         relatorios_frame = tk.Frame(self.notebook)
         self.notebook.add(relatorios_frame, text="📋 Relatórios")
         self.relatorios_module = RelatoriosModule(relatorios_frame, self.user_id, self.role, self)
+        
+        # Consultas Avançadas
+        consultas_frame = tk.Frame(self.notebook)
+        self.notebook.add(consultas_frame, text="🔍 Consultas")
+        self.consultas_module = ConsultasModule(consultas_frame, self.user_id, self.role, self)
         
         # Usuários (apenas para admins)
         if self.role == 'admin':

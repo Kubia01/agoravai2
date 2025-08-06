@@ -167,26 +167,49 @@ class DashboardModule(BaseModule):
         c = conn.cursor()
         
         try:
-            # Carregar estatísticas
-            # Clientes
-            c.execute("SELECT COUNT(*) FROM clientes")
-            clients_count = c.fetchone()[0]
-            self.clients_card.value_label.config(text=str(clients_count))
-            
-            # Produtos
-            c.execute("SELECT COUNT(*) FROM produtos WHERE ativo = 1")
-            products_count = c.fetchone()[0]
-            self.products_card.value_label.config(text=str(products_count))
-            
-            # Cotações
-            c.execute("SELECT COUNT(*) FROM cotacoes")
-            quotes_count = c.fetchone()[0]
-            self.quotes_card.value_label.config(text=str(quotes_count))
-            
-            # Relatórios
-            c.execute("SELECT COUNT(*) FROM relatorios_tecnicos")
-            reports_count = c.fetchone()[0]
-            self.reports_card.value_label.config(text=str(reports_count))
+            # Carregar estatísticas baseadas no perfil do usuário
+            if self.role == 'admin':
+                # Admin vê dados gerais de todos
+                # Clientes
+                c.execute("SELECT COUNT(*) FROM clientes")
+                clients_count = c.fetchone()[0]
+                self.clients_card.value_label.config(text=str(clients_count))
+                
+                # Produtos
+                c.execute("SELECT COUNT(*) FROM produtos WHERE ativo = 1")
+                products_count = c.fetchone()[0]
+                self.products_card.value_label.config(text=str(products_count))
+                
+                # Cotações
+                c.execute("SELECT COUNT(*) FROM cotacoes")
+                quotes_count = c.fetchone()[0]
+                self.quotes_card.value_label.config(text=str(quotes_count))
+                
+                # Relatórios
+                c.execute("SELECT COUNT(*) FROM relatorios_tecnicos")
+                reports_count = c.fetchone()[0]
+                self.reports_card.value_label.config(text=str(reports_count))
+            else:
+                # Usuários veem apenas seus dados
+                # Cotações do usuário
+                c.execute("SELECT COUNT(*) FROM cotacoes WHERE responsavel_id = ?", (self.user_id,))
+                quotes_count = c.fetchone()[0]
+                self.quotes_card.value_label.config(text=str(quotes_count))
+                
+                # Relatórios do usuário
+                c.execute("SELECT COUNT(*) FROM relatorios_tecnicos WHERE responsavel_id = ?", (self.user_id,))
+                reports_count = c.fetchone()[0]
+                self.reports_card.value_label.config(text=str(reports_count))
+                
+                # Faturamento do usuário (cotações aprovadas)
+                c.execute("SELECT SUM(valor_total) FROM cotacoes WHERE responsavel_id = ? AND status = 'Aprovada'", (self.user_id,))
+                faturamento = c.fetchone()[0] or 0
+                self.clients_card.value_label.config(text=format_currency(faturamento))
+                
+                # Quantidade de propostas feitas
+                c.execute("SELECT COUNT(*) FROM cotacoes WHERE responsavel_id = ?", (self.user_id,))
+                propostas_count = c.fetchone()[0]
+                self.products_card.value_label.config(text=str(propostas_count))
             
             # Carregar cotações recentes
             self.load_recent_quotes(c)
@@ -205,14 +228,24 @@ class DashboardModule(BaseModule):
         for item in self.quotes_tree.get_children():
             self.quotes_tree.delete(item)
             
-        # Buscar cotações recentes
-        cursor.execute("""
-            SELECT c.numero_proposta, cl.nome, c.data_criacao, c.valor_total, c.status
-            FROM cotacoes c
-            JOIN clientes cl ON c.cliente_id = cl.id
-            ORDER BY c.created_at DESC
-            LIMIT 10
-        """)
+        # Buscar cotações recentes baseadas no perfil
+        if self.role == 'admin':
+            cursor.execute("""
+                SELECT c.numero_proposta, cl.nome, c.data_criacao, c.valor_total, c.status
+                FROM cotacoes c
+                JOIN clientes cl ON c.cliente_id = cl.id
+                ORDER BY c.created_at DESC
+                LIMIT 10
+            """)
+        else:
+            cursor.execute("""
+                SELECT c.numero_proposta, cl.nome, c.data_criacao, c.valor_total, c.status
+                FROM cotacoes c
+                JOIN clientes cl ON c.cliente_id = cl.id
+                WHERE c.responsavel_id = ?
+                ORDER BY c.created_at DESC
+                LIMIT 10
+            """, (self.user_id,))
         
         for row in cursor.fetchall():
             numero, cliente, data, valor, status = row
@@ -230,15 +263,26 @@ class DashboardModule(BaseModule):
         for item in self.reports_tree.get_children():
             self.reports_tree.delete(item)
             
-        # Buscar relatórios recentes
-        cursor.execute("""
-            SELECT r.numero_relatorio, cl.nome, r.data_criacao, u.nome_completo, r.tipo_servico
-            FROM relatorios_tecnicos r
-            JOIN clientes cl ON r.cliente_id = cl.id
-            JOIN usuarios u ON r.responsavel_id = u.id
-            ORDER BY r.created_at DESC
-            LIMIT 10
-        """)
+        # Buscar relatórios recentes baseadas no perfil
+        if self.role == 'admin':
+            cursor.execute("""
+                SELECT r.numero_relatorio, cl.nome, r.data_criacao, u.nome_completo, r.tipo_servico
+                FROM relatorios_tecnicos r
+                JOIN clientes cl ON r.cliente_id = cl.id
+                JOIN usuarios u ON r.responsavel_id = u.id
+                ORDER BY r.created_at DESC
+                LIMIT 10
+            """)
+        else:
+            cursor.execute("""
+                SELECT r.numero_relatorio, cl.nome, r.data_criacao, u.nome_completo, r.tipo_servico
+                FROM relatorios_tecnicos r
+                JOIN clientes cl ON r.cliente_id = cl.id
+                JOIN usuarios u ON r.responsavel_id = u.id
+                WHERE r.responsavel_id = ?
+                ORDER BY r.created_at DESC
+                LIMIT 10
+            """, (self.user_id,))
         
         for row in cursor.fetchall():
             numero, cliente, data, responsavel, tipo = row
