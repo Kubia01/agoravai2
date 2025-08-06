@@ -69,16 +69,35 @@ class CotacoesModule(BaseModule):
         self.create_cotacao_content(self.scrollable_cotacao)
         
     def create_cotacao_content(self, parent):
-        content_frame = tk.Frame(parent, bg='white', padx=10, pady=10)
+        content_frame = tk.Frame(parent, bg='white', padx=5, pady=5)
         content_frame.pack(fill="both", expand=True)
         
-        # Seção: Dados da Cotação
-        self.create_dados_cotacao_section(content_frame)
+        # Frame principal com grid 2x1 para maximizar uso do espaço
+        main_grid = tk.Frame(content_frame, bg='white')
+        main_grid.pack(fill="both", expand=True)
         
-        # Seção: Itens da Cotação
-        self.create_itens_cotacao_section(content_frame)
+        # Configurar grid para usar toda a tela
+        main_grid.grid_columnconfigure(0, weight=2)
+        main_grid.grid_columnconfigure(1, weight=1)
         
-        # Botões de ação
+        # Coluna esquerda - Dados e Itens
+        left_column = tk.Frame(main_grid, bg='white')
+        left_column.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        left_column.grid_columnconfigure(0, weight=1)
+        
+        # Coluna direita - Dashboard
+        right_column = tk.Frame(main_grid, bg='white')
+        right_column.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+        right_column.grid_columnconfigure(0, weight=1)
+        
+        # Seções na coluna esquerda
+        self.create_dados_cotacao_section(left_column)
+        self.create_itens_cotacao_section(left_column)
+        
+        # Dashboard na coluna direita
+        self.create_cotacao_dashboard(right_column)
+        
+        # Botões de ação (largura total)
         self.create_cotacao_buttons(content_frame)
         
     def create_dados_cotacao_section(self, parent):
@@ -196,6 +215,102 @@ class CotacoesModule(BaseModule):
         
         # Configurar colunas
         fields_frame.grid_columnconfigure(1, weight=1)
+        
+    def create_cotacao_dashboard(self, parent):
+        """Criar dashboard com informações úteis da cotação"""
+        # Frame do dashboard
+        dashboard_frame = tk.Frame(parent, bg='white', relief='solid', bd=1)
+        dashboard_frame.pack(fill="both", expand=True)
+        
+        # Título
+        title_label = tk.Label(dashboard_frame, text="📊 Dashboard da Cotação", 
+                               font=('Arial', 12, 'bold'), bg='#f8fafc', fg='#1e293b')
+        title_label.pack(fill="x", pady=(10, 15))
+        
+        # Container para cards
+        cards_container = tk.Frame(dashboard_frame, bg='white')
+        cards_container.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        
+        # Card 1 - Resumo da Cotação
+        summary_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
+        summary_card.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(summary_card, text="📋 Resumo", font=('Arial', 10, 'bold'), 
+                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=10, pady=(10, 5))
+        
+        self.summary_text = tk.Text(summary_card, height=8, width=30, font=('Arial', 9),
+                                   bg='white', relief='solid', bd=1, wrap=tk.WORD)
+        self.summary_text.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        
+        # Card 2 - Estatísticas
+        stats_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
+        stats_card.pack(fill="both", expand=True)
+        
+        tk.Label(stats_card, text="📈 Estatísticas", font=('Arial', 10, 'bold'), 
+                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=10, pady=(10, 5))
+        
+        self.stats_text = tk.Text(stats_card, height=6, width=30, font=('Arial', 9),
+                                 bg='white', relief='solid', bd=1, wrap=tk.WORD)
+        self.stats_text.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        
+        # Inicializar dados do dashboard
+        self.update_cotacao_dashboard()
+        
+    def update_cotacao_dashboard(self):
+        """Atualizar dados do dashboard da cotação"""
+        if not hasattr(self, 'summary_text') or not hasattr(self, 'stats_text'):
+            return
+            
+        # Limpar textos
+        self.summary_text.delete('1.0', tk.END)
+        self.stats_text.delete('1.0', tk.END)
+        
+        # Resumo da cotação atual
+        if hasattr(self, 'numero_var') and self.numero_var.get():
+            summary_info = f"""Número: {self.numero_var.get()}
+Cliente: {self.cliente_var.get()}
+Status: {self.status_var.get()}
+Validade: {self.data_validade_var.get()}
+Pagamento: {self.condicao_pagamento_var.get()}
+Entrega: {self.prazo_entrega_var.get()}
+Filial: {self.filial_var.get()}"""
+            
+            self.summary_text.insert('1.0', summary_info)
+        
+        # Estatísticas gerais
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        
+        try:
+            # Total de cotações
+            c.execute("SELECT COUNT(*) FROM cotacoes")
+            total_cotacoes = c.fetchone()[0]
+            
+            # Cotações por status
+            c.execute("SELECT status, COUNT(*) FROM cotacoes GROUP BY status")
+            status_counts = dict(c.fetchall())
+            
+            # Valor total das cotações aprovadas
+            c.execute("SELECT SUM(valor_total) FROM cotacoes WHERE status = 'Aprovada'")
+            faturamento_total = c.fetchone()[0] or 0
+            
+            # Média de valor por cotação
+            c.execute("SELECT AVG(valor_total) FROM cotacoes WHERE valor_total > 0")
+            media_valor = c.fetchone()[0] or 0
+            
+            stats_info = f"""Total de Cotações: {total_cotacoes}
+Em Aberto: {status_counts.get('Em Aberto', 0)}
+Aprovadas: {status_counts.get('Aprovada', 0)}
+Rejeitadas: {status_counts.get('Rejeitada', 0)}
+Faturamento Total: R$ {faturamento_total:,.2f}
+Média por Cotação: R$ {media_valor:,.2f}"""
+            
+            self.stats_text.insert('1.0', stats_info)
+            
+        except sqlite3.Error as e:
+            self.stats_text.insert('1.0', f"Erro ao carregar dados: {e}")
+        finally:
+            conn.close()
         
     def create_esboco_servico_section(self, parent):
         """Criar seção para esboço do serviço"""

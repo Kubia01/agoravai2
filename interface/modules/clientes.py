@@ -66,34 +66,57 @@ class ClientesModule(BaseModule):
         self.create_cliente_content(self.scrollable_cliente)
         
     def create_cliente_content(self, parent):
-        content_frame = tk.Frame(parent, bg='white', padx=10, pady=10)
+        content_frame = tk.Frame(parent, bg='white', padx=5, pady=5)
         content_frame.pack(fill="both", expand=True)
         
-        # Seção: Dados Básicos
-        self.create_dados_basicos_section(content_frame)
+        # Frame principal com grid 2x2 para maximizar uso do espaço
+        main_grid = tk.Frame(content_frame, bg='white')
+        main_grid.pack(fill="both", expand=True)
         
-        # Seção: Endereço
-        self.create_endereco_section(content_frame)
+        # Configurar grid para usar toda a tela
+        main_grid.grid_columnconfigure(0, weight=1)
+        main_grid.grid_columnconfigure(1, weight=1)
+        main_grid.grid_rowconfigure(0, weight=1)
+        main_grid.grid_rowconfigure(1, weight=1)
         
-        # Seção: Informações Comerciais
-        self.create_comercial_section(content_frame)
+        # Coluna 1 - Dados Básicos e Endereço
+        left_column = tk.Frame(main_grid, bg='white')
+        left_column.grid(row=0, column=0, sticky="nsew", padx=(0, 5), pady=(0, 5))
+        left_column.grid_columnconfigure(0, weight=1)
         
-        # Seção: Prazo de Pagamento
-        self.create_prazo_pagamento_section(content_frame)
+        # Coluna 2 - Informações Comerciais e Prazo
+        right_column = tk.Frame(main_grid, bg='white')
+        right_column.grid(row=0, column=1, sticky="nsew", padx=(5, 0), pady=(0, 5))
+        right_column.grid_columnconfigure(0, weight=1)
         
-        # Seção: Contatos (integrada)
-        self.create_contatos_integrados_section(content_frame)
+        # Linha inferior - Contatos e Botões (largura total)
+        bottom_row = tk.Frame(main_grid, bg='white')
+        bottom_row.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(5, 0))
+        bottom_row.grid_columnconfigure(0, weight=1)
         
-        # Botões de ação
-        self.create_cliente_buttons(content_frame)
+        # Seções na coluna esquerda
+        self.create_dados_basicos_section(left_column)
+        self.create_endereco_section(left_column)
+        
+        # Seções na coluna direita
+        self.create_comercial_section(right_column)
+        self.create_prazo_pagamento_section(right_column)
+        
+        # Seções na linha inferior
+        self.create_contatos_integrados_section(bottom_row)
+        self.create_cliente_buttons(bottom_row)
         
     def create_dados_basicos_section(self, parent):
         section_frame = self.create_section_frame(parent, "Dados Básicos")
-        section_frame.pack(fill="x", pady=(0, 10))
+        section_frame.pack(fill="both", expand=True, pady=(0, 5))
         
         # Grid de campos
         fields_frame = tk.Frame(section_frame, bg='white')
-        fields_frame.pack(fill="x")
+        fields_frame.pack(fill="both", expand=True)
+        
+        # Configurar grid para usar todo o espaço
+        fields_frame.grid_columnconfigure(1, weight=1)
+        fields_frame.grid_columnconfigure(3, weight=1)
         
         # Variáveis
         self.nome_var = tk.StringVar()
@@ -145,7 +168,7 @@ class ClientesModule(BaseModule):
     def create_prazo_pagamento_section(self, parent):
         """Criar seção para prazo de pagamento"""
         section_frame = self.create_section_frame(parent, "Prazo de Pagamento")
-        section_frame.pack(fill="x", pady=(0, 10))
+        section_frame.pack(fill="both", expand=True, pady=(5, 0))
         
         # Grid de campos
         fields_frame = tk.Frame(section_frame, bg='white')
@@ -168,7 +191,7 @@ class ClientesModule(BaseModule):
         
     def create_endereco_section(self, parent):
         section_frame = self.create_section_frame(parent, "Endereço")
-        section_frame.pack(fill="x", pady=(0, 10))
+        section_frame.pack(fill="both", expand=True, pady=(5, 0))
         
         fields_frame = tk.Frame(section_frame, bg='white')
         fields_frame.pack(fill="x")
@@ -242,7 +265,7 @@ class ClientesModule(BaseModule):
         
     def create_comercial_section(self, parent):
         section_frame = self.create_section_frame(parent, "Informações Comerciais")
-        section_frame.pack(fill="x", pady=(0, 10))
+        section_frame.pack(fill="both", expand=True, pady=(0, 5))
         
         fields_frame = tk.Frame(section_frame, bg='white')
         fields_frame.pack(fill="x")
@@ -393,17 +416,135 @@ class ClientesModule(BaseModule):
         excluir_contato_btn = self.create_button(contatos_lista_buttons, "Excluir Contato", self.excluir_contato_selecionado, bg='#dc2626')
         excluir_contato_btn.pack(side="left")
         
+    def create_cliente_dashboard(self, parent):
+        """Criar dashboard com informações úteis do cliente"""
+        # Frame do dashboard
+        dashboard_frame = tk.Frame(parent, bg='white', relief='solid', bd=1)
+        dashboard_frame.pack(fill="both", expand=True)
+        
+        # Título
+        title_label = tk.Label(dashboard_frame, text="📊 Dashboard do Cliente", 
+                               font=('Arial', 12, 'bold'), bg='#f8fafc', fg='#1e293b')
+        title_label.pack(fill="x", pady=(10, 15))
+        
+        # Container para cards
+        cards_container = tk.Frame(dashboard_frame, bg='white')
+        cards_container.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        
+        # Card 1 - Estatísticas
+        stats_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
+        stats_card.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(stats_card, text="📈 Estatísticas", font=('Arial', 10, 'bold'), 
+                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=10, pady=(10, 5))
+        
+        self.stats_text = tk.Text(stats_card, height=6, width=30, font=('Arial', 9),
+                                 bg='white', relief='solid', bd=1, wrap=tk.WORD)
+        self.stats_text.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        
+        # Card 2 - Histórico
+        history_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
+        history_card.pack(fill="both", expand=True)
+        
+        tk.Label(history_card, text="🕒 Histórico Recente", font=('Arial', 10, 'bold'), 
+                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=10, pady=(10, 5))
+        
+        self.history_text = tk.Text(history_card, height=8, width=30, font=('Arial', 9),
+                                   bg='white', relief='solid', bd=1, wrap=tk.WORD)
+        self.history_text.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        
+        # Inicializar dados do dashboard
+        self.update_cliente_dashboard()
+        
+    def update_cliente_dashboard(self):
+        """Atualizar dados do dashboard"""
+        if not hasattr(self, 'stats_text') or not hasattr(self, 'history_text'):
+            return
+            
+        # Limpar textos
+        self.stats_text.delete('1.0', tk.END)
+        self.history_text.delete('1.0', tk.END)
+        
+        if self.current_cliente_id:
+            # Buscar estatísticas do cliente
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            
+            try:
+                # Estatísticas
+                c.execute("SELECT COUNT(*) FROM cotacoes WHERE cliente_id = ?", (self.current_cliente_id,))
+                total_cotacoes = c.fetchone()[0]
+                
+                c.execute("SELECT COUNT(*) FROM cotacoes WHERE cliente_id = ? AND status = 'Aprovada'", (self.current_cliente_id,))
+                cotacoes_aprovadas = c.fetchone()[0]
+                
+                c.execute("SELECT SUM(valor_total) FROM cotacoes WHERE cliente_id = ? AND status = 'Aprovada'", (self.current_cliente_id,))
+                faturamento = c.fetchone()[0] or 0
+                
+                c.execute("SELECT COUNT(*) FROM contatos WHERE cliente_id = ?", (self.current_cliente_id,))
+                total_contatos = c.fetchone()[0]
+                
+                # Atualizar estatísticas
+                stats_info = f"""Total de Cotações: {total_cotacoes}
+Cotações Aprovadas: {cotacoes_aprovadas}
+Faturamento Total: R$ {faturamento:,.2f}
+Contatos Cadastrados: {total_contatos}"""
+                
+                self.stats_text.insert('1.0', stats_info)
+                
+                # Histórico recente
+                c.execute("""
+                    SELECT numero_proposta, data_criacao, status, valor_total 
+                    FROM cotacoes 
+                    WHERE cliente_id = ? 
+                    ORDER BY data_criacao DESC 
+                    LIMIT 5
+                """, (self.current_cliente_id,))
+                
+                historico = c.fetchall()
+                if historico:
+                    history_info = ""
+                    for cotacao in historico:
+                        numero, data, status, valor = cotacao
+                        history_info += f"📋 {numero}\n"
+                        history_info += f"   Data: {data}\n"
+                        history_info += f"   Status: {status}\n"
+                        history_info += f"   Valor: R$ {valor:,.2f}\n\n"
+                else:
+                    history_info = "Nenhuma cotação encontrada."
+                
+                self.history_text.insert('1.0', history_info)
+                
+            except sqlite3.Error as e:
+                self.stats_text.insert('1.0', f"Erro ao carregar dados: {e}")
+                self.history_text.insert('1.0', "Erro ao carregar histórico.")
+            finally:
+                conn.close()
+        else:
+            self.stats_text.insert('1.0', "Selecione um cliente para ver as estatísticas.")
+            self.history_text.insert('1.0', "Selecione um cliente para ver o histórico.")
+        
     def create_contatos_integrados_section(self, parent):
         """Seção de contatos integrada na aba de dados do cliente"""
         section_frame = self.create_section_frame(parent, "Contatos do Cliente")
-        section_frame.pack(fill="both", expand=True, pady=(15, 0))
+        section_frame.pack(fill="both", expand=True, pady=(5, 0))
         
-        # Container principal
+        # Container principal com grid 2x1
         contatos_container = tk.Frame(section_frame, bg='white')
         contatos_container.pack(fill="both", expand=True)
+        contatos_container.grid_columnconfigure(0, weight=2)
+        contatos_container.grid_columnconfigure(1, weight=1)
+        
+        # Coluna esquerda - Contatos
+        contatos_left = tk.Frame(contatos_container, bg='white')
+        contatos_left.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        
+        # Coluna direita - Dashboard
+        dashboard_right = tk.Frame(contatos_container, bg='white')
+        dashboard_right.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
         
         # Frame para adicionar contato
-        add_contato_frame = tk.Frame(contatos_container, bg='white')
+        add_contato_frame = tk.Frame(contatos_left, bg='white')
         add_contato_frame.pack(fill="x", pady=(0, 10))
         
         # Variáveis do contato (se não existirem ainda)
@@ -456,7 +597,7 @@ class ClientesModule(BaseModule):
         limpar_contato_btn.pack(side="left")
         
         # Lista de contatos
-        lista_frame = tk.Frame(contatos_container, bg='white')
+        lista_frame = tk.Frame(contatos_left, bg='white')
         lista_frame.pack(fill="both", expand=True)
         
         # Treeview para contatos
@@ -488,6 +629,9 @@ class ClientesModule(BaseModule):
         # Botões da lista
         lista_buttons = tk.Frame(lista_frame, bg='white')
         lista_buttons.pack(fill="x", pady=(5, 0))
+        
+        # Dashboard de informações úteis
+        self.create_cliente_dashboard(dashboard_right)
         
         editar_contato_btn = self.create_button(lista_buttons, "Editar Contato", self.editar_contato_selecionado)
         editar_contato_btn.pack(side="left", padx=(0, 10))
@@ -837,6 +981,9 @@ class ClientesModule(BaseModule):
             
             # Mudar para a primeira aba
             self.notebook.select(0)
+            
+            # Atualizar dashboard
+            self.update_cliente_dashboard()
             
         except sqlite3.Error as e:
             self.show_error(f"Erro ao carregar cliente: {e}")
