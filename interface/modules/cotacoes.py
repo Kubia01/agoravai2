@@ -427,6 +427,7 @@ Média por Cotação: R$ {media_valor:,.2f}
 Últimos 6 Meses:"""
             
             for mes, count, valor in meses_data:
+                valor = valor or 0  # Tratar valor None
                 stats_info += f"\n{mes}: {count} cotações (R$ {valor:,.2f})"
             
             self.stats_avancadas_text.insert('1.0', stats_info)
@@ -446,10 +447,21 @@ Média por Cotação: R$ {media_valor:,.2f}
             if comparativo_data:
                 media_geral, menor_valor, maior_valor, total = comparativo_data
                 
+                # Tratar valores None
+                media_geral = media_geral or 0
+                menor_valor = menor_valor or 0
+                maior_valor = maior_valor or 0
+                total = total or 0
+                
                 # Valor atual da cotação
                 valor_atual = sum(item.get('valor_total_item', 0) for item in self.itens_data) if hasattr(self, 'itens_data') else 0
                 
-                comparativo_info = f"""Média Geral: R$ {media_geral:,.2f}
+                # Calcular posicionamento apenas se há dados
+                if media_geral > 0 and maior_valor > 0:
+                    pos_media = ((valor_atual / media_geral) * 100) if media_geral > 0 else 0
+                    pos_maior = ((valor_atual / maior_valor) * 100) if maior_valor > 0 else 0
+                    
+                    comparativo_info = f"""Média Geral: R$ {media_geral:,.2f}
 Menor Cotação: R$ {menor_valor:,.2f}
 Maior Cotação: R$ {maior_valor:,.2f}
 Total de Cotações: {total}
@@ -457,8 +469,18 @@ Total de Cotações: {total}
 Cotação Atual: R$ {valor_atual:,.2f}
 
 Posicionamento:
-- {((valor_atual / media_geral) * 100):.1f}% da média geral
-- {((valor_atual / maior_valor) * 100):.1f}% da maior cotação"""
+- {pos_media:.1f}% da média geral
+- {pos_maior:.1f}% da maior cotação"""
+                else:
+                    comparativo_info = f"""Média Geral: R$ {media_geral:,.2f}
+Menor Cotação: R$ {menor_valor:,.2f}
+Maior Cotação: R$ {maior_valor:,.2f}
+Total de Cotações: {total}
+
+Cotação Atual: R$ {valor_atual:,.2f}
+
+Posicionamento:
+- Dados insuficientes para cálculo"""
                 
                 self.comparativo_text.insert('1.0', comparativo_info)
             
