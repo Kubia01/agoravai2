@@ -69,49 +69,41 @@ class ClientesModule(BaseModule):
         content_frame = tk.Frame(parent, bg='white', padx=2, pady=2)
         content_frame.pack(fill="both", expand=True)
         
-        # Frame principal com grid 3x2 para máximo aproveitamento
+        # Frame principal com grid 2x2 para organização clara
         main_grid = tk.Frame(content_frame, bg='white')
         main_grid.pack(fill="both", expand=True)
         
         # Configurar grid para usar toda a tela
-        main_grid.grid_columnconfigure(0, weight=1)  # Dados Básicos
-        main_grid.grid_columnconfigure(1, weight=1)  # Endereço
-        main_grid.grid_columnconfigure(2, weight=1)  # Dashboard
+        main_grid.grid_columnconfigure(0, weight=2)  # Dados Básicos + Endereço
+        main_grid.grid_columnconfigure(1, weight=1)  # Dashboard
         main_grid.grid_rowconfigure(0, weight=1)     # Linha superior
         main_grid.grid_rowconfigure(1, weight=1)     # Linha inferior
         
-        # Coluna 1 - Dados Básicos
-        dados_column = tk.Frame(main_grid, bg='white')
-        dados_column.grid(row=0, column=0, sticky="nsew", padx=(0, 2), pady=(0, 2))
-        dados_column.grid_columnconfigure(0, weight=1)
+        # Coluna esquerda - Dados Básicos + Endereço
+        left_column = tk.Frame(main_grid, bg='white')
+        left_column.grid(row=0, column=0, sticky="nsew", padx=(0, 2), pady=(0, 2))
+        left_column.grid_columnconfigure(0, weight=1)
         
-        # Coluna 2 - Endereço e Comercial
-        endereco_column = tk.Frame(main_grid, bg='white')
-        endereco_column.grid(row=0, column=1, sticky="nsew", padx=2, pady=(0, 2))
-        endereco_column.grid_columnconfigure(0, weight=1)
-        
-        # Coluna 3 - Dashboard Expandido
+        # Coluna direita - Dashboard
         dashboard_column = tk.Frame(main_grid, bg='white')
-        dashboard_column.grid(row=0, column=2, sticky="nsew", padx=(2, 0), pady=(0, 2))
+        dashboard_column.grid(row=0, column=1, sticky="nsew", padx=(2, 0), pady=(0, 2))
         dashboard_column.grid_columnconfigure(0, weight=1)
         
-        # Linha inferior - Contatos e Botões (largura total)
+        # Linha inferior - Contatos (largura total)
         bottom_row = tk.Frame(main_grid, bg='white')
-        bottom_row.grid(row=1, column=0, columnspan=3, sticky="nsew", pady=(2, 0))
+        bottom_row.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(2, 0))
         bottom_row.grid_columnconfigure(0, weight=1)
         
-        # Seções na coluna de dados
-        self.create_dados_basicos_section(dados_column)
+        # Seções na coluna esquerda (Dados Básicos + Endereço)
+        self.create_dados_basicos_section(left_column)
+        self.create_endereco_section(left_column)
+        self.create_comercial_section(left_column)
+        self.create_prazo_pagamento_section(left_column)
         
-        # Seções na coluna de endereço
-        self.create_endereco_section(endereco_column)
-        self.create_comercial_section(endereco_column)
-        self.create_prazo_pagamento_section(endereco_column)
-        
-        # Dashboard expandido na coluna direita
+        # Dashboard na coluna direita
         self.create_cliente_dashboard_expandido(dashboard_column)
         
-        # Seções na linha inferior
+        # Contatos na linha inferior (largura total)
         self.create_contatos_integrados_section(bottom_row)
         self.create_cliente_buttons(bottom_row)
         
