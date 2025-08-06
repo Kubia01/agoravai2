@@ -68,44 +68,55 @@ class ClientesModule(BaseModule):
     def create_cliente_content(self, parent):
         content_frame = tk.Frame(parent, bg='white', padx=2, pady=2)
         content_frame.pack(fill="both", expand=True)
-        
-        # Frame principal com grid 2x2 para organização clara
+
+        # Frame principal com grid 3x3
         main_grid = tk.Frame(content_frame, bg='white')
         main_grid.pack(fill="both", expand=True)
-        
-        # Configurar grid para usar toda a tela - PESOS IGUAIS
-        main_grid.grid_columnconfigure(0, weight=1)  # Dados Básicos + Endereço
-        main_grid.grid_columnconfigure(1, weight=1)  # Dashboard
-        main_grid.grid_rowconfigure(0, weight=1)     # Linha superior
-        main_grid.grid_rowconfigure(1, weight=1)     # Linha inferior
-        
-        # Coluna esquerda - Dados Básicos + Endereço
-        left_column = tk.Frame(main_grid, bg='white')
-        left_column.grid(row=0, column=0, sticky="nsew", padx=(0, 2), pady=(0, 2))
-        left_column.grid_columnconfigure(0, weight=1)
-        
-        # Coluna direita - Dashboard
-        dashboard_column = tk.Frame(main_grid, bg='white')
-        dashboard_column.grid(row=0, column=1, sticky="nsew", padx=(2, 0), pady=(0, 2))
-        dashboard_column.grid_columnconfigure(0, weight=1)
-        
-        # Linha inferior - Contatos (largura total)
-        bottom_row = tk.Frame(main_grid, bg='white')
-        bottom_row.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(2, 0))
-        bottom_row.grid_columnconfigure(0, weight=1)
-        
-        # Seções na coluna esquerda (Dados Básicos + Endereço)
-        self.create_dados_basicos_section(left_column)
-        self.create_endereco_section(left_column)
-        self.create_comercial_section(left_column)
-        self.create_prazo_pagamento_section(left_column)
-        
-        # Dashboard na coluna direita
-        self.create_cliente_dashboard_expandido(dashboard_column)
-        
-        # Contatos na linha inferior (largura total)
-        self.create_contatos_integrados_section(bottom_row)
-        self.create_cliente_buttons(bottom_row)
+
+        # Configurar grid para usar toda a tela
+        for i in range(3):
+            main_grid.grid_columnconfigure(i, weight=1, uniform="col")
+        for i in range(3):
+            main_grid.grid_rowconfigure(i, weight=1, uniform="row")
+
+        # Linha 0
+        dados_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        dados_frame.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
+        self.create_dados_basicos_section(dados_frame)
+
+        endereco_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        endereco_frame.grid(row=0, column=1, sticky="nsew", padx=2, pady=2)
+        self.create_endereco_section(endereco_frame)
+
+        dashboard1_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        dashboard1_frame.grid(row=0, column=2, sticky="nsew", padx=2, pady=2)
+        self.create_cliente_dashboard_expandido(dashboard1_frame)
+
+        # Linha 1
+        comercial_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        comercial_frame.grid(row=1, column=0, sticky="nsew", padx=2, pady=2)
+        self.create_comercial_section(comercial_frame)
+
+        prazo_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        prazo_frame.grid(row=1, column=1, sticky="nsew", padx=2, pady=2)
+        self.create_prazo_pagamento_section(prazo_frame)
+
+        dashboard2_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        dashboard2_frame.grid(row=1, column=2, sticky="nsew", padx=2, pady=2)
+        self.create_cliente_dashboard(dashboard2_frame)
+
+        # Linha 2
+        contatos_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        contatos_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=2, pady=2)
+        self.create_contatos_integrados_section(contatos_frame)
+
+        dashboard3_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        dashboard3_frame.grid(row=2, column=2, sticky="nsew", padx=2, pady=2)
+        # Dashboard extra pode ser um resumo ou repetir o dashboard simples
+        self.create_cliente_dashboard(dashboard3_frame)
+
+        # Botões de ação abaixo do grid
+        self.create_cliente_buttons(content_frame)
         
     def create_dados_basicos_section(self, parent):
         section_frame = self.create_section_frame(parent, "Dados Básicos")
