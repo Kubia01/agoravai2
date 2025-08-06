@@ -69,33 +69,37 @@ class CotacoesModule(BaseModule):
         self.create_cotacao_content(self.scrollable_cotacao)
         
     def create_cotacao_content(self, parent):
-        content_frame = tk.Frame(parent, bg='white', padx=5, pady=5)
+        content_frame = tk.Frame(parent, bg='white', padx=2, pady=2)
         content_frame.pack(fill="both", expand=True)
         
-        # Frame principal com grid 2x1 para maximizar uso do espaço
+        # Frame principal com grid 3x1 para máximo aproveitamento
         main_grid = tk.Frame(content_frame, bg='white')
         main_grid.pack(fill="both", expand=True)
         
         # Configurar grid para usar toda a tela
-        main_grid.grid_columnconfigure(0, weight=2)
-        main_grid.grid_columnconfigure(1, weight=1)
+        main_grid.grid_columnconfigure(0, weight=2)  # Dados da Cotação
+        main_grid.grid_columnconfigure(1, weight=2)  # Itens
+        main_grid.grid_columnconfigure(2, weight=1)  # Dashboard
         
-        # Coluna esquerda - Dados e Itens
-        left_column = tk.Frame(main_grid, bg='white')
-        left_column.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
-        left_column.grid_columnconfigure(0, weight=1)
+        # Coluna 1 - Dados da Cotação
+        dados_column = tk.Frame(main_grid, bg='white')
+        dados_column.grid(row=0, column=0, sticky="nsew", padx=(0, 2))
+        dados_column.grid_columnconfigure(0, weight=1)
         
-        # Coluna direita - Dashboard
-        right_column = tk.Frame(main_grid, bg='white')
-        right_column.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
-        right_column.grid_columnconfigure(0, weight=1)
+        # Coluna 2 - Itens da Cotação
+        itens_column = tk.Frame(main_grid, bg='white')
+        itens_column.grid(row=0, column=1, sticky="nsew", padx=2)
+        itens_column.grid_columnconfigure(0, weight=1)
         
-        # Seções na coluna esquerda
-        self.create_dados_cotacao_section(left_column)
-        self.create_itens_cotacao_section(left_column)
+        # Coluna 3 - Dashboard Expandido
+        dashboard_column = tk.Frame(main_grid, bg='white')
+        dashboard_column.grid(row=0, column=2, sticky="nsew", padx=(2, 0))
+        dashboard_column.grid_columnconfigure(0, weight=1)
         
-        # Dashboard na coluna direita
-        self.create_cotacao_dashboard(right_column)
+        # Seções nas colunas
+        self.create_dados_cotacao_section(dados_column)
+        self.create_itens_cotacao_section(itens_column)
+        self.create_cotacao_dashboard_expandido(dashboard_column)
         
         # Botões de ação (largura total)
         self.create_cotacao_buttons(content_frame)
@@ -255,6 +259,213 @@ class CotacoesModule(BaseModule):
         
         # Inicializar dados do dashboard
         self.update_cotacao_dashboard()
+        
+    def create_cotacao_dashboard_expandido(self, parent):
+        """Criar dashboard expandido com mais informações úteis da cotação"""
+        # Frame do dashboard
+        dashboard_frame = tk.Frame(parent, bg='white', relief='solid', bd=1)
+        dashboard_frame.pack(fill="both", expand=True)
+        
+        # Título
+        title_label = tk.Label(dashboard_frame, text="📊 Dashboard Completo da Cotação", 
+                               font=('Arial', 12, 'bold'), bg='#f8fafc', fg='#1e293b')
+        title_label.pack(fill="x", pady=(8, 12))
+        
+        # Container para cards com scroll
+        canvas = tk.Canvas(dashboard_frame, bg='white')
+        scrollbar = ttk.Scrollbar(dashboard_frame, orient="vertical", command=canvas.yview)
+        cards_container = tk.Frame(canvas, bg='white')
+        
+        cards_container.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=cards_container, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True, padx=5, pady=(0, 5))
+        scrollbar.pack(side="right", fill="y")
+        
+        # Card 1 - Resumo Detalhado
+        summary_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
+        summary_card.pack(fill="x", pady=(0, 8))
+        
+        tk.Label(summary_card, text="📋 Resumo Detalhado", font=('Arial', 10, 'bold'), 
+                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=8, pady=(8, 4))
+        
+        self.summary_detalhado_text = tk.Text(summary_card, height=10, width=35, font=('Arial', 9),
+                                             bg='white', relief='solid', bd=1, wrap=tk.WORD)
+        self.summary_detalhado_text.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        
+        # Card 2 - Análise de Itens
+        itens_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
+        itens_card.pack(fill="x", pady=(0, 8))
+        
+        tk.Label(itens_card, text="📦 Análise de Itens", font=('Arial', 10, 'bold'), 
+                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=8, pady=(8, 4))
+        
+        self.itens_analise_text = tk.Text(itens_card, height=8, width=35, font=('Arial', 9),
+                                         bg='white', relief='solid', bd=1, wrap=tk.WORD)
+        self.itens_analise_text.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        
+        # Card 3 - Estatísticas Avançadas
+        stats_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
+        stats_card.pack(fill="x", pady=(0, 8))
+        
+        tk.Label(stats_card, text="📈 Estatísticas Avançadas", font=('Arial', 10, 'bold'), 
+                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=8, pady=(8, 4))
+        
+        self.stats_avancadas_text = tk.Text(stats_card, height=8, width=35, font=('Arial', 9),
+                                           bg='white', relief='solid', bd=1, wrap=tk.WORD)
+        self.stats_avancadas_text.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        
+        # Card 4 - Comparativo de Preços
+        comparativo_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
+        comparativo_card.pack(fill="x", pady=(0, 8))
+        
+        tk.Label(comparativo_card, text="💰 Comparativo de Preços", font=('Arial', 10, 'bold'), 
+                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=8, pady=(8, 4))
+        
+        self.comparativo_text = tk.Text(comparativo_card, height=6, width=35, font=('Arial', 9),
+                                       bg='white', relief='solid', bd=1, wrap=tk.WORD)
+        self.comparativo_text.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        
+        # Inicializar dados do dashboard expandido
+        self.update_cotacao_dashboard_expandido()
+        
+    def update_cotacao_dashboard_expandido(self):
+        """Atualizar dados do dashboard expandido da cotação"""
+        if not hasattr(self, 'summary_detalhado_text'):
+            return
+            
+        # Limpar textos
+        self.summary_detalhado_text.delete('1.0', tk.END)
+        self.itens_analise_text.delete('1.0', tk.END)
+        self.stats_avancadas_text.delete('1.0', tk.END)
+        self.comparativo_text.delete('1.0', tk.END)
+        
+        # Resumo detalhado da cotação atual
+        if hasattr(self, 'numero_var') and self.numero_var.get():
+            summary_info = f"""Número: {self.numero_var.get()}
+Cliente: {self.cliente_var.get()}
+Status: {self.status_var.get()}
+Validade: {self.data_validade_var.get()}
+Pagamento: {self.condicao_pagamento_var.get()}
+Entrega: {self.prazo_entrega_var.get()}
+Filial: {self.filial_var.get()}
+Modelo: {self.modelo_var.get()}
+Série: {self.serie_var.get()}
+
+Observações:
+{self.observacoes_text.get("1.0", tk.END).strip() if hasattr(self, 'observacoes_text') else 'N/A'}"""
+            
+            self.summary_detalhado_text.insert('1.0', summary_info)
+        
+        # Análise de itens
+        if hasattr(self, 'itens_data') and self.itens_data:
+            itens_info = "Itens da Cotação:\n\n"
+            total_itens = len(self.itens_data)
+            total_valor = sum(item.get('valor_total_item', 0) for item in self.itens_data)
+            
+            itens_info += f"Total de Itens: {total_itens}\n"
+            itens_info += f"Valor Total: R$ {total_valor:,.2f}\n\n"
+            
+            # Agrupar por tipo
+            tipos = {}
+            for item in self.itens_data:
+                tipo = item.get('tipo', 'N/A')
+                if tipo not in tipos:
+                    tipos[tipo] = {'qtd': 0, 'valor': 0}
+                tipos[tipo]['qtd'] += 1
+                tipos[tipo]['valor'] += item.get('valor_total_item', 0)
+            
+            itens_info += "Por Tipo:\n"
+            for tipo, dados in tipos.items():
+                itens_info += f"- {tipo}: {dados['qtd']} itens (R$ {dados['valor']:,.2f})\n"
+            
+            self.itens_analise_text.insert('1.0', itens_info)
+        
+        # Estatísticas avançadas
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        
+        try:
+            # Total de cotações
+            c.execute("SELECT COUNT(*) FROM cotacoes")
+            total_cotacoes = c.fetchone()[0]
+            
+            # Cotações por status
+            c.execute("SELECT status, COUNT(*) FROM cotacoes GROUP BY status")
+            status_counts = dict(c.fetchall())
+            
+            # Valor total das cotações aprovadas
+            c.execute("SELECT SUM(valor_total) FROM cotacoes WHERE status = 'Aprovada'")
+            faturamento_total = c.fetchone()[0] or 0
+            
+            # Média de valor por cotação
+            c.execute("SELECT AVG(valor_total) FROM cotacoes WHERE valor_total > 0")
+            media_valor = c.fetchone()[0] or 0
+            
+            # Cotações por mês (últimos 6 meses)
+            c.execute("""
+                SELECT strftime('%Y-%m', data_criacao) as mes, COUNT(*), SUM(valor_total)
+                FROM cotacoes 
+                WHERE data_criacao >= date('now', '-6 months')
+                GROUP BY mes
+                ORDER BY mes DESC
+            """)
+            meses_data = c.fetchall()
+            
+            stats_info = f"""Total de Cotações: {total_cotacoes}
+Em Aberto: {status_counts.get('Em Aberto', 0)}
+Aprovadas: {status_counts.get('Aprovada', 0)}
+Rejeitadas: {status_counts.get('Rejeitada', 0)}
+Faturamento Total: R$ {faturamento_total:,.2f}
+Média por Cotação: R$ {media_valor:,.2f}
+
+Últimos 6 Meses:"""
+            
+            for mes, count, valor in meses_data:
+                stats_info += f"\n{mes}: {count} cotações (R$ {valor:,.2f})"
+            
+            self.stats_avancadas_text.insert('1.0', stats_info)
+            
+            # Comparativo de preços
+            c.execute("""
+                SELECT 
+                    AVG(valor_total) as media_geral,
+                    MIN(valor_total) as menor_valor,
+                    MAX(valor_total) as maior_valor,
+                    COUNT(*) as total
+                FROM cotacoes 
+                WHERE valor_total > 0
+            """)
+            
+            comparativo_data = c.fetchone()
+            if comparativo_data:
+                media_geral, menor_valor, maior_valor, total = comparativo_data
+                
+                # Valor atual da cotação
+                valor_atual = sum(item.get('valor_total_item', 0) for item in self.itens_data) if hasattr(self, 'itens_data') else 0
+                
+                comparativo_info = f"""Média Geral: R$ {media_geral:,.2f}
+Menor Cotação: R$ {menor_valor:,.2f}
+Maior Cotação: R$ {maior_valor:,.2f}
+Total de Cotações: {total}
+
+Cotação Atual: R$ {valor_atual:,.2f}
+
+Posicionamento:
+- {((valor_atual / media_geral) * 100):.1f}% da média geral
+- {((valor_atual / maior_valor) * 100):.1f}% da maior cotação"""
+                
+                self.comparativo_text.insert('1.0', comparativo_info)
+            
+        except sqlite3.Error as e:
+            self.stats_avancadas_text.insert('1.0', f"Erro ao carregar dados: {e}")
+        finally:
+            conn.close()
         
     def update_cotacao_dashboard(self):
         """Atualizar dados do dashboard da cotação"""
