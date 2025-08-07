@@ -73,23 +73,9 @@ class RelatoriosModule(BaseModule):
         content_frame = tk.Frame(parent, bg='white', padx=2, pady=2)
         content_frame.pack(fill="both", expand=True)
 
-        # Canvas com rolagem horizontal e vertical
-        canvas = tk.Canvas(content_frame, bg='white', highlightthickness=0)
-        h_scrollbar = ttk.Scrollbar(content_frame, orient="horizontal", command=canvas.xview)
-        v_scrollbar = ttk.Scrollbar(content_frame, orient="vertical", command=canvas.yview)
-
-        canvas.pack(side="left", fill="both", expand=True)
-        h_scrollbar.pack(side="bottom", fill="x")
-        v_scrollbar.pack(side="right", fill="y")
-
-        main_grid = tk.Frame(canvas, bg='white')
-        window_id = canvas.create_window((0, 0), window=main_grid, anchor="nw")
-        canvas.configure(xscrollcommand=h_scrollbar.set, yscrollcommand=v_scrollbar.set)
-
-        def _on_canvas_configure(event):
-            canvas.itemconfigure(window_id, width=canvas.winfo_width())
-        canvas.bind('<Configure>', _on_canvas_configure)
-        main_grid.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
+        # Frame principal com grid direto (sem canvas)
+        main_grid = tk.Frame(content_frame, bg='white')
+        main_grid.pack(fill="both", expand=True)
 
         # Configurar grid para usar toda a tela
         main_grid.grid_columnconfigure(0, weight=2)
