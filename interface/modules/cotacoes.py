@@ -69,40 +69,44 @@ class CotacoesModule(BaseModule):
         self.create_cotacao_content(self.scrollable_cotacao)
         
     def create_cotacao_content(self, parent):
-        content_frame = tk.Frame(parent, bg='white', padx=2, pady=2)
-        content_frame.pack(fill="both", expand=True)
+        # Frame principal com rolagem horizontal
+        outer_frame = tk.Frame(parent, bg='white')
+        outer_frame.pack(fill="both", expand=True)
 
-        # Frame principal com grid direto (sem canvas)
-        main_grid = tk.Frame(content_frame, bg='white')
-        main_grid.pack(fill="both", expand=True)
+        # Canvas para rolagem horizontal
+        canvas = tk.Canvas(outer_frame, bg='white', highlightthickness=0)
+        h_scrollbar = ttk.Scrollbar(outer_frame, orient="horizontal", command=canvas.xview)
+        canvas.configure(xscrollcommand=h_scrollbar.set)
+        canvas.pack(side="top", fill="both", expand=True)
+        h_scrollbar.pack(side="bottom", fill="x")
 
-        # Configurar grid para usar toda a tela
-        main_grid.grid_columnconfigure(0, weight=2)
-        main_grid.grid_columnconfigure(1, weight=2)
-        main_grid.grid_columnconfigure(2, weight=1)
+        # Frame interno com grid 2x1
+        main_grid = tk.Frame(canvas, bg='white')
+        window_id = canvas.create_window((0, 0), window=main_grid, anchor="nw")
 
-        # Coluna 1 - Dados da Cotação
-        dados_column = tk.Frame(main_grid, bg='white')
-        dados_column.grid(row=0, column=0, sticky="nsew", padx=(0, 2))
-        dados_column.grid_columnconfigure(0, weight=1)
+        def _on_canvas_configure(event):
+            canvas.itemconfigure(window_id, width=canvas.winfo_width())
+        canvas.bind('<Configure>', _on_canvas_configure)
+        main_grid.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
 
-        # Coluna 2 - Itens da Cotação
-        itens_column = tk.Frame(main_grid, bg='white')
-        itens_column.grid(row=0, column=1, sticky="nsew", padx=2)
-        itens_column.grid_columnconfigure(0, weight=1)
+        # Garantir 50%/50% para cada coluna
+        main_grid.grid_columnconfigure(0, weight=1, uniform="col")
+        main_grid.grid_columnconfigure(1, weight=1, uniform="col")
+        main_grid.grid_rowconfigure(0, weight=1, uniform="row")
 
-        # Coluna 3 - Dashboard Expandido
+        # Coluna 0 - Informações (dados + itens)
+        info_column = tk.Frame(main_grid, bg='white')
+        info_column.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
+        self.create_dados_cotacao_section(info_column)
+        self.create_itens_cotacao_section(info_column)
+
+        # Coluna 1 - Dashboard Expandido
         dashboard_column = tk.Frame(main_grid, bg='white')
-        dashboard_column.grid(row=0, column=2, sticky="nsew", padx=(2, 0))
-        dashboard_column.grid_columnconfigure(0, weight=1)
-
-        # Seções nas colunas
-        self.create_dados_cotacao_section(dados_column)
-        self.create_itens_cotacao_section(itens_column)
+        dashboard_column.grid(row=0, column=1, sticky="nsew", padx=2, pady=2)
         self.create_cotacao_dashboard_expandido(dashboard_column)
 
-        # Botões de ação (largura total)
-        self.create_cotacao_buttons(content_frame)
+        # Botões de ação abaixo do grid
+        self.create_cotacao_buttons(outer_frame)
         
     def create_dados_cotacao_section(self, parent):
         section_frame = self.create_section_frame(parent, "Dados da Cotação")

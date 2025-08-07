@@ -70,40 +70,48 @@ class RelatoriosModule(BaseModule):
         self.create_relatorio_content(self.scrollable_relatorio)
         
     def create_relatorio_content(self, parent):
-        content_frame = tk.Frame(parent, bg='white', padx=2, pady=2)
-        content_frame.pack(fill="both", expand=True)
+        # Frame principal com rolagem horizontal
+        outer_frame = tk.Frame(parent, bg='white')
+        outer_frame.pack(fill="both", expand=True)
 
-        # Frame principal com grid direto (sem canvas)
-        main_grid = tk.Frame(content_frame, bg='white')
-        main_grid.pack(fill="both", expand=True)
+        # Canvas para rolagem horizontal
+        canvas = tk.Canvas(outer_frame, bg='white', highlightthickness=0)
+        h_scrollbar = ttk.Scrollbar(outer_frame, orient="horizontal", command=canvas.xview)
+        canvas.configure(xscrollcommand=h_scrollbar.set)
+        canvas.pack(side="top", fill="both", expand=True)
+        h_scrollbar.pack(side="bottom", fill="x")
 
-        # Configurar grid para usar toda a tela
-        main_grid.grid_columnconfigure(0, weight=2)
-        main_grid.grid_columnconfigure(1, weight=1)
+        # Frame interno com grid 2x1
+        main_grid = tk.Frame(canvas, bg='white')
+        window_id = canvas.create_window((0, 0), window=main_grid, anchor="nw")
 
-        # Coluna esquerda - Formulário
-        left_column = tk.Frame(main_grid, bg='white')
-        left_column.grid(row=0, column=0, sticky="nsew", padx=(0, 2))
-        left_column.grid_columnconfigure(0, weight=1)
+        def _on_canvas_configure(event):
+            canvas.itemconfigure(window_id, width=canvas.winfo_width())
+        canvas.bind('<Configure>', _on_canvas_configure)
+        main_grid.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
 
-        # Coluna direita - Dashboard
-        right_column = tk.Frame(main_grid, bg='white')
-        right_column.grid(row=0, column=1, sticky="nsew", padx=(2, 0))
-        right_column.grid_columnconfigure(0, weight=1)
+        # Garantir 50%/50% para cada coluna
+        main_grid.grid_columnconfigure(0, weight=1, uniform="col")
+        main_grid.grid_columnconfigure(1, weight=1, uniform="col")
+        main_grid.grid_rowconfigure(0, weight=1, uniform="row")
 
-        # Seções na coluna esquerda
-        self.create_cliente_section(left_column)
-        self.create_servico_section(left_column)
-        self.create_tecnicos_section(left_column)
-        self.create_equipamento_section(left_column)
-        self.create_vinculacao_section(left_column)
+        # Coluna 0 - Informações (formulário)
+        info_column = tk.Frame(main_grid, bg='white')
+        info_column.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
+        self.create_cliente_section(info_column)
+        self.create_servico_section(info_column)
+        self.create_tecnicos_section(info_column)
+        self.create_equipamento_section(info_column)
+        self.create_vinculacao_section(info_column)
 
-        # Dashboard na coluna direita
-        self.create_relatorio_dashboard(right_column)
+        # Coluna 1 - Indicadores (dashboard)
+        dashboard_column = tk.Frame(main_grid, bg='white')
+        dashboard_column.grid(row=0, column=1, sticky="nsew", padx=2, pady=2)
+        self.create_relatorio_dashboard(dashboard_column)
 
-        # Botões de ação (largura total)
-        self.create_relatorio_buttons(content_frame)
-        
+        # Botões de ação abaixo do grid
+        self.create_relatorio_buttons(outer_frame)
+
     def create_cliente_section(self, parent):
         section_frame = self.create_section_frame(parent, "Identificação do Cliente")
         section_frame.pack(fill="x", pady=(0, 10))
