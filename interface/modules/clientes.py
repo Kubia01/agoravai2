@@ -66,73 +66,67 @@ class ClientesModule(BaseModule):
         self.create_cliente_content(self.scrollable_cliente)
         
     def create_cliente_content(self, parent):
-        # Frame principal com rolagem horizontal
-        outer_frame = tk.Frame(parent, bg='white')
-        outer_frame.pack(fill="both", expand=True)
+        # Frame principal com grid 2 colunas, 100% da tela
+        main_grid = tk.Frame(parent, bg='white')
+        main_grid.pack(fill="both", expand=True)
 
-        # Canvas para rolagem horizontal
-        canvas = tk.Canvas(outer_frame, bg='white', highlightthickness=0)
-        h_scrollbar = ttk.Scrollbar(outer_frame, orient="horizontal", command=canvas.xview)
-        canvas.configure(xscrollcommand=h_scrollbar.set)
-        canvas.pack(side="top", fill="both", expand=True)
-        h_scrollbar.pack(side="bottom", fill="x")
-
-        # Frame interno com grid 2xN
-        main_grid = tk.Frame(canvas, bg='white')
-        window_id = canvas.create_window((0, 0), window=main_grid, anchor="nw")
-
-        def _on_canvas_configure(event):
-            canvas.itemconfigure(window_id, width=canvas.winfo_width())
-        canvas.bind('<Configure>', _on_canvas_configure)
-        main_grid.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
-
-        # Garantir 50%/50% para cada coluna
+        # 2 colunas, 5 linhas (cada linha 20% da altura)
         main_grid.grid_columnconfigure(0, weight=1, uniform="col")
         main_grid.grid_columnconfigure(1, weight=1, uniform="col")
-
-        # Linha 0: Dados Básicos (col 0), Dashboard Completo (col 1)
-        dados_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dados_frame.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
-        self.create_dados_basicos_section(dados_frame)
-        dashboard_completo_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dashboard_completo_frame.grid(row=0, column=1, sticky="nsew", padx=2, pady=2)
-        self.create_cliente_dashboard_expandido(dashboard_completo_frame)
-
-        # Linha 1: Endereço (col 0), Dashboard do Cliente (col 1)
-        endereco_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        endereco_frame.grid(row=1, column=0, sticky="nsew", padx=2, pady=2)
-        self.create_endereco_section(endereco_frame)
-        dashboard_simples_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dashboard_simples_frame.grid(row=1, column=1, sticky="nsew", padx=2, pady=2)
-        self.create_cliente_dashboard(dashboard_simples_frame)
-
-        # Linha 2: Informações Comerciais (col 0), vazio (col 1)
-        comercial_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        comercial_frame.grid(row=2, column=0, sticky="nsew", padx=2, pady=2)
-        self.create_comercial_section(comercial_frame)
-        vazio1 = tk.Frame(main_grid, bg='white')
-        vazio1.grid(row=2, column=1, sticky="nsew", padx=2, pady=2)
-
-        # Linha 3: Prazo de Pagamento (col 0), vazio (col 1)
-        prazo_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        prazo_frame.grid(row=3, column=0, sticky="nsew", padx=2, pady=2)
-        self.create_prazo_pagamento_section(prazo_frame)
-        vazio2 = tk.Frame(main_grid, bg='white')
-        vazio2.grid(row=3, column=1, sticky="nsew", padx=2, pady=2)
-
-        # Linha 4: Contatos do Cliente (col 0), vazio (col 1)
-        contatos_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        contatos_frame.grid(row=4, column=0, sticky="nsew", padx=2, pady=2)
-        self.create_contatos_integrados_section(contatos_frame)
-        vazio3 = tk.Frame(main_grid, bg='white')
-        vazio3.grid(row=4, column=1, sticky="nsew", padx=2, pady=2)
-
-        # Todas as linhas com mesmo peso
         for i in range(5):
             main_grid.grid_rowconfigure(i, weight=1, uniform="row")
 
+        # Coluna 0: Seções
+        dados_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        dados_frame.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
+        self.create_dados_basicos_section(dados_frame)
+
+        endereco_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        endereco_frame.grid(row=1, column=0, sticky="nsew", padx=2, pady=2)
+        self.create_endereco_section(endereco_frame)
+
+        comercial_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        comercial_frame.grid(row=2, column=0, sticky="nsew", padx=2, pady=2)
+        self.create_comercial_section(comercial_frame)
+
+        prazo_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        prazo_frame.grid(row=3, column=0, sticky="nsew", padx=2, pady=2)
+        self.create_prazo_pagamento_section(prazo_frame)
+
+        contatos_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        contatos_frame.grid(row=4, column=0, sticky="nsew", padx=2, pady=2)
+        self.create_contatos_integrados_section(contatos_frame)
+
+        # Coluna 1: Dashboards (cada um ocupa metade da altura)
+        # Dashboard Completo (linha 0-2)
+        dashboard_completo_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        dashboard_completo_frame.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=2, pady=2)
+        # Se dashboard for muito largo, canvas só aqui
+        dash_canvas1 = tk.Canvas(dashboard_completo_frame, bg='white', highlightthickness=0)
+        dash_canvas1.pack(fill="both", expand=True)
+        dash_h_scrollbar1 = ttk.Scrollbar(dashboard_completo_frame, orient="horizontal", command=dash_canvas1.xview)
+        dash_canvas1.configure(xscrollcommand=dash_h_scrollbar1.set)
+        dash_h_scrollbar1.pack(side="bottom", fill="x")
+        dash_inner1 = tk.Frame(dash_canvas1, bg='white')
+        dash_canvas1.create_window((0, 0), window=dash_inner1, anchor="nw")
+        dash_inner1.bind("<Configure>", lambda e: dash_canvas1.configure(scrollregion=dash_canvas1.bbox('all')))
+        self.create_cliente_dashboard_expandido(dash_inner1)
+
+        # Dashboard do Cliente (linha 2-4)
+        dashboard_simples_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        dashboard_simples_frame.grid(row=2, column=1, rowspan=3, sticky="nsew", padx=2, pady=2)
+        dash_canvas2 = tk.Canvas(dashboard_simples_frame, bg='white', highlightthickness=0)
+        dash_canvas2.pack(fill="both", expand=True)
+        dash_h_scrollbar2 = ttk.Scrollbar(dashboard_simples_frame, orient="horizontal", command=dash_canvas2.xview)
+        dash_canvas2.configure(xscrollcommand=dash_h_scrollbar2.set)
+        dash_h_scrollbar2.pack(side="bottom", fill="x")
+        dash_inner2 = tk.Frame(dash_canvas2, bg='white')
+        dash_canvas2.create_window((0, 0), window=dash_inner2, anchor="nw")
+        dash_inner2.bind("<Configure>", lambda e: dash_canvas2.configure(scrollregion=dash_canvas2.bbox('all')))
+        self.create_cliente_dashboard(dash_inner2)
+
         # Botões de ação abaixo do grid
-        self.create_cliente_buttons(outer_frame)
+        self.create_cliente_buttons(parent)
         
     def create_dados_basicos_section(self, parent):
         section_frame = self.create_section_frame(parent, "Dados Básicos")
