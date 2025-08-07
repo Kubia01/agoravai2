@@ -83,14 +83,20 @@ class RelatoriosModule(BaseModule):
         v_scrollbar.pack(side="right", fill="y")
 
         main_grid = tk.Frame(canvas, bg='white')
-        canvas.create_window((0, 0), window=main_grid, anchor="nw")
+        window_id = canvas.create_window((0, 0), window=main_grid, anchor="nw")
         canvas.configure(xscrollcommand=h_scrollbar.set, yscrollcommand=v_scrollbar.set)
 
         def _on_configure(event):
             canvas.configure(scrollregion=canvas.bbox("all"))
-            if main_grid.winfo_reqwidth() != canvas.winfo_width():
-                canvas.itemconfigure("all", width=canvas.winfo_width())
+            min_width = canvas.winfo_width()
+            main_grid.update_idletasks()
+            req_width = main_grid.winfo_reqwidth()
+            if req_width < min_width:
+                canvas.itemconfigure(window_id, width=min_width)
+            else:
+                canvas.itemconfigure(window_id, width=req_width)
         main_grid.bind("<Configure>", _on_configure)
+        canvas.bind("<Configure>", _on_configure)
 
         # Configurar grid para usar toda a tela
         main_grid.grid_columnconfigure(0, weight=2)
