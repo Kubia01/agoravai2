@@ -69,51 +69,51 @@ class ClientesModule(BaseModule):
         content_frame = tk.Frame(parent, bg='white', padx=2, pady=2)
         content_frame.pack(fill="both", expand=True)
 
-        # Frame principal com grid 3x3
+        # Frame principal com grid 3x2
         main_grid = tk.Frame(content_frame, bg='white')
         main_grid.pack(fill="both", expand=True)
 
         # Configurar grid para usar toda a tela
-        for i in range(3):
-            main_grid.grid_columnconfigure(i, weight=1, uniform="col")
+        main_grid.grid_columnconfigure(0, weight=2, uniform="col")
+        main_grid.grid_columnconfigure(1, weight=1, uniform="col")
         for i in range(3):
             main_grid.grid_rowconfigure(i, weight=1, uniform="row")
 
-        # Linha 0
-        dados_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dados_frame.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
-        self.create_dados_basicos_section(dados_frame)
+        # Linha 0: Dados Básicos + Endereço (mesclados)
+        dados_endereco_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        dados_endereco_frame.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
+        self.create_dados_basicos_section(dados_endereco_frame)
+        self.create_endereco_section(dados_endereco_frame)
 
-        endereco_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        endereco_frame.grid(row=0, column=1, sticky="nsew", padx=2, pady=2)
-        self.create_endereco_section(endereco_frame)
+        # Linha 1: Informações Comerciais + Prazo de Pagamento (mesclados)
+        comercial_prazo_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        comercial_prazo_frame.grid(row=1, column=0, sticky="nsew", padx=2, pady=2)
+        self.create_comercial_section(comercial_prazo_frame)
+        self.create_prazo_pagamento_section(comercial_prazo_frame)
 
-        dashboard1_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dashboard1_frame.grid(row=0, column=2, sticky="nsew", padx=2, pady=2)
-        self.create_cliente_dashboard_expandido(dashboard1_frame)
+        # Dashboard ÚNICO, ocupa coluna 1, rowspan=2 (duas linhas)
+        dashboard_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        dashboard_frame.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=2, pady=2)
+        # Canvas para rolagem horizontal do dashboard
+        dash_canvas = tk.Canvas(dashboard_frame, bg='white')
+        dash_h_scrollbar = ttk.Scrollbar(dashboard_frame, orient="horizontal", command=dash_canvas.xview)
+        dash_canvas.configure(xscrollcommand=dash_h_scrollbar.set)
+        dash_canvas.pack(side="top", fill="both", expand=True)
+        dash_h_scrollbar.pack(side="bottom", fill="x")
+        dash_inner = tk.Frame(dash_canvas, bg='white')
+        dash_canvas.create_window((0, 0), window=dash_inner, anchor="nw")
+        dash_inner.bind("<Configure>", lambda e: dash_canvas.configure(scrollregion=dash_canvas.bbox("all")))
+        self.create_cliente_dashboard_expandido(dash_inner)
 
-        # Linha 1
-        comercial_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        comercial_frame.grid(row=1, column=0, sticky="nsew", padx=2, pady=2)
-        self.create_comercial_section(comercial_frame)
-
-        prazo_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        prazo_frame.grid(row=1, column=1, sticky="nsew", padx=2, pady=2)
-        self.create_prazo_pagamento_section(prazo_frame)
-
-        dashboard2_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dashboard2_frame.grid(row=1, column=2, sticky="nsew", padx=2, pady=2)
-        self.create_cliente_dashboard(dashboard2_frame)
-
-        # Linha 2
+        # Linha 2: Contatos do Cliente (coluna 0), Dashboard (coluna 1, mesmo dashboard)
         contatos_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        contatos_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=2, pady=2)
+        contatos_frame.grid(row=2, column=0, sticky="nsew", padx=2, pady=2)
         self.create_contatos_integrados_section(contatos_frame)
-
-        dashboard3_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dashboard3_frame.grid(row=2, column=2, sticky="nsew", padx=2, pady=2)
-        # Dashboard extra pode ser um resumo ou repetir o dashboard simples
-        self.create_cliente_dashboard(dashboard3_frame)
+        # Dashboard na linha 2, coluna 1 (repetindo o mesmo dashboard visualmente)
+        dashboard_frame2 = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
+        dashboard_frame2.grid(row=2, column=1, sticky="nsew", padx=2, pady=2)
+        # Apenas um label indicando que é o mesmo dashboard
+        tk.Label(dashboard_frame2, text="Dashboard", bg='white', font=('Arial', 10, 'italic')).pack(expand=True)
 
         # Botões de ação abaixo do grid
         self.create_cliente_buttons(content_frame)

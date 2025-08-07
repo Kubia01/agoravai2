@@ -73,20 +73,24 @@ class CotacoesModule(BaseModule):
         content_frame.pack(fill="both", expand=True)
 
         # Canvas com rolagem horizontal e vertical
-        canvas = tk.Canvas(content_frame, bg='white')
+        canvas = tk.Canvas(content_frame, bg='white', highlightthickness=0)
         h_scrollbar = ttk.Scrollbar(content_frame, orient="horizontal", command=canvas.xview)
         v_scrollbar = ttk.Scrollbar(content_frame, orient="vertical", command=canvas.yview)
 
+        canvas.pack(side="left", fill="both", expand=True)
+        h_scrollbar.pack(side="bottom", fill="x")
+        v_scrollbar.pack(side="right", fill="y")
+
         main_grid = tk.Frame(canvas, bg='white')
-
-        # Configurar scroll
-        main_grid.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-
         canvas.create_window((0, 0), window=main_grid, anchor="nw")
         canvas.configure(xscrollcommand=h_scrollbar.set, yscrollcommand=v_scrollbar.set)
+
+        def _on_configure(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            # Ajusta largura do canvas para sempre ocupar o frame
+            if main_grid.winfo_reqwidth() != canvas.winfo_width():
+                canvas.itemconfigure("all", width=canvas.winfo_width())
+        main_grid.bind("<Configure>", _on_configure)
 
         # Configurar grid para usar toda a tela
         main_grid.grid_columnconfigure(0, weight=2)
@@ -115,11 +119,6 @@ class CotacoesModule(BaseModule):
 
         # Botões de ação (largura total)
         self.create_cotacao_buttons(content_frame)
-
-        # Pack dos elementos de scroll
-        canvas.pack(side="top", fill="both", expand=True)
-        h_scrollbar.pack(side="bottom", fill="x")
-        v_scrollbar.pack(side="right", fill="y")
         
     def create_dados_cotacao_section(self, parent):
         section_frame = self.create_section_frame(parent, "Dados da Cotação")
