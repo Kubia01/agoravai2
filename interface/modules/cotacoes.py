@@ -87,7 +87,6 @@ class CotacoesModule(BaseModule):
 
         def _on_configure(event):
             canvas.configure(scrollregion=canvas.bbox("all"))
-            # Ajusta largura do main_grid para ocupar pelo menos a largura do canvas
             min_width = canvas.winfo_width()
             main_grid.update_idletasks()
             req_width = main_grid.winfo_reqwidth()

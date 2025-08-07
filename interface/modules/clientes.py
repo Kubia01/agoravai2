@@ -69,9 +69,30 @@ class ClientesModule(BaseModule):
         content_frame = tk.Frame(parent, bg='white', padx=2, pady=2)
         content_frame.pack(fill="both", expand=True)
 
-        # Frame principal com grid 3x2
-        main_grid = tk.Frame(content_frame, bg='white')
-        main_grid.pack(fill="both", expand=True)
+        # Canvas com rolagem horizontal e vertical
+        canvas = tk.Canvas(content_frame, bg='white', highlightthickness=0)
+        h_scrollbar = ttk.Scrollbar(content_frame, orient="horizontal", command=canvas.xview)
+        v_scrollbar = ttk.Scrollbar(content_frame, orient="vertical", command=canvas.yview)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        h_scrollbar.pack(side="bottom", fill="x")
+        v_scrollbar.pack(side="right", fill="y")
+
+        main_grid = tk.Frame(canvas, bg='white')
+        window_id = canvas.create_window((0, 0), window=main_grid, anchor="nw")
+        canvas.configure(xscrollcommand=h_scrollbar.set, yscrollcommand=v_scrollbar.set)
+
+        def _on_configure(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            min_width = canvas.winfo_width()
+            main_grid.update_idletasks()
+            req_width = main_grid.winfo_reqwidth()
+            if req_width < min_width:
+                canvas.itemconfigure(window_id, width=min_width)
+            else:
+                canvas.itemconfigure(window_id, width=req_width)
+        main_grid.bind("<Configure>", _on_configure)
+        canvas.bind("<Configure>", _on_configure)
 
         # Configurar grid para usar toda a tela
         main_grid.grid_columnconfigure(0, weight=2, uniform="col")
@@ -92,21 +113,18 @@ class ClientesModule(BaseModule):
         self.create_comercial_section(comercial_prazo_frame)
         self.create_prazo_pagamento_section(comercial_prazo_frame)
 
-        # Linha 2: Contatos do Cliente (coluna 0)
+        # Linha 2: Contatos do Cliente (coluna 0, colspan=2)
         contatos_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        contatos_frame.grid(row=2, column=0, sticky="nsew", padx=2, pady=2)
+        contatos_frame.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=2, pady=2)
         self.create_contatos_integrados_section(contatos_frame)
 
         # Coluna 1: Dashboards (um abaixo do outro, mesmo tamanho)
-        main_grid.grid_rowconfigure(0, weight=1)
-        main_grid.grid_rowconfigure(1, weight=1)
-        main_grid.grid_rowconfigure(2, weight=1)
         dashboard_completo_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dashboard_completo_frame.grid(row=0, column=1, rowspan=1, sticky="nsew", padx=2, pady=2)
+        dashboard_completo_frame.grid(row=0, column=1, sticky="nsew", padx=2, pady=2)
         self.create_cliente_dashboard_expandido(dashboard_completo_frame)
 
         dashboard_simples_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dashboard_simples_frame.grid(row=1, column=1, rowspan=2, sticky="nsew", padx=2, pady=2)
+        dashboard_simples_frame.grid(row=1, column=1, sticky="nsew", padx=2, pady=2)
         self.create_cliente_dashboard(dashboard_simples_frame)
 
         # Botões de ação abaixo do grid
