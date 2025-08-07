@@ -72,37 +72,54 @@ class RelatoriosModule(BaseModule):
     def create_relatorio_content(self, parent):
         content_frame = tk.Frame(parent, bg='white', padx=2, pady=2)
         content_frame.pack(fill="both", expand=True)
-        
-        # Frame principal com grid 2x1 para máximo aproveitamento - SEM SCROLL
-        main_grid = tk.Frame(content_frame, bg='white')
-        main_grid.pack(fill="both", expand=True)
-        
+
+        # Canvas com rolagem horizontal e vertical
+        canvas = tk.Canvas(content_frame, bg='white')
+        h_scrollbar = ttk.Scrollbar(content_frame, orient="horizontal", command=canvas.xview)
+        v_scrollbar = ttk.Scrollbar(content_frame, orient="vertical", command=canvas.yview)
+
+        main_grid = tk.Frame(canvas, bg='white')
+
+        # Configurar scroll
+        main_grid.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=main_grid, anchor="nw")
+        canvas.configure(xscrollcommand=h_scrollbar.set, yscrollcommand=v_scrollbar.set)
+
         # Configurar grid para usar toda a tela
-        main_grid.grid_columnconfigure(0, weight=2)  # Formulário
-        main_grid.grid_columnconfigure(1, weight=1)  # Dashboard
-        
+        main_grid.grid_columnconfigure(0, weight=2)
+        main_grid.grid_columnconfigure(1, weight=1)
+
         # Coluna esquerda - Formulário
         left_column = tk.Frame(main_grid, bg='white')
         left_column.grid(row=0, column=0, sticky="nsew", padx=(0, 2))
         left_column.grid_columnconfigure(0, weight=1)
-        
+
         # Coluna direita - Dashboard
         right_column = tk.Frame(main_grid, bg='white')
         right_column.grid(row=0, column=1, sticky="nsew", padx=(2, 0))
         right_column.grid_columnconfigure(0, weight=1)
-        
+
         # Seções na coluna esquerda
         self.create_cliente_section(left_column)
         self.create_servico_section(left_column)
         self.create_tecnicos_section(left_column)
         self.create_equipamento_section(left_column)
         self.create_vinculacao_section(left_column)
-        
+
         # Dashboard na coluna direita
         self.create_relatorio_dashboard(right_column)
-        
+
         # Botões de ação (largura total)
         self.create_relatorio_buttons(content_frame)
+
+        # Pack dos elementos de scroll
+        canvas.pack(side="top", fill="both", expand=True)
+        h_scrollbar.pack(side="bottom", fill="x")
+        v_scrollbar.pack(side="right", fill="y")
         
     def create_cliente_section(self, parent):
         section_frame = self.create_section_frame(parent, "Identificação do Cliente")
