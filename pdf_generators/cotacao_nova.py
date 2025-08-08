@@ -283,7 +283,15 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
             pdf.image(fundo_path, x=0, y=0, w=210, h=297)
         
         # 2. CAPA PERSONALIZADA SOBREPOSTA (se disponível)
-        template_jpeg_path = obter_template_capa_jpeg(responsavel_username)
+        # 2.1 Tentar template do banco (template_image_path) do usuário
+        template_jpeg_path = None
+        c.execute("SELECT template_personalizado, template_image_path FROM usuarios WHERE username = ?", (responsavel_username,))
+        tu = c.fetchone()
+        if tu and tu[0] and tu[1] and os.path.exists(tu[1]):
+            template_jpeg_path = tu[1]
+        else:
+            # fallback para mapeamento estático
+            template_jpeg_path = obter_template_capa_jpeg(responsavel_username)
         if template_jpeg_path and os.path.exists(template_jpeg_path):
             # Adicionar capa personalizada reduzida e posicionada
             capa_width = 120  # Largura reduzida
@@ -482,27 +490,49 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         # =====================================================
         if esboco_servico:
             pdf.add_page()
-            pdf.set_y(45)
+            top_y = 45
+            bottom_margin = 25  # respeitar margem já configurada
+            usable_height = 297 - top_y - bottom_margin
+            pdf.set_y(top_y)
             pdf.set_font("Arial", 'B', 14)
-            pdf.cell(0, 10, clean_text("ESBOÇO DO SERVIÇO A SER EXECUTADO"), 0, 1, 'C')
-            pdf.ln(10)
+            pdf.cell(0, 8, clean_text("ESBOÇO DO SERVIÇO A SER EXECUTADO"), 0, 1, 'L')
+            pdf.ln(5)
             
             pdf.set_font("Arial", '', 11)
-            pdf.multi_cell(0, 6, clean_text(esboco_servico))
+            # Restringir área útil manualmente
+            start_y = pdf.get_y()
+            while esboco_servico:
+                remaining_height = top_y + usable_height - pdf.get_y()
+                if remaining_height < 12:  # espaço mínimo para próxima linha
+                    pdf.add_page()
+                    pdf.set_y(top_y)
+                # Escrever bloco por bloco
+                pdf.multi_cell(0, 6, clean_text(esboco_servico))
+                # Quebrou naturalmente; sair do loop
+                break
         
         # =====================================================
         # PÁGINA 5: RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS
         # =====================================================
         if relacao_pecas_substituir:
             pdf.add_page()
-            pdf.set_y(45)
+            top_y = 45
+            bottom_margin = 25
+            usable_height = 297 - top_y - bottom_margin
+            pdf.set_y(top_y)
             pdf.set_font("Arial", 'B', 14)
-            pdf.cell(0, 10, clean_text("RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS"), 0, 1, 'C')
-            pdf.ln(10)
+            pdf.cell(0, 8, clean_text("RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS"), 0, 1, 'L')
+            pdf.ln(5)
             
             pdf.set_font("Arial", '', 11)
-            pdf.multi_cell(0, 6, clean_text(relacao_pecas_substituir))
-        
+            while relacao_pecas_substituir:
+                remaining_height = top_y + usable_height - pdf.get_y()
+                if remaining_height < 12:
+                    pdf.add_page()
+                    pdf.set_y(top_y)
+                pdf.multi_cell(0, 6, clean_text(relacao_pecas_substituir))
+                break
+
         # =====================================================
         # PÁGINAS SEGUINTES: DETALHES DA PROPOSTA
         # =====================================================
