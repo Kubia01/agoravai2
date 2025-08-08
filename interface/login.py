@@ -213,12 +213,22 @@ class LoginWindow:
                 
                 messagebox.showinfo("Sucesso", f"Bem-vindo, {nome_completo}!")
                 
-                # Fechar login
-                self.login_window.destroy()
+                # Tentar abrir a janela principal; só destruir o login após sucesso
+                try:
+                    self.abrir_sistema_principal(user_id, role, nome_completo)
+                except Exception as e:
+                    # Em caso de falha ao abrir o sistema, manter a janela de login e exibir erro
+                    if self.status_label and self.status_label.winfo_exists():
+                        self.status_label.config(text="❌ Erro ao abrir o sistema", fg='#ef4444')
+                    messagebox.showerror("Erro", f"Erro ao abrir o sistema: {e}")
+                    return
                 
-                # Abrir sistema principal
-                self.abrir_sistema_principal(user_id, role, nome_completo)
+                # Se chegou aqui, o sistema abriu com sucesso: destruir janela de login
+                if self.login_window and self.login_window.winfo_exists():
+                    self.login_window.destroy()
                 
+                # Encerrar processamento após sucesso
+                return
             else:
                 self.status_label.config(text="❌ Usuário ou senha incorretos!", fg='#ef4444')
                 messagebox.showerror("Erro", "Usuário ou senha incorretos!")
