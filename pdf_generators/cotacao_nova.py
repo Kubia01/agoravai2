@@ -494,8 +494,8 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         if esboco_servico:
             pdf.add_page()
             # Primeira página da seção: mais alto; complementares: afastar ainda mais do cabeçalho
-            pdf.begin_section('esboco', top_first=50, bottom_first=40, top_cont=90, bottom_cont=40)
-            pdf.set_y(pdf.t_margin)
+            pdf.begin_section('esboco', top_first=40, bottom_first=40, top_cont=110, bottom_cont=40)
+            pdf.set_y(40)
             pdf.set_font("Arial", 'B', 14)
             pdf.cell(0, 8, clean_text("ESBOÇO DO SERVIÇO A SER EXECUTADO"), 0, 1, 'L')
             pdf.ln(5)
@@ -509,8 +509,8 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         # =====================================================
         if relacao_pecas_substituir:
             pdf.add_page()
-            pdf.begin_section('relacao', top_first=50, bottom_first=40, top_cont=90, bottom_cont=40)
-            pdf.set_y(pdf.t_margin)
+            pdf.begin_section('relacao', top_first=40, bottom_first=40, top_cont=110, bottom_cont=40)
+            pdf.set_y(40)
             pdf.set_font("Arial", 'B', 14)
             pdf.cell(0, 8, clean_text("RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS"), 0, 1, 'L')
             pdf.ln(5)
