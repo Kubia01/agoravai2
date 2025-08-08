@@ -172,6 +172,7 @@ class CotacoesModule(BaseModule):
         # Variáveis
         self.numero_var = tk.StringVar()
         self.cliente_var = tk.StringVar()
+        self.contato_cliente_var = tk.StringVar()
         self.filial_var = tk.StringVar(value="2")  # Default para World Comp do Brasil
         self.modelo_var = tk.StringVar()
         self.serie_var = tk.StringVar()
@@ -215,6 +216,12 @@ class CotacoesModule(BaseModule):
         refresh_clientes_btn = self.create_button(cliente_frame, "🔄", self.refresh_clientes, bg='#10b981')
         refresh_clientes_btn.pack(side="right", padx=(5, 0))
         
+        row += 1
+        # Contato do Cliente
+        tk.Label(fields_frame, text="Contato:", 
+                 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
+        self.contato_cliente_combo = ttk.Combobox(fields_frame, textvariable=self.contato_cliente_var, width=27, state="readonly")
+        self.contato_cliente_combo.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
         row += 1
         
         # Modelo e Série
@@ -581,6 +588,15 @@ class CotacoesModule(BaseModule):
             if result and result[0]:
                 # Preencher automaticamente a condição de pagamento
                 self.condicao_pagamento_var.set(result[0])
+            
+            # Carregar contatos do cliente
+            c.execute("SELECT nome FROM contatos WHERE cliente_id = ? ORDER BY nome", (cliente_id,))
+            contatos = [row[0] for row in c.fetchall()]
+            self.contato_cliente_combo['values'] = contatos
+            if contatos:
+                self.contato_cliente_var.set(contatos[0])
+            else:
+                self.contato_cliente_var.set("")
                 
         except sqlite3.Error as e:
             print(f"Erro ao buscar prazo de pagamento do cliente: {e}")
@@ -759,6 +775,18 @@ class CotacoesModule(BaseModule):
                     except ValueError:
                         pass
             
+            # Converter data_validade para formato YYYY-MM-DD se vier no formato brasileiro
+            data_validade_input = self.data_validade_var.get().strip()
+            data_validade = None
+            if data_validade_input:
+                try:
+                    # Tentar formato DD/MM/AAAA
+                    from datetime import datetime
+                    data_validade = datetime.strptime(data_validade_input, '%d/%m/%Y').strftime('%Y-%m-%d')
+                except ValueError:
+                    # Usar como está (assumindo YYYY-MM-DD)
+                    data_validade = data_validade_input
+
             # Obter ID da filial
             filial_str = self.filial_var.get()
             filial_id = int(filial_str.split(' - ')[0]) if ' - ' in filial_str else int(filial_str)
@@ -775,7 +803,7 @@ class CotacoesModule(BaseModule):
                     WHERE id = ?
                 """, (numero, self.modelo_var.get(), self.serie_var.get(),
                      self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
-                     self.status_var.get(), self.data_validade_var.get(),
+                     self.status_var.get(), data_validade,
                      self.condicao_pagamento_var.get(), self.prazo_entrega_var.get(),
                      filial_id, 
                      self.esboco_servico_text.get("1.0", tk.END).strip(),
@@ -796,7 +824,7 @@ class CotacoesModule(BaseModule):
                 """, (numero, cliente_id, self.user_id, datetime.now().strftime('%Y-%m-%d'),
                      self.modelo_var.get(), self.serie_var.get(),
                      self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
-                     self.status_var.get(), self.data_validade_var.get(),
+                     self.status_var.get(), data_validade,
                      self.condicao_pagamento_var.get(), self.prazo_entrega_var.get(),
                      filial_id,
                      self.esboco_servico_text.get("1.0", tk.END).strip(),
@@ -808,7 +836,15 @@ class CotacoesModule(BaseModule):
             # Inserir itens
             for item in self.itens_tree.get_children():
                 values = self.itens_tree.item(item)['values']
-                tipo, nome, qtd, valor_unit, mao_obra, desloc, estadia, total, tipo_operacao, desc = values
+                # Suportar linhas com 9 ou 10 colunas (compatibilidade)
+                if len(values) == 10:
+                    tipo, nome, qtd, valor_unit, mao_obra, desloc, estadia, total, tipo_operacao, desc = values
+                elif len(values) == 9:
+                    tipo, nome, qtd, valor_unit, mao_obra, desloc, estadia, total, desc = values
+                    tipo_operacao = 'Compra'
+                else:
+                    # Formato inesperado; pular linha
+                    continue
                 
                 # Converter valores
                 quantidade = float(qtd)
@@ -846,10 +882,11 @@ class CotacoesModule(BaseModule):
             self.show_warning("Salve a cotação antes de gerar o PDF.")
             return
             
-        # Obter username do usuário atual para template personalizado
-        current_username = self._get_current_username()
-        
-        sucesso, resultado = gerar_pdf_cotacao_nova(self.current_cotacao_id, DB_NAME, current_username)
+        try:
+            # Obter username do usuário atual para template personalizado
+            current_username = self._get_current_username()
+            # Passar contato selecionado para o gerador via variável global simples (set no módulo gerador) ou por DB se necessário
+            sucesso, resultado = gerar_pdf_cotacao_nova(self.current_cotacao_id, DB_NAME, current_username, contato_nome=self.contato_cliente_var.get())
         
         if sucesso:
             self.show_success(f"PDF gerado com sucesso!\nLocal: {resultado}")
@@ -1007,6 +1044,14 @@ class CotacoesModule(BaseModule):
             if cotacao[9]:  # observacoes
                 self.observacoes_text.insert("1.0", cotacao[9])
             
+            # Esboço do serviço e relação de peças
+            self.esboco_servico_text.delete("1.0", tk.END)
+            if len(cotacao) > 21 and cotacao[21]:
+                self.esboco_servico_text.insert("1.0", cotacao[21])
+            self.relacao_pecas_text.delete("1.0", tk.END)
+            if len(cotacao) > 22 and cotacao[22]:
+                self.relacao_pecas_text.insert("1.0", cotacao[22])
+            
             # Carregar itens
             self.carregar_itens_cotacao(cotacao_id)
             
@@ -1083,7 +1128,6 @@ class CotacoesModule(BaseModule):
             self.show_warning("Selecione uma cotação para gerar PDF.")
             return
             
-        # Obter ID da cotação
         tags = self.cotacoes_tree.item(selected[0])['tags']
         if not tags:
             return
@@ -1091,7 +1135,7 @@ class CotacoesModule(BaseModule):
         cotacao_id = tags[0]
         # Obter username do usuário atual para template personalizado
         current_username = self._get_current_username()
-        sucesso, resultado = gerar_pdf_cotacao_nova(cotacao_id, DB_NAME, current_username)
+        sucesso, resultado = gerar_pdf_cotacao_nova(cotacao_id, DB_NAME, current_username, contato_nome=self.contato_cliente_var.get())
         
         if sucesso:
             self.show_success(f"PDF gerado com sucesso!\nLocal: {resultado}")

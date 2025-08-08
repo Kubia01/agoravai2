@@ -177,7 +177,7 @@ class PDFCotacao(FPDF):
         
         return composicao
 
-def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None):
+def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=None):
     """
     Versão melhorada do gerador de PDF de cotações
     - Corrige problemas de logo
@@ -238,14 +238,15 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None):
         if responsavel_email:
             dados_usuario['email'] = responsavel_email
 
-        # Obter contato principal
-        c.execute("""
-            SELECT nome FROM contatos 
-            WHERE cliente_id = ? 
-            LIMIT 1
-        """, (cliente_id,))
-        contato_principal = c.fetchone()
-        contato_nome = contato_principal[0] if contato_principal else "Não informado"
+        # Obter contato do parâmetro ou buscar principal
+        if not contato_nome:
+            c.execute("""
+                SELECT nome FROM contatos 
+                WHERE cliente_id = ? 
+                LIMIT 1
+            """, (cliente_id,))
+            contato_principal = c.fetchone()
+            contato_nome = contato_principal[0] if contato_principal else "Não informado"
 
         # Obter itens da cotação - QUERY SIMPLIFICADA (como modelo antigo)
         c.execute("""

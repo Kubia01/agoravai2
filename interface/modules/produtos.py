@@ -327,30 +327,36 @@ class ProdutosModule(BaseModule):
         container = tk.Frame(lista_frame, bg='white', padx=20, pady=20)
         container.pack(fill="both", expand=True)
         
-        # Frame de busca
+        # Busca compartilhada
         search_frame, self.search_var = self.create_search_frame(container, command=self.buscar_produtos)
         search_frame.pack(fill="x", pady=(0, 15))
         
-        # Treeview
-        columns = ("nome", "tipo", "valor", "ativo")
-        self.produtos_tree = ttk.Treeview(container, columns=columns, show="headings", height=15)
+        # Notebook interno com três abas por tipo
+        tipos_notebook = ttk.Notebook(container)
+        tipos_notebook.pack(fill="both", expand=True)
         
-        self.produtos_tree.heading("nome", text="Nome")
-        self.produtos_tree.heading("tipo", text="Tipo")
-        self.produtos_tree.heading("valor", text="Valor")
-        self.produtos_tree.heading("ativo", text="Ativo")
-        
-        self.produtos_tree.column("nome", width=300)
-        self.produtos_tree.column("tipo", width=100)
-        self.produtos_tree.column("valor", width=120)
-        self.produtos_tree.column("ativo", width=80)
-        
-        # Scrollbar
-        lista_scrollbar = ttk.Scrollbar(container, orient="vertical", command=self.produtos_tree.yview)
-        self.produtos_tree.configure(yscrollcommand=lista_scrollbar.set)
-        
-        self.produtos_tree.pack(side="left", fill="both", expand=True)
-        lista_scrollbar.pack(side="right", fill="y")
+        self.trees_por_tipo = {}
+        for tipo in ["Produto", "Serviço", "Kit"]:
+            tab = tk.Frame(tipos_notebook, bg='white')
+            tipos_notebook.add(tab, text=tipo)
+            
+            inner = tk.Frame(tab, bg='white')
+            inner.pack(fill="both", expand=True)
+            
+            columns = ("nome", "valor", "ativo")
+            tree = ttk.Treeview(inner, columns=columns, show="headings", height=15)
+            tree.heading("nome", text="Nome")
+            tree.heading("valor", text="Valor")
+            tree.heading("ativo", text="Ativo")
+            tree.column("nome", width=300)
+            tree.column("valor", width=120)
+            tree.column("ativo", width=80)
+            scrollbar = ttk.Scrollbar(inner, orient="vertical", command=tree.yview)
+            tree.configure(yscrollcommand=scrollbar.set)
+            tree.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+            
+            self.trees_por_tipo[tipo] = tree
         
         # Botões
         lista_buttons = tk.Frame(container, bg='white')
@@ -580,65 +586,52 @@ class ProdutosModule(BaseModule):
             conn.close()
             
     def carregar_produtos(self):
-        """Carregar lista de produtos agrupados por tipo"""
-        # Limpar lista atual
-        for item in self.produtos_tree.get_children():
-            self.produtos_tree.delete(item)
-            
+        """Carregar lista de produtos em três abas por tipo"""
+        # Limpar listas atuais
+        if hasattr(self, 'trees_por_tipo'):
+            for tree in self.trees_por_tipo.values():
+                for item in tree.get_children():
+                    tree.delete(item)
+         
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
-        
+         
         try:
-            # Buscar produtos agrupados por tipo
+            # Buscar produtos
             c.execute("""
                 SELECT id, nome, tipo, valor_unitario, ativo
                 FROM produtos
-                ORDER BY tipo, nome
+                ORDER BY nome
             """)
-            
-            produtos_por_tipo = {}
             for row in c.fetchall():
                 produto_id, nome, tipo, valor, ativo = row
-                if tipo not in produtos_por_tipo:
-                    produtos_por_tipo[tipo] = []
-                produtos_por_tipo[tipo].append((produto_id, nome, valor, ativo))
-            
-            # Inserir produtos agrupados por tipo
-            for tipo in ["Produto", "Serviço", "Kit"]:
-                if tipo in produtos_por_tipo:
-                    # Inserir cabeçalho do tipo
-                    tipo_item = self.produtos_tree.insert("", "end", values=(
-                        f"=== {tipo.upper()} ===",
-                        "",
-                        "",
-                        ""
-                    ), tags=("header",))
-                    
-                    # Inserir produtos do tipo
-                    for produto_id, nome, valor, ativo in produtos_por_tipo[tipo]:
-                        self.produtos_tree.insert("", "end", values=(
-                            f"  {nome}",
-                            tipo,
-                            format_currency(valor),
-                            "Sim" if ativo else "Não"
-                        ), tags=(produto_id,))
-                
+                tree = self.trees_por_tipo.get(tipo)
+                if tree is None:
+                    continue
+                tree.insert("", "end", values=(
+                    nome,
+                    format_currency(valor),
+                    "Sim" if ativo else "Não"
+                ), tags=(produto_id,))
+         
         except sqlite3.Error as e:
             self.show_error(f"Erro ao carregar produtos: {e}")
         finally:
             conn.close()
-            
+             
     def buscar_produtos(self):
-        """Buscar produtos com filtro"""
+        """Buscar produtos com filtro nas três abas"""
         termo = self.search_var.get().strip()
-        
-        # Limpar lista atual
-        for item in self.produtos_tree.get_children():
-            self.produtos_tree.delete(item)
-            
+         
+        # Limpar listas atuais
+        if hasattr(self, 'trees_por_tipo'):
+            for tree in self.trees_por_tipo.values():
+                for item in tree.get_children():
+                    tree.delete(item)
+         
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
-        
+         
         try:
             if termo:
                 c.execute("""
@@ -653,16 +646,18 @@ class ProdutosModule(BaseModule):
                     FROM produtos
                     ORDER BY nome
                 """)
-            
+             
             for row in c.fetchall():
                 produto_id, nome, tipo, valor, ativo = row
-                self.produtos_tree.insert("", "end", values=(
+                tree = self.trees_por_tipo.get(tipo)
+                if tree is None:
+                    continue
+                tree.insert("", "end", values=(
                     nome,
-                    tipo,
                     format_currency(valor),
                     "Sim" if ativo else "Não"
                 ), tags=(produto_id,))
-                
+         
         except sqlite3.Error as e:
             self.show_error(f"Erro ao buscar produtos: {e}")
         finally:
