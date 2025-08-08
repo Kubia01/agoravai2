@@ -66,53 +66,137 @@ class ClientesModule(BaseModule):
         self.create_cliente_content(self.scrollable_cliente)
         
     def create_cliente_content(self, parent):
-        # Frame principal com grid 2 colunas, 100% da tela
-        main_grid = tk.Frame(parent, bg='white')
-        main_grid.pack(fill="both", expand=True)
+        import tkinter.font as tkfont
+        try:
+            import matplotlib
+            import matplotlib.pyplot as plt
+            from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+            has_matplotlib = True
+        except ImportError:
+            has_matplotlib = False
 
-        # 2 colunas, 5 linhas (cada linha 20% da altura)
-        main_grid.grid_columnconfigure(0, weight=1, uniform="col")
-        main_grid.grid_columnconfigure(1, weight=1, uniform="col")
-        for i in range(5):
-            main_grid.grid_rowconfigure(i, weight=1, uniform="row")
+        # Frame principal com 2 colunas
+        main_frame = tk.Frame(parent, bg='#f5f6fa')
+        main_frame.pack(fill="both", expand=True)
+        main_frame.grid_columnconfigure(0, weight=1, uniform="col")
+        main_frame.grid_columnconfigure(1, weight=1, uniform="col")
+        main_frame.grid_rowconfigure(0, weight=1)
 
-        # Coluna 0: Seções
-        dados_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dados_frame.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
-        self.create_dados_basicos_section(dados_frame)
+        # TOPO: Título e botões
+        header = tk.Frame(main_frame, bg='#f5f6fa')
+        header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        tk.Label(header, text="Gestão de Clientes", font=("Arial", 18, "bold"), bg='#f5f6fa', fg='#22223b').pack(side="left", padx=(10, 20))
+        self.create_cliente_buttons(header)
 
-        endereco_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        endereco_frame.grid(row=1, column=0, sticky="nsew", padx=2, pady=2)
-        self.create_endereco_section(endereco_frame)
+        # Painel de cards de dados (esquerda)
+        left_panel = tk.Frame(main_frame, bg='#f5f6fa')
+        left_panel.grid(row=1, column=0, sticky="nsew", padx=(20, 10), pady=(0, 20))
+        left_panel.grid_rowconfigure(0, weight=1)
+        left_panel.grid_columnconfigure(0, weight=1)
 
-        comercial_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        comercial_frame.grid(row=2, column=0, sticky="nsew", padx=2, pady=2)
-        self.create_comercial_section(comercial_frame)
+        # Scrollbar vertical para painel de dados
+        data_canvas = tk.Canvas(left_panel, bg='#f5f6fa', highlightthickness=0)
+        data_canvas.pack(side="left", fill="both", expand=True)
+        v_scroll = ttk.Scrollbar(left_panel, orient="vertical", command=data_canvas.yview)
+        v_scroll.pack(side="right", fill="y")
+        data_canvas.configure(yscrollcommand=v_scroll.set)
+        data_inner = tk.Frame(data_canvas, bg='#f5f6fa')
+        data_canvas.create_window((0, 0), window=data_inner, anchor="nw")
+        data_inner.bind("<Configure>", lambda e: data_canvas.configure(scrollregion=data_canvas.bbox('all')))
 
-        prazo_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        prazo_frame.grid(row=3, column=0, sticky="nsew", padx=2, pady=2)
-        self.create_prazo_pagamento_section(prazo_frame)
+        # Card: Dados Básicos
+        card1 = tk.Frame(data_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card1.pack(fill="x", pady=(0, 12), padx=0, ipady=4)
+        tk.Label(card1, text="🧑‍💼 Dados Básicos", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
+        self.create_dados_basicos_section(card1)
 
-        contatos_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        contatos_frame.grid(row=4, column=0, sticky="nsew", padx=2, pady=2)
-        self.create_contatos_integrados_section(contatos_frame)
+        # Card: Endereço
+        card2 = tk.Frame(data_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card2.pack(fill="x", pady=(0, 12), padx=0, ipady=4)
+        tk.Label(card2, text="🏠 Endereço", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
+        self.create_endereco_section(card2)
 
-        # Coluna 1: Dashboard Completo ocupa todas as linhas
-        dashboard_completo_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dashboard_completo_frame.grid(row=0, column=1, rowspan=5, sticky="nsew", padx=2, pady=2)
-        dash_canvas1 = tk.Canvas(dashboard_completo_frame, bg='white', highlightthickness=0)
-        dash_canvas1.pack(fill="both", expand=True)
-        dash_h_scrollbar1 = ttk.Scrollbar(dashboard_completo_frame, orient="horizontal", command=dash_canvas1.xview)
-        dash_canvas1.configure(xscrollcommand=dash_h_scrollbar1.set)
-        dash_h_scrollbar1.pack(side="bottom", fill="x")
-        dash_inner1 = tk.Frame(dash_canvas1, bg='white')
-        dash_canvas1.create_window((0, 0), window=dash_inner1, anchor="nw")
-        dash_inner1.bind("<Configure>", lambda e: dash_canvas1.configure(scrollregion=dash_canvas1.bbox('all')))
-        self.create_cliente_dashboard_expandido(dash_inner1)
+        # Card: Informações Comerciais
+        card3 = tk.Frame(data_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card3.pack(fill="x", pady=(0, 12), padx=0, ipady=4)
+        tk.Label(card3, text="💼 Informações Comerciais", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
+        self.create_comercial_section(card3)
 
-        # Botões de ação abaixo do grid
-        self.create_cliente_buttons(parent)
-        
+        # Card: Prazo de Pagamento
+        card4 = tk.Frame(data_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card4.pack(fill="x", pady=(0, 12), padx=0, ipady=4)
+        tk.Label(card4, text="⏳ Prazo de Pagamento", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
+        self.create_prazo_pagamento_section(card4)
+
+        # Card: Contatos do Cliente
+        card5 = tk.Frame(data_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card5.pack(fill="x", pady=(0, 0), padx=0, ipady=4)
+        tk.Label(card5, text="📇 Contatos do Cliente", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
+        self.create_contatos_integrados_section(card5)
+
+        # Painel de dashboard (direita)
+        right_panel = tk.Frame(main_frame, bg='#f5f6fa')
+        right_panel.grid(row=1, column=1, sticky="nsew", padx=(10, 20), pady=(0, 20))
+        right_panel.grid_rowconfigure(0, weight=1)
+        right_panel.grid_columnconfigure(0, weight=1)
+
+        # Dashboard visual moderno
+        dash_card = tk.Frame(right_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        dash_card.pack(fill="both", expand=True, padx=0, pady=0)
+        dash_card.grid_rowconfigure(1, weight=1)
+        dash_card.grid_columnconfigure(0, weight=1)
+
+        # Indicadores em cards
+        indicators_frame = tk.Frame(dash_card, bg='white')
+        indicators_frame.grid(row=0, column=0, sticky="ew", pady=(18, 0))
+        for i, (icon, label) in enumerate([
+            ("📄", "Total de Cotações"),
+            ("✅", "Cotações Aprovadas"),
+            ("❌", "Cotações Rejeitadas"),
+            ("💰", "Faturamento Total")]):
+            card = tk.Frame(indicators_frame, bg='#f1f3f8', bd=0, relief='ridge', highlightthickness=0)
+            card.pack(side="left", padx=12, ipadx=12, ipady=8)
+            tk.Label(card, text=icon, font=("Arial", 18), bg='#f1f3f8').pack()
+            tk.Label(card, text=label, font=("Arial", 10, "bold"), bg='#f1f3f8').pack()
+            value = tk.Label(card, text="-", font=("Arial", 14, "bold"), bg='#f1f3f8', fg='#22223b')
+            value.pack()
+            # Aqui você pode atualizar os valores reais dos indicadores
+            # value.config(text=...)
+
+        # Gráficos (pizza e barras)
+        charts_frame = tk.Frame(dash_card, bg='white')
+        charts_frame.grid(row=1, column=0, sticky="nsew", pady=(18, 0))
+        charts_frame.grid_columnconfigure(0, weight=1)
+        charts_frame.grid_columnconfigure(1, weight=1)
+        if has_matplotlib:
+            # Gráfico de pizza
+            fig1, ax1 = plt.subplots(figsize=(2.5, 2.5), dpi=80)
+            ax1.pie([40, 30, 30], labels=['Aprovadas', 'Rejeitadas', 'Em Aberto'], autopct='%1.1f%%', colors=['#4ade80', '#f87171', '#facc15'])
+            ax1.set_title('Status das Cotações')
+            pie_canvas = FigureCanvasTkAgg(fig1, master=charts_frame)
+            pie_canvas.get_tk_widget().grid(row=0, column=0, padx=10, pady=10)
+            # Gráfico de barras
+            fig2, ax2 = plt.subplots(figsize=(2.5, 2.5), dpi=80)
+            ax2.bar(['Jan', 'Fev', 'Mar', 'Abr'], [10000, 15000, 8000, 12000], color='#60a5fa')
+            ax2.set_title('Faturamento por Mês')
+            bar_canvas = FigureCanvasTkAgg(fig2, master=charts_frame)
+            bar_canvas.get_tk_widget().grid(row=0, column=1, padx=10, pady=10)
+        else:
+            # Placeholder gráfico de pizza
+            pie = tk.Canvas(charts_frame, width=120, height=120, bg='white', highlightthickness=0)
+            pie.grid(row=0, column=0, padx=10, pady=10)
+            pie.create_oval(10, 10, 110, 110, fill='#4ade80', outline='')
+            pie.create_arc(10, 10, 110, 110, start=0, extent=108, fill='#f87171', outline='')
+            pie.create_arc(10, 10, 110, 110, start=108, extent=108, fill='#facc15', outline='')
+            pie.create_text(60, 60, text='Pizza', font=("Arial", 10))
+            # Placeholder gráfico de barras
+            bars = tk.Canvas(charts_frame, width=120, height=120, bg='white', highlightthickness=0)
+            bars.grid(row=0, column=1, padx=10, pady=10)
+            bars.create_rectangle(20, 100, 40, 40, fill='#60a5fa')
+            bars.create_rectangle(50, 100, 70, 20, fill='#60a5fa')
+            bars.create_rectangle(80, 100, 100, 80, fill='#60a5fa')
+            bars.create_text(60, 110, text='Barras', font=("Arial", 10))
+
     def create_dados_basicos_section(self, parent):
         section_frame = self.create_section_frame(parent, "Dados Básicos")
         section_frame.pack(fill="both", expand=True, pady=(0, 5))
