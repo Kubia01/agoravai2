@@ -763,25 +763,15 @@ Contatos Cadastrados: {total_contatos}"""
         """Seção de contatos integrada na aba de dados do cliente"""
         section_frame = self.create_section_frame(parent, "Contatos do Cliente")
         section_frame.pack(fill="both", expand=True, pady=(5, 0))
-        
-        # Container principal com grid 2x1
+
+        # Container principal (apenas 1 coluna, sem dashboard)
         contatos_container = tk.Frame(section_frame, bg='white')
         contatos_container.pack(fill="both", expand=True)
-        contatos_container.grid_columnconfigure(0, weight=2)
-        contatos_container.grid_columnconfigure(1, weight=1)
-        
-        # Coluna esquerda - Contatos
-        contatos_left = tk.Frame(contatos_container, bg='white')
-        contatos_left.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
-        
-        # Coluna direita - Dashboard
-        dashboard_right = tk.Frame(contatos_container, bg='white')
-        dashboard_right.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
-        
+
         # Frame para adicionar contato
-        add_contato_frame = tk.Frame(contatos_left, bg='white')
+        add_contato_frame = tk.Frame(contatos_container, bg='white')
         add_contato_frame.pack(fill="x", pady=(0, 10))
-        
+
         # Variáveis do contato (se não existirem ainda)
         if not hasattr(self, 'contato_nome_var'):
             self.contato_nome_var = tk.StringVar()
@@ -789,91 +779,88 @@ Contatos Cadastrados: {total_contatos}"""
             self.contato_telefone_var = tk.StringVar()
             self.contato_email_var = tk.StringVar()
             self.contato_observacoes_var = tk.StringVar()
-        
+
         # Campos para novo contato
         fields_frame = tk.Frame(add_contato_frame, bg='white')
         fields_frame.pack(fill="x")
-        
+
         row = 0
         # Nome e Cargo na primeira linha
         tk.Label(fields_frame, text="Nome:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
         tk.Entry(fields_frame, textvariable=self.contato_nome_var, font=('Arial', 10), width=25).grid(row=row, column=1, sticky="ew", padx=(5, 10), pady=5)
-        
+
         tk.Label(fields_frame, text="Cargo:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=2, sticky="w", pady=5)
         tk.Entry(fields_frame, textvariable=self.contato_cargo_var, font=('Arial', 10), width=20).grid(row=row, column=3, sticky="ew", padx=(5, 0), pady=5)
         row += 1
-        
+
         # Telefone e Email na segunda linha
         tk.Label(fields_frame, text="Telefone:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
         contato_telefone_entry = tk.Entry(fields_frame, textvariable=self.contato_telefone_var, font=('Arial', 10), width=20)
         contato_telefone_entry.grid(row=row, column=1, sticky="w", padx=(5, 10), pady=5)
         contato_telefone_entry.bind('<FocusOut>', self.format_contato_telefone)
-        
+
         tk.Label(fields_frame, text="Email:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=2, sticky="w", pady=5)
         tk.Entry(fields_frame, textvariable=self.contato_email_var, font=('Arial', 10), width=25).grid(row=row, column=3, sticky="ew", padx=(5, 0), pady=5)
         row += 1
-        
+
         # Observações na terceira linha
         tk.Label(fields_frame, text="Observações:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
         tk.Entry(fields_frame, textvariable=self.contato_observacoes_var, font=('Arial', 10), width=60).grid(row=row, column=1, columnspan=3, sticky="ew", padx=(5, 0), pady=5)
-        
+
         # Configurar expansão das colunas
         fields_frame.grid_columnconfigure(1, weight=1)
         fields_frame.grid_columnconfigure(3, weight=1)
-        
+
         # Botões para contatos
         contatos_buttons = tk.Frame(add_contato_frame, bg='white')
         contatos_buttons.pack(fill="x", pady=(10, 0))
-        
+
         adicionar_contato_btn = self.create_button(contatos_buttons, "Adicionar Contato", self.adicionar_contato)
         adicionar_contato_btn.pack(side="left", padx=(0, 10))
-        
+
         limpar_contato_btn = self.create_button(contatos_buttons, "Limpar Campos", self.limpar_contato, bg='#e2e8f0', fg='#475569')
         limpar_contato_btn.pack(side="left")
-        
+
         # Lista de contatos
-        lista_frame = tk.Frame(contatos_left, bg='white')
+        lista_frame = tk.Frame(contatos_container, bg='white')
         lista_frame.pack(fill="both", expand=True)
-        
+
         # Treeview para contatos
         columns = ("nome", "cargo", "telefone", "email", "observacoes")
         self.contatos_tree = ttk.Treeview(lista_frame, columns=columns, show="headings", height=6)
-        
+
         # Cabeçalhos
         self.contatos_tree.heading("nome", text="Nome")
         self.contatos_tree.heading("cargo", text="Cargo")
         self.contatos_tree.heading("telefone", text="Telefone")
         self.contatos_tree.heading("email", text="Email")
         self.contatos_tree.heading("observacoes", text="Observações")
-        
+
         # Larguras
         self.contatos_tree.column("nome", width=150)
         self.contatos_tree.column("cargo", width=120)
         self.contatos_tree.column("telefone", width=120)
         self.contatos_tree.column("email", width=180)
         self.contatos_tree.column("observacoes", width=200)
-        
+
         # Scrollbar
         contatos_scrollbar = ttk.Scrollbar(lista_frame, orient="vertical", command=self.contatos_tree.yview)
         self.contatos_tree.configure(yscrollcommand=contatos_scrollbar.set)
-        
+
         # Pack
         self.contatos_tree.pack(side="left", fill="both", expand=True)
         contatos_scrollbar.pack(side="right", fill="y")
-        
+
         # Botões da lista
         lista_buttons = tk.Frame(lista_frame, bg='white')
         lista_buttons.pack(fill="x", pady=(5, 0))
-        
-        # Dashboard de informações úteis
-        self.create_cliente_dashboard(dashboard_right)
-        
+
         editar_contato_btn = self.create_button(lista_buttons, "Editar Contato", self.editar_contato_selecionado)
         editar_contato_btn.pack(side="left", padx=(0, 10))
-        
+
         excluir_contato_btn = self.create_button(lista_buttons, "Excluir Contato", self.excluir_contato_selecionado, bg='#dc2626')
         excluir_contato_btn.pack(side="left")
-        
+
     def create_cliente_buttons(self, parent):
         buttons_frame = tk.Frame(parent, bg='white')
         buttons_frame.pack(fill="x", pady=(20, 0))
