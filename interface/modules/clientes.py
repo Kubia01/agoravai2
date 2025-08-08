@@ -130,16 +130,24 @@ class ClientesModule(BaseModule):
         dash_card.grid_rowconfigure(1, weight=1)
         dash_card.grid_columnconfigure(0, weight=1)
 
-        # Indicadores em cards
-        indicators_frame = tk.Frame(dash_card, bg='white')
-        indicators_frame.grid(row=0, column=0, sticky="ew", pady=(18, 0))
+        # Indicadores em cards dentro de um canvas horizontal com rolagem
+        indicators_canvas = tk.Canvas(dash_card, bg='white', highlightthickness=0, height=120)
+        indicators_canvas.grid(row=0, column=0, sticky="ew", pady=(18, 0))
+        indicators_scroll = ttk.Scrollbar(dash_card, orient="horizontal", command=indicators_canvas.xview)
+        indicators_canvas.configure(xscrollcommand=indicators_scroll.set)
+        indicators_scroll.grid(row=1, column=0, sticky="ew")
+        indicators_inner = tk.Frame(indicators_canvas, bg='white')
+        indicators_canvas.create_window((0, 0), window=indicators_inner, anchor="nw")
+        indicators_inner.bind("<Configure>", lambda e: indicators_canvas.configure(scrollregion=indicators_canvas.bbox('all')))
+
         for i, (icon, label) in enumerate([
             ("📄", "Total de Cotações"),
             ("✅", "Cotações Aprovadas"),
             ("❌", "Cotações Rejeitadas"),
-            ("💰", "Faturamento Total")]):
-            card = tk.Frame(indicators_frame, bg='#f1f3f8', bd=0, relief='ridge', highlightthickness=0)
-            card.pack(side="left", padx=12, ipadx=12, ipady=8)
+            ("💰", "Faturamento Total"),
+            ("📈", "Cotações em Aberto")]):
+            card = tk.Frame(indicators_inner, bg='#f1f3f8', bd=0, relief='ridge', highlightthickness=0)
+            card.pack(side="left", padx=18, ipadx=18, ipady=12)
             tk.Label(card, text=icon, font=("Arial", 18), bg='#f1f3f8').pack()
             tk.Label(card, text=label, font=("Arial", 10, "bold"), bg='#f1f3f8').pack()
             value = tk.Label(card, text="-", font=("Arial", 14, "bold"), bg='#f1f3f8', fg='#22223b')
@@ -147,9 +155,9 @@ class ClientesModule(BaseModule):
             # Aqui você pode atualizar os valores reais dos indicadores
             # value.config(text=...)
 
-        # Gráficos (pizza e barras)
+        # Gráficos (pizza e barras) abaixo dos indicadores
         charts_frame = tk.Frame(dash_card, bg='white')
-        charts_frame.grid(row=1, column=0, sticky="nsew", pady=(18, 0))
+        charts_frame.grid(row=2, column=0, sticky="nsew", pady=(18, 0))
         charts_frame.grid_columnconfigure(0, weight=1)
         charts_frame.grid_columnconfigure(1, weight=1)
         if has_matplotlib:
