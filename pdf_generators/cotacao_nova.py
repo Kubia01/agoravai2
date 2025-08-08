@@ -310,9 +310,7 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
         # PÁGINA 2: APRESENTAÇÃO COM LOGO E DADOS (COMO ESTAVA ANTES)
         # ===========================================================
         pdf.add_page()
-        # Fundo padrão em páginas subsequentes
-        if os.path.exists(fundo_padrao):
-            pdf.image(fundo_padrao, x=0, y=0, w=210, h=297)
+        # (Sem fundo padrão nas páginas subsequentes)
         
         # Logo centralizado (como estava antes)
         logo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'logos', 'world_comp_brasil.jpg')
@@ -461,7 +459,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             prev_top = getattr(pdf, 't_margin', 10)
             prev_auto = True
             prev_bmargin = getattr(pdf, 'b_margin', 25)
-            top_y = 45
+            top_y = 55
             bottom_margin = 35
             pdf.set_top_margin(top_y)
             pdf.set_auto_page_break(auto=True, margin=bottom_margin)
@@ -482,7 +480,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             pdf.add_page()
             prev_top = getattr(pdf, 't_margin', 10)
             prev_bmargin = getattr(pdf, 'b_margin', 25)
-            top_y = 45
+            top_y = 55
             bottom_margin = 35
             pdf.set_top_margin(top_y)
             pdf.set_auto_page_break(auto=True, margin=bottom_margin)
