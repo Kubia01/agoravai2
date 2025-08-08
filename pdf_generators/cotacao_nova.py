@@ -276,11 +276,15 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
         # ============================================
         pdf.add_page()
         
-        # 1. IMAGEM DE FUNDO (sempre presente)
-        fundo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'backgrounds', 'capa_fundo.jpg')
-        if os.path.exists(fundo_path):
-            # Adicionar fundo ocupando toda a página
-            pdf.image(fundo_path, x=0, y=0, w=210, h=297)
+        # 1. IMAGEM DE FUNDO PADRÃO (nova imagem para capa)
+        fundo_padrao = os.path.join(os.path.dirname(__file__), '..', 'imgfundo.jpg')
+        if os.path.exists(fundo_padrao):
+            pdf.image(fundo_padrao, x=0, y=0, w=210, h=297)
+        else:
+            # fallback para fundo antigo da capa se existir
+            fundo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'backgrounds', 'capa_fundo.jpg')
+            if os.path.exists(fundo_path):
+                pdf.image(fundo_path, x=0, y=0, w=210, h=297)
         
         # 2. CAPA PERSONALIZADA SOBREPOSTA (se disponível)
         # 2.1 Tentar template do banco (template_image_path) do usuário
@@ -346,6 +350,9 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
         # PÁGINA 2: APRESENTAÇÃO COM LOGO E DADOS (COMO ESTAVA ANTES)
         # ===========================================================
         pdf.add_page()
+        # Fundo padrão em páginas subsequentes
+        if os.path.exists(fundo_padrao):
+            pdf.image(fundo_padrao, x=0, y=0, w=210, h=297)
         
         # Logo centralizado (como estava antes)
         logo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'logos', 'world_comp_brasil.jpg')
@@ -490,8 +497,10 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         # =====================================================
         if esboco_servico:
             pdf.add_page()
+            if os.path.exists(fundo_padrao):
+                pdf.image(fundo_padrao, x=0, y=0, w=210, h=297)
             top_y = 45
-            bottom_margin = 25  # respeitar margem já configurada
+            bottom_margin = 35  # margem maior para essa seção
             usable_height = 297 - top_y - bottom_margin
             pdf.set_y(top_y)
             pdf.set_font("Arial", 'B', 14)
@@ -505,6 +514,8 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 remaining_height = top_y + usable_height - pdf.get_y()
                 if remaining_height < 12:  # espaço mínimo para próxima linha
                     pdf.add_page()
+                    if os.path.exists(fundo_padrao):
+                        pdf.image(fundo_padrao, x=0, y=0, w=210, h=297)
                     pdf.set_y(top_y)
                 # Escrever bloco por bloco
                 pdf.multi_cell(0, 6, clean_text(esboco_servico))
@@ -516,8 +527,10 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         # =====================================================
         if relacao_pecas_substituir:
             pdf.add_page()
+            if os.path.exists(fundo_padrao):
+                pdf.image(fundo_padrao, x=0, y=0, w=210, h=297)
             top_y = 45
-            bottom_margin = 25
+            bottom_margin = 35
             usable_height = 297 - top_y - bottom_margin
             pdf.set_y(top_y)
             pdf.set_font("Arial", 'B', 14)
@@ -529,6 +542,8 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 remaining_height = top_y + usable_height - pdf.get_y()
                 if remaining_height < 12:
                     pdf.add_page()
+                    if os.path.exists(fundo_padrao):
+                        pdf.image(fundo_padrao, x=0, y=0, w=210, h=297)
                     pdf.set_y(top_y)
                 pdf.multi_cell(0, 6, clean_text(relacao_pecas_substituir))
                 break
