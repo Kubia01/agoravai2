@@ -1016,7 +1016,13 @@ class CotacoesModule(BaseModule):
         try:
             # Carregar dados da cotação
             c.execute("""
-                SELECT c.*, cl.nome
+                SELECT 
+                    c.id, c.numero_proposta, c.cliente_id, c.responsavel_id, c.filial_id,
+                    c.data_validade, c.modelo_compressor, c.numero_serie_compressor,
+                    c.descricao_atividade, c.observacoes, c.valor_total, c.tipo_frete,
+                    c.condicao_pagamento, c.prazo_entrega, c.moeda, c.status,
+                    c.caminho_arquivo_pdf, c.relacao_pecas, cl.nome AS cliente_nome,
+                    c.esboco_servico, c.relacao_pecas_substituir
                 FROM cotacoes c
                 JOIN clientes cl ON c.cliente_id = cl.id
                 WHERE c.id = ?
@@ -1032,7 +1038,7 @@ class CotacoesModule(BaseModule):
             self.numero_var.set(cotacao[1])  # numero_proposta
             
             # Encontrar cliente no combo
-            cliente_nome = cotacao[17]  # nome do cliente
+            cliente_nome = cotacao[18]  # nome do cliente
             for key, value in self.clientes_dict.items():
                 if value == cotacao[2]:  # cliente_id
                     self.cliente_var.set(key)
@@ -1052,11 +1058,11 @@ class CotacoesModule(BaseModule):
             
             # Esboço do serviço e relação de peças
             self.esboco_servico_text.delete("1.0", tk.END)
-            if len(cotacao) > 21 and cotacao[21]:
-                self.esboco_servico_text.insert("1.0", cotacao[21])
+            if cotacao[19]:
+                self.esboco_servico_text.insert("1.0", cotacao[19])
             self.relacao_pecas_text.delete("1.0", tk.END)
-            if len(cotacao) > 22 and cotacao[22]:
-                self.relacao_pecas_text.insert("1.0", cotacao[22])
+            if cotacao[20]:
+                self.relacao_pecas_text.insert("1.0", cotacao[20])
             
             # Carregar itens
             self.carregar_itens_cotacao(cotacao_id)
