@@ -94,6 +94,44 @@ class PDFCotacao(FPDF):
         # Configurar encoding para suportar mais caracteres
         self.set_doc_option('core_fonts_encoding', 'latin-1')
 
+        # Controle de seções com margens diferenciadas
+        self._section_mode = None
+        self._section_top_first = None
+        self._section_bottom_first = None
+        self._section_top_cont = None
+        self._section_bottom_cont = None
+        self._default_top = 10
+        self._default_bottom = 25
+
+    def begin_section(self, name, top_first, bottom_first, top_cont, bottom_cont):
+        self._section_mode = name
+        self._section_top_first = top_first
+        self._section_bottom_first = bottom_first
+        self._section_top_cont = top_cont
+        self._section_bottom_cont = bottom_cont
+        # Aplicar margens da primeira página da seção
+        self.set_top_margin(top_first)
+        self.set_auto_page_break(auto=True, margin=bottom_first)
+
+    def end_section(self):
+        # Restaurar margens padrão e limpar estado
+        self.set_top_margin(self._default_top)
+        self.set_auto_page_break(auto=True, margin=self._default_bottom)
+        self._section_mode = None
+        self._section_top_first = None
+        self._section_bottom_first = None
+        self._section_top_cont = None
+        self._section_bottom_cont = None
+
+    def accept_page_break(self):
+        # Em páginas complementares de uma seção, usar margens de continuação
+        if self._section_mode:
+            if self._section_top_cont is not None:
+                self.set_top_margin(self._section_top_cont)
+            if self._section_bottom_cont is not None:
+                self.set_auto_page_break(auto=True, margin=self._section_bottom_cont)
+        return True
+
     def header(self):
         # NÃO exibir header na página 1 (capa JPEG)
         if self.page_no() == 1:
@@ -455,43 +493,30 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         # =====================================================
         if esboco_servico:
             pdf.add_page()
-            # Definir margens específicas para esta seção
-            prev_top = getattr(pdf, 't_margin', 10)
-            prev_auto = True
-            prev_bmargin = getattr(pdf, 'b_margin', 25)
-            top_y = 70
-            bottom_margin = 40
-            pdf.set_top_margin(top_y)
-            pdf.set_auto_page_break(auto=True, margin=bottom_margin)
-            pdf.set_y(top_y)
+            # Primeira página da seção: mais alto; complementares: afastar ainda mais do cabeçalho
+            pdf.begin_section('esboco', top_first=60, bottom_first=40, top_cont=80, bottom_cont=40)
+            pdf.set_y(pdf.t_margin)
             pdf.set_font("Arial", 'B', 14)
             pdf.cell(0, 8, clean_text("ESBOÇO DO SERVIÇO A SER EXECUTADO"), 0, 1, 'L')
             pdf.ln(5)
             pdf.set_font("Arial", '', 11)
             pdf.multi_cell(0, 6, clean_text(esboco_servico))
             # Restaurar margens padrão
-            pdf.set_top_margin(prev_top)
-            pdf.set_auto_page_break(auto=True, margin=prev_bmargin)
+            pdf.end_section()
         
         # =====================================================
         # PÁGINA 5: RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS
         # =====================================================
         if relacao_pecas_substituir:
             pdf.add_page()
-            prev_top = getattr(pdf, 't_margin', 10)
-            prev_bmargin = getattr(pdf, 'b_margin', 25)
-            top_y = 70
-            bottom_margin = 40
-            pdf.set_top_margin(top_y)
-            pdf.set_auto_page_break(auto=True, margin=bottom_margin)
-            pdf.set_y(top_y)
+            pdf.begin_section('relacao', top_first=60, bottom_first=40, top_cont=80, bottom_cont=40)
+            pdf.set_y(pdf.t_margin)
             pdf.set_font("Arial", 'B', 14)
             pdf.cell(0, 8, clean_text("RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS"), 0, 1, 'L')
             pdf.ln(5)
             pdf.set_font("Arial", '', 11)
             pdf.multi_cell(0, 6, clean_text(relacao_pecas_substituir))
-            pdf.set_top_margin(prev_top)
-            pdf.set_auto_page_break(auto=True, margin=prev_bmargin)
+            pdf.end_section()
 
         # =====================================================
         # PÁGINAS SEGUINTES: DETALHES DA PROPOSTA
