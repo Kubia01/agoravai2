@@ -18,20 +18,115 @@ class CotacoesModule(BaseModule):
         container = tk.Frame(self.frame, bg='#f8fafc')
         container.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Header compacto
+        # Header
         self.create_header(container)
         
-        # Notebook para organizar seções - usando todo o espaço restante
-        self.notebook = ttk.Notebook(container)
-        self.notebook.pack(fill="both", expand=True, pady=(10, 0))
+        # Layout principal em 2 colunas: esquerda (formulário) e direita (lista)
+        main_frame = tk.Frame(container, bg='#f8fafc')
+        main_frame.pack(fill="both", expand=True)
+        main_frame.grid_columnconfigure(0, weight=1, uniform="cols")
+        main_frame.grid_columnconfigure(1, weight=1, uniform="cols")
+        main_frame.grid_rowconfigure(0, weight=1)
         
-        # Aba: Nova Cotação
-        self.create_nova_cotacao_tab()
+        # Painel de cotação (esquerda)
+        form_panel = tk.Frame(main_frame, bg='#f8fafc')
+        form_panel.grid(row=0, column=0, sticky="nsew", padx=(10, 10), pady=(10, 10))
+        form_panel.grid_columnconfigure(0, weight=1)
         
-        # Aba: Lista de Cotações
-        self.create_lista_cotacoes_tab()
+        # Botões fixos no rodapé do painel de formulário
+        self.create_cotacao_buttons(form_panel)
         
-        # Carregar dados iniciais
+        # Área rolável para o conteúdo do formulário
+        scroll_container = tk.Frame(form_panel, bg='#f8fafc')
+        scroll_container.pack(side="top", fill="both", expand=True)
+        
+        form_canvas = tk.Canvas(scroll_container, bg='#f8fafc', highlightthickness=0)
+        form_scrollbar = ttk.Scrollbar(scroll_container, orient="vertical", command=form_canvas.yview)
+        form_canvas.configure(yscrollcommand=form_scrollbar.set)
+        
+        form_scrollbar.pack(side="right", fill="y")
+        form_canvas.pack(side="left", fill="both", expand=True)
+        
+        form_inner = tk.Frame(form_canvas, bg='#f8fafc')
+        form_window = form_canvas.create_window((0, 0), window=form_inner, anchor="nw")
+        
+        def _on_inner_configure(event):
+            form_canvas.configure(scrollregion=form_canvas.bbox("all"))
+        form_inner.bind("<Configure>", _on_inner_configure)
+        
+        def _on_canvas_configure(event):
+            form_canvas.itemconfigure(form_window, width=event.width)
+        form_canvas.bind("<Configure>", _on_canvas_configure)
+        
+        # Suporte a rolagem pelo mouse
+        def _on_mousewheel(event):
+            delta = 0
+            if hasattr(event, 'delta') and event.delta:
+                delta = int(-event.delta / 120)
+            elif getattr(event, 'num', None) in (4, 5):
+                delta = -1 if event.num == 5 else 1
+            if delta:
+                form_canvas.yview_scroll(delta, "units")
+        form_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        form_canvas.bind_all("<Button-4>", _on_mousewheel)
+        form_canvas.bind_all("<Button-5>", _on_mousewheel)
+        
+        # Conteúdo do formulário
+        self.create_cotacao_content(form_inner)
+        
+        # Painel da lista (direita)
+        lista_panel = tk.Frame(main_frame, bg='#f8fafc')
+        lista_panel.grid(row=0, column=1, sticky="nsew", padx=(10, 10), pady=(10, 10))
+        lista_panel.grid_columnconfigure(0, weight=1)
+        lista_panel.grid_rowconfigure(2, weight=1)
+        
+        lista_card = tk.Frame(lista_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        lista_card.pack(fill="both", expand=True)
+        
+        tk.Label(lista_card, text="📋 Lista de Cotações", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(fill="x", padx=12, pady=(12, 8))
+        
+        lista_inner = tk.Frame(lista_card, bg='white')
+        lista_inner.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+        
+        # Busca
+        search_frame, self.search_var = self.create_search_frame(lista_inner, command=self.buscar_cotacoes)
+        search_frame.pack(fill="x", pady=(0, 10))
+        
+        # Reservar rodapé dos botões da lista antes da Treeview
+        lista_buttons = tk.Frame(lista_inner, bg='white')
+        lista_buttons.pack(side="bottom", fill="x", pady=(10, 0))
+        
+        # Treeview
+        columns = ("numero", "cliente", "data", "valor", "status")
+        self.cotacoes_tree = ttk.Treeview(lista_inner, columns=columns, show="headings")
+        self.cotacoes_tree.heading("numero", text="Número")
+        self.cotacoes_tree.heading("cliente", text="Cliente")
+        self.cotacoes_tree.heading("data", text="Data")
+        self.cotacoes_tree.heading("valor", text="Valor")
+        self.cotacoes_tree.heading("status", text="Status")
+        self.cotacoes_tree.column("numero", width=150)
+        self.cotacoes_tree.column("cliente", width=250)
+        self.cotacoes_tree.column("data", width=100)
+        self.cotacoes_tree.column("valor", width=120)
+        self.cotacoes_tree.column("status", width=100)
+        
+        lista_scrollbar = ttk.Scrollbar(lista_inner, orient="vertical", command=self.cotacoes_tree.yview)
+        self.cotacoes_tree.configure(yscrollcommand=lista_scrollbar.set)
+        
+        self.cotacoes_tree.pack(side="left", fill="both", expand=True)
+        lista_scrollbar.pack(side="right", fill="y")
+        
+        # Botões da lista
+        editar_btn = self.create_button(lista_buttons, "Editar", self.editar_cotacao)
+        editar_btn.pack(side="left", padx=(0, 10))
+        
+        duplicar_btn = self.create_button(lista_buttons, "Duplicar", self.duplicar_cotacao, bg='#f59e0b')
+        duplicar_btn.pack(side="left", padx=(0, 10))
+        
+        gerar_pdf_lista_btn = self.create_button(lista_buttons, "Gerar PDF", self.gerar_pdf_selecionado, bg='#10b981')
+        gerar_pdf_lista_btn.pack(side="right")
+        
+        # Dados iniciais
         self.refresh_all_data()
         
     def create_header(self, parent):
@@ -44,30 +139,7 @@ class CotacoesModule(BaseModule):
                                fg='#1e293b')
         title_label.pack(side="left")
         
-    def create_nova_cotacao_tab(self):
-        # Frame da aba
-        cotacao_frame = tk.Frame(self.notebook, bg='white')
-        self.notebook.add(cotacao_frame, text="Nova Cotação")
-        
-        # Scroll frame
-        canvas = tk.Canvas(cotacao_frame, bg='white')
-        scrollbar = ttk.Scrollbar(cotacao_frame, orient="vertical", command=canvas.yview)
-        self.scrollable_cotacao = tk.Frame(canvas, bg='white')
-        
-        self.scrollable_cotacao.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        
-        canvas.create_window((0, 0), window=self.scrollable_cotacao, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-        
-        # Conteúdo da cotação
-        self.create_cotacao_content(self.scrollable_cotacao)
-        
+    # Estrutura antiga baseada em notebook removida; conteúdo agora no layout único
     def create_cotacao_content(self, parent):
         # Frame principal com grid 2 colunas, 100% da tela
         main_grid = tk.Frame(parent, bg='white')
@@ -790,58 +862,7 @@ Média por Cotação: R$ {media_valor:,.2f}"""
         gerar_pdf_btn = self.create_button(buttons_frame, "Gerar PDF", self.gerar_pdf, bg='#10b981')
         gerar_pdf_btn.pack(side="right")
         
-    def create_lista_cotacoes_tab(self):
-        # Frame da aba
-        lista_frame = tk.Frame(self.notebook, bg='white')
-        self.notebook.add(lista_frame, text="Lista de Cotações")
-        
-        # Container
-        container = tk.Frame(lista_frame, bg='white', padx=20, pady=20)
-        container.pack(fill="both", expand=True)
-        
-        # Frame de busca
-        search_frame, self.search_var = self.create_search_frame(container, command=self.buscar_cotacoes)
-        search_frame.pack(fill="x", pady=(0, 15))
-        
-        # Treeview para lista
-        columns = ("numero", "cliente", "data", "valor", "status")
-        self.cotacoes_tree = ttk.Treeview(container, columns=columns, show="headings", height=15)
-        
-        # Cabeçalhos
-        self.cotacoes_tree.heading("numero", text="Número")
-        self.cotacoes_tree.heading("cliente", text="Cliente")
-        self.cotacoes_tree.heading("data", text="Data")
-        self.cotacoes_tree.heading("valor", text="Valor")
-        self.cotacoes_tree.heading("status", text="Status")
-        
-        # Larguras
-        self.cotacoes_tree.column("numero", width=150)
-        self.cotacoes_tree.column("cliente", width=250)
-        self.cotacoes_tree.column("data", width=100)
-        self.cotacoes_tree.column("valor", width=120)
-        self.cotacoes_tree.column("status", width=100)
-        
-        # Scrollbar
-        lista_scrollbar = ttk.Scrollbar(container, orient="vertical", command=self.cotacoes_tree.yview)
-        self.cotacoes_tree.configure(yscrollcommand=lista_scrollbar.set)
-        
-        # Pack
-        self.cotacoes_tree.pack(side="left", fill="both", expand=True)
-        lista_scrollbar.pack(side="right", fill="y")
-        
-        # Botões da lista
-        lista_buttons = tk.Frame(container, bg='white')
-        lista_buttons.pack(fill="x", pady=(15, 0))
-        
-        editar_btn = self.create_button(lista_buttons, "Editar", self.editar_cotacao)
-        editar_btn.pack(side="left", padx=(0, 10))
-        
-        duplicar_btn = self.create_button(lista_buttons, "Duplicar", self.duplicar_cotacao, bg='#f59e0b')
-        duplicar_btn.pack(side="left", padx=(0, 10))
-        
-        gerar_pdf_lista_btn = self.create_button(lista_buttons, "Gerar PDF", self.gerar_pdf_selecionado, bg='#10b981')
-        gerar_pdf_lista_btn.pack(side="right")
-        
+    # Lista de cotações integrada no layout único
     def refresh_all_data(self):
         """Atualizar todos os dados do módulo"""
         self.refresh_clientes()
@@ -1279,8 +1300,7 @@ Média por Cotação: R$ {media_valor:,.2f}"""
         cotacao_id = tags[0]
         self.carregar_cotacao_para_edicao(cotacao_id)
         
-        # Mudar para aba de nova cotação
-        self.notebook.select(0)
+        # Layout único: permanecer na mesma tela
         
     def carregar_cotacao_para_edicao(self, cotacao_id):
         """Carregar dados da cotação para edição"""
@@ -1391,8 +1411,7 @@ Média por Cotação: R$ {media_valor:,.2f}"""
         numero = f"PROP-{datetime.now().strftime('%Y%m%d%H%M%S')}"
         self.numero_var.set(numero)
         
-        # Mudar para aba de nova cotação
-        self.notebook.select(0)
+        # Layout único: permanecer na mesma tela
         
     def gerar_pdf_selecionado(self):
         """Gerar PDF da cotação selecionada"""
