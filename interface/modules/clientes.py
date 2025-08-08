@@ -30,6 +30,9 @@ class ClientesModule(BaseModule):
         form_panel.grid(row=0, column=0, sticky="nsew", padx=(10, 10), pady=(10, 10))
         form_panel.grid_columnconfigure(0, weight=1)
 
+        # Reservar rodapé com botões do cliente ANTES de adicionar os cards
+        self.create_cliente_buttons(form_panel)
+
         # Cards/seções do formulário
         card1 = tk.Frame(form_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
         card1.pack(fill="x", pady=(0, 8))
@@ -56,8 +59,7 @@ class ClientesModule(BaseModule):
         tk.Label(card5, text="📇 Contatos do Cliente", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_contatos_integrados_section(card5)
 
-        # Botões de ação
-        self.create_cliente_buttons(form_panel)
+        # Botões já reservados no rodapé
 
         # Painel da lista (direita)
         lista_panel = tk.Frame(main_frame, bg='#f8fafc')
@@ -76,8 +78,12 @@ class ClientesModule(BaseModule):
         search_frame, self.search_var = self.create_search_frame(lista_inner, placeholder="Buscar clientes...", command=self.buscar_clientes)
         search_frame.pack(fill="x", pady=(0, 10))
 
+        # Reservar rodapé dos botões da lista ANTES de empacotar a Treeview
+        lista_buttons = tk.Frame(lista_inner, bg='white')
+        lista_buttons.pack(side="bottom", fill="x", pady=(10, 0))
+
         columns = ("nome", "cnpj", "cidade", "telefone", "email")
-        self.clientes_tree = ttk.Treeview(lista_inner, columns=columns, show="headings", height=20)
+        self.clientes_tree = ttk.Treeview(lista_inner, columns=columns, show="headings")
 
         self.clientes_tree.heading("nome", text="Nome/Razão Social")
         self.clientes_tree.heading("cnpj", text="CNPJ")
@@ -97,9 +103,10 @@ class ClientesModule(BaseModule):
         self.clientes_tree.pack(side="left", fill="both", expand=True)
         lista_scrollbar.pack(side="right", fill="y")
 
-        lista_buttons = tk.Frame(lista_inner, bg='white')
-        lista_buttons.pack(fill="x", pady=(10, 0))
+        # Botões da lista (fixos ao rodapé)
+        # (Já reservado no topo deste bloco)
 
+        # Botões da lista (fixos ao rodapé)
         editar_btn = self.create_button(lista_buttons, "Editar", self.editar_cliente)
         editar_btn.pack(side="left", padx=(0, 10))
 
@@ -222,10 +229,10 @@ class ClientesModule(BaseModule):
         self.clientes_tree.pack(side="left", fill="both", expand=True)
         lista_scrollbar.pack(side="right", fill="y")
 
-        # Botões da lista
-        lista_buttons = tk.Frame(lista_inner, bg='white')
-        lista_buttons.pack(fill="x", pady=(10, 0))
+        # Botões da lista (fixos ao rodapé)
+        # (Já reservado no topo deste bloco)
 
+        # Botões da lista (fixos ao rodapé)
         editar_btn = self.create_button(lista_buttons, "Editar", self.editar_cliente)
         editar_btn.pack(side="left", padx=(0, 10))
 
@@ -833,9 +840,13 @@ Contatos Cadastrados: {total_contatos}"""
         lista_frame = tk.Frame(contatos_container, bg='white')
         lista_frame.pack(fill="both", expand=True)
 
+        # Reservar rodapé dos botões de contatos ANTES da Treeview
+        lista_buttons = tk.Frame(lista_frame, bg='white')
+        lista_buttons.pack(side="bottom", fill="x", pady=(5, 0))
+
         # Treeview para contatos
         columns = ("nome", "cargo", "telefone", "email", "observacoes")
-        self.contatos_tree = ttk.Treeview(lista_frame, columns=columns, show="headings", height=6)
+        self.contatos_tree = ttk.Treeview(lista_frame, columns=columns, show="headings")
 
         # Cabeçalhos
         self.contatos_tree.heading("nome", text="Nome")
@@ -859,10 +870,10 @@ Contatos Cadastrados: {total_contatos}"""
         self.contatos_tree.pack(side="left", fill="both", expand=True)
         contatos_scrollbar.pack(side="right", fill="y")
 
-        # Botões da lista
-        lista_buttons = tk.Frame(lista_frame, bg='white')
-        lista_buttons.pack(fill="x", pady=(5, 0))
+        # Botões da lista (fixos ao rodapé)
+        # (Já reservado no topo deste bloco)
 
+        # Botões da lista (fixos ao rodapé)
         editar_contato_btn = self.create_button(lista_buttons, "Editar Contato", self.editar_contato_selecionado)
         editar_contato_btn.pack(side="left", padx=(0, 10))
 
@@ -871,15 +882,18 @@ Contatos Cadastrados: {total_contatos}"""
 
     def create_cliente_buttons(self, parent):
         buttons_frame = tk.Frame(parent, bg='white')
-        buttons_frame.pack(fill="x", pady=(20, 0))
+        # Fixar os botões ao rodapé do painel de formulário
+        buttons_frame.pack(side="bottom", fill="x", pady=(10, 0))
         
         # Botões
         novo_btn = self.create_button(buttons_frame, "Novo Cliente", self.novo_cliente, bg='#e2e8f0', fg='#475569')
         novo_btn.pack(side="left", padx=(0, 10))
         
         salvar_btn = self.create_button(buttons_frame, "Salvar Cliente", self.salvar_cliente)
-        salvar_btn.pack(side="left")
+        salvar_btn.pack(side="left", padx=(0, 10))
         
+        excluir_btn = self.create_button(buttons_frame, "Excluir Cliente", self.excluir_cliente, bg='#dc2626')
+        excluir_btn.pack(side="left")
 
     def format_cnpj(self, event=None):
         """Formatar CNPJ automaticamente"""
@@ -1218,11 +1232,18 @@ Contatos Cadastrados: {total_contatos}"""
 
     def adicionar_contato(self):
         """Adicionar novo contato ao cliente"""
-        # Verificar se há um cliente selecionado/sendo editado
+        # Se ainda não houver cliente salvo, tentar salvar rapidamente antes de adicionar contato
         if not self.current_cliente_id:
-            self.show_warning("Selecione um cliente primeiro para adicionar contatos.")
-            return
-            
+            nome_temp = self.nome_var.get().strip()
+            if not nome_temp:
+                self.show_warning("Preencha o nome do cliente antes de adicionar um contato.")
+                return
+            # Salvar o cliente rapidamente para gerar ID
+            self.salvar_cliente()
+            if not self.current_cliente_id:
+                # Falhou ao salvar
+                return
+         
         nome = self.contato_nome_var.get().strip()
         if not nome:
             self.show_warning("O nome do contato é obrigatório.")
