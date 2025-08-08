@@ -304,47 +304,7 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
             y_pos = 105  # Posição Y no terço superior
             
             pdf.image(template_jpeg_path, x=x_pos, y=y_pos, w=capa_width, h=capa_height)
-        
-        # 3. TEXTO DINÂMICO NA PARTE INFERIOR (centro-esquerda)
-        pdf.set_y(250)  # Posição Y na parte inferior
-        pdf.set_font("Arial", 'B', 12)
-        pdf.set_text_color(255, 255, 255)  # Texto branco (assumindo fundo escuro)
-        
-        # Nome do cliente
-        cliente_nome_display = cliente_nome_fantasia if cliente_nome_fantasia else cliente_nome
-        empresa_texto = f"EMPRESA: {cliente_nome_display.upper()}"
-        pdf.cell(0, 6, clean_text(empresa_texto), 0, 1, 'C')
-        
-        # Nome do contato
-        if contato_nome:
-            contato_texto = f"A/C SR. {contato_nome.upper()}"
-        else:
-            contato_texto = "A/C SR. N/A"
-        pdf.cell(0, 6, clean_text(contato_texto), 0, 1, 'C')
-        
-        # Data da cotação
-        data_formatada = format_date(data_criacao)
-        pdf.cell(0, 6, clean_text(data_formatada), 0, 1, 'C')
-        
-        # 4. INFORMAÇÕES DO CLIENTE (canto inferior direito)
-        pdf.set_y(250)  # Mesma altura do texto do cliente
-        pdf.set_x(130)   # Posição X ajustada (mais um pouco para direita)
-        pdf.set_font("Arial", '', 9)   # Fonte reduzida
-        
-        # Nome do cliente
-        cliente_nome_display = cliente_nome_fantasia if cliente_nome_fantasia else cliente_nome
-        pdf.cell(70, 5, clean_text(cliente_nome_display), 0, 1, 'L')
-        pdf.set_x(130)
-        # Nome do contato
-        if contato_nome:
-            pdf.cell(70, 5, clean_text(f"Contato: {contato_nome}"), 0, 1, 'L')
-        else:
-            pdf.cell(70, 5, clean_text("Contato: N/A"), 0, 1, 'L')
-        pdf.set_x(130)
-        # Nome do responsável da cotação
-        pdf.cell(70, 5, clean_text(f"Responsável: {responsavel_nome}"), 0, 1, 'L')
-        
-        # Resetar cor do texto para o resto do documento
+        # Não exibir nenhum texto na capa
         pdf.set_text_color(0, 0, 0)
 
         # PÁGINA 2: APRESENTAÇÃO COM LOGO E DADOS (COMO ESTAVA ANTES)
@@ -497,56 +457,43 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         # =====================================================
         if esboco_servico:
             pdf.add_page()
-            if os.path.exists(fundo_padrao):
-                pdf.image(fundo_padrao, x=0, y=0, w=210, h=297)
+            # Definir margens específicas para esta seção
+            prev_top = getattr(pdf, 't_margin', 10)
+            prev_auto = True
+            prev_bmargin = getattr(pdf, 'b_margin', 25)
             top_y = 45
-            bottom_margin = 35  # margem maior para essa seção
-            usable_height = 297 - top_y - bottom_margin
+            bottom_margin = 35
+            pdf.set_top_margin(top_y)
+            pdf.set_auto_page_break(auto=True, margin=bottom_margin)
             pdf.set_y(top_y)
             pdf.set_font("Arial", 'B', 14)
             pdf.cell(0, 8, clean_text("ESBOÇO DO SERVIÇO A SER EXECUTADO"), 0, 1, 'L')
             pdf.ln(5)
-            
             pdf.set_font("Arial", '', 11)
-            # Restringir área útil manualmente
-            start_y = pdf.get_y()
-            while esboco_servico:
-                remaining_height = top_y + usable_height - pdf.get_y()
-                if remaining_height < 12:  # espaço mínimo para próxima linha
-                    pdf.add_page()
-                    if os.path.exists(fundo_padrao):
-                        pdf.image(fundo_padrao, x=0, y=0, w=210, h=297)
-                    pdf.set_y(top_y)
-                # Escrever bloco por bloco
-                pdf.multi_cell(0, 6, clean_text(esboco_servico))
-                # Quebrou naturalmente; sair do loop
-                break
+            pdf.multi_cell(0, 6, clean_text(esboco_servico))
+            # Restaurar margens padrão
+            pdf.set_top_margin(prev_top)
+            pdf.set_auto_page_break(auto=True, margin=prev_bmargin)
         
         # =====================================================
         # PÁGINA 5: RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS
         # =====================================================
         if relacao_pecas_substituir:
             pdf.add_page()
-            if os.path.exists(fundo_padrao):
-                pdf.image(fundo_padrao, x=0, y=0, w=210, h=297)
+            prev_top = getattr(pdf, 't_margin', 10)
+            prev_bmargin = getattr(pdf, 'b_margin', 25)
             top_y = 45
             bottom_margin = 35
-            usable_height = 297 - top_y - bottom_margin
+            pdf.set_top_margin(top_y)
+            pdf.set_auto_page_break(auto=True, margin=bottom_margin)
             pdf.set_y(top_y)
             pdf.set_font("Arial", 'B', 14)
             pdf.cell(0, 8, clean_text("RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS"), 0, 1, 'L')
             pdf.ln(5)
-            
             pdf.set_font("Arial", '', 11)
-            while relacao_pecas_substituir:
-                remaining_height = top_y + usable_height - pdf.get_y()
-                if remaining_height < 12:
-                    pdf.add_page()
-                    if os.path.exists(fundo_padrao):
-                        pdf.image(fundo_padrao, x=0, y=0, w=210, h=297)
-                    pdf.set_y(top_y)
-                pdf.multi_cell(0, 6, clean_text(relacao_pecas_substituir))
-                break
+            pdf.multi_cell(0, 6, clean_text(relacao_pecas_substituir))
+            pdf.set_top_margin(prev_top)
+            pdf.set_auto_page_break(auto=True, margin=prev_bmargin)
 
         # =====================================================
         # PÁGINAS SEGUINTES: DETALHES DA PROPOSTA
