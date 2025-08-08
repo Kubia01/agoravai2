@@ -14,17 +14,98 @@ class ClientesModule(BaseModule):
         # Container principal - usando toda a tela
         container = tk.Frame(self.frame, bg='#f8fafc')
         container.pack(fill="both", expand=True, padx=10, pady=10)
-        
-        # Header compacto
+
+        # Header
         self.create_header(container)
-        
-        # Notebook para organizar seções - usando todo o espaço restante
-        self.notebook = ttk.Notebook(container)
-        self.notebook.pack(fill="both", expand=True, pady=(10, 0))
-        
-        # Aba: Dados do Cliente (com Lista de Clientes ao lado)
-        self.create_cliente_unificado_tab()
-        
+
+        # Layout principal em 2 colunas: esquerda (formulário) e direita (lista)
+        main_frame = tk.Frame(container, bg='#f8fafc')
+        main_frame.pack(fill="both", expand=True)
+        main_frame.grid_columnconfigure(0, weight=1, uniform="cols")
+        main_frame.grid_columnconfigure(1, weight=1, uniform="cols")
+        main_frame.grid_rowconfigure(0, weight=1)
+
+        # Painel de dados do cliente (esquerda)
+        form_panel = tk.Frame(main_frame, bg='#f8fafc')
+        form_panel.grid(row=0, column=0, sticky="nsew", padx=(10, 10), pady=(10, 10))
+        form_panel.grid_columnconfigure(0, weight=1)
+
+        # Cards/seções do formulário
+        card1 = tk.Frame(form_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card1.pack(fill="x", pady=(0, 8))
+        tk.Label(card1, text="🧑‍💼 Dados Básicos", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
+        self.create_dados_basicos_section(card1)
+
+        card2 = tk.Frame(form_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card2.pack(fill="x", pady=(0, 8))
+        tk.Label(card2, text="🏠 Endereço", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
+        self.create_endereco_section(card2)
+
+        card3 = tk.Frame(form_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card3.pack(fill="x", pady=(0, 8))
+        tk.Label(card3, text="💼 Informações Comerciais", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
+        self.create_comercial_section(card3)
+
+        card4 = tk.Frame(form_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card4.pack(fill="x", pady=(0, 8))
+        tk.Label(card4, text="⏳ Prazo de Pagamento", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
+        self.create_prazo_pagamento_section(card4)
+
+        card5 = tk.Frame(form_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card5.pack(fill="both", expand=True)
+        tk.Label(card5, text="📇 Contatos do Cliente", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
+        self.create_contatos_integrados_section(card5)
+
+        # Botões de ação
+        self.create_cliente_buttons(form_panel)
+
+        # Painel da lista (direita)
+        lista_panel = tk.Frame(main_frame, bg='#f8fafc')
+        lista_panel.grid(row=0, column=1, sticky="nsew", padx=(10, 10), pady=(10, 10))
+        lista_panel.grid_columnconfigure(0, weight=1)
+        lista_panel.grid_rowconfigure(2, weight=1)
+
+        lista_card = tk.Frame(lista_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        lista_card.pack(fill="both", expand=True)
+
+        tk.Label(lista_card, text="📋 Lista de Clientes", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(fill="x", padx=12, pady=(12, 8))
+
+        lista_inner = tk.Frame(lista_card, bg='white')
+        lista_inner.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+
+        search_frame, self.search_var = self.create_search_frame(lista_inner, placeholder="Buscar clientes...", command=self.buscar_clientes)
+        search_frame.pack(fill="x", pady=(0, 10))
+
+        columns = ("nome", "cnpj", "cidade", "telefone", "email")
+        self.clientes_tree = ttk.Treeview(lista_inner, columns=columns, show="headings", height=20)
+
+        self.clientes_tree.heading("nome", text="Nome/Razão Social")
+        self.clientes_tree.heading("cnpj", text="CNPJ")
+        self.clientes_tree.heading("cidade", text="Cidade")
+        self.clientes_tree.heading("telefone", text="Telefone")
+        self.clientes_tree.heading("email", text="Email")
+
+        self.clientes_tree.column("nome", width=280)
+        self.clientes_tree.column("cnpj", width=160)
+        self.clientes_tree.column("cidade", width=140)
+        self.clientes_tree.column("telefone", width=140)
+        self.clientes_tree.column("email", width=220)
+
+        lista_scrollbar = ttk.Scrollbar(lista_inner, orient="vertical", command=self.clientes_tree.yview)
+        self.clientes_tree.configure(yscrollcommand=lista_scrollbar.set)
+
+        self.clientes_tree.pack(side="left", fill="both", expand=True)
+        lista_scrollbar.pack(side="right", fill="y")
+
+        lista_buttons = tk.Frame(lista_inner, bg='white')
+        lista_buttons.pack(fill="x", pady=(10, 0))
+
+        editar_btn = self.create_button(lista_buttons, "Editar", self.editar_cliente)
+        editar_btn.pack(side="left", padx=(0, 10))
+
+        excluir_btn = self.create_button(lista_buttons, "Excluir", self.excluir_cliente, bg='#dc2626')
+        excluir_btn.pack(side="left")
+
         # Carregar dados
         self.carregar_clientes()
         
@@ -38,30 +119,9 @@ class ClientesModule(BaseModule):
                                fg='#1e293b')
         title_label.pack(side="left")
         
-    def create_cliente_unificado_tab(self):
-        # Frame da aba
-        cliente_frame = tk.Frame(self.notebook, bg='white')
-        self.notebook.add(cliente_frame, text="Dados do Cliente")
+    # Layout antigo baseado em abas removido; agora a tela usa um layout único com formulário e lista lado a lado
         
-        # Scroll frame
-        canvas = tk.Canvas(cliente_frame, bg='white')
-        scrollbar = ttk.Scrollbar(cliente_frame, orient="vertical", command=canvas.yview)
-        self.scrollable_cliente = tk.Frame(canvas, bg='white')
-        
-        self.scrollable_cliente.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        
-        canvas.create_window((0, 0), window=self.scrollable_cliente, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-        
-        # Conteúdo do cliente
-        self.create_cliente_content(self.scrollable_cliente)
-        
+    # Layout antigo de conteúdo removido; consolidado no novo setup_ui
     def create_cliente_content(self, parent):
         import tkinter.font as tkfont
         try:
@@ -370,13 +430,7 @@ class ClientesModule(BaseModule):
         # Configurar colunas
         fields_frame.grid_columnconfigure(3, weight=1)
         
-    def create_contatos_tab(self):
-        # Frame da aba
-        contatos_frame = tk.Frame(self.notebook, bg='white')
-        self.notebook.add(contatos_frame, text="Contatos")
-        
-        container = tk.Frame(contatos_frame, bg='white', padx=20, pady=20)
-        container.pack(fill="both", expand=True)
+    # Aba de contatos removida; contatos agora ficam integrados na mesma tela
         
         # Seção: Novo Contato
         section_frame = self.create_section_frame(container, "Adicionar Contato")
@@ -934,14 +988,7 @@ Contatos Cadastrados: {total_contatos}"""
         salvar_btn = self.create_button(buttons_frame, "Salvar Cliente", self.salvar_cliente)
         salvar_btn.pack(side="left")
         
-    def create_lista_clientes_tab(self):
-        # Frame da aba
-        lista_frame = tk.Frame(self.notebook, bg='white')
-        self.notebook.add(lista_frame, text="Lista de Clientes")
-        
-        # Container
-        container = tk.Frame(lista_frame, bg='white', padx=20, pady=20)
-        container.pack(fill="both", expand=True)
+    # Aba de lista de clientes removida; lista foi incorporada ao layout principal
         
         # Frame de busca
         search_frame, self.search_var = self.create_search_frame(container, command=self.buscar_clientes)
@@ -1209,9 +1256,9 @@ Contatos Cadastrados: {total_contatos}"""
         cliente_id = tags[0]
         self.carregar_cliente_para_edicao(cliente_id)
         
-        # Mudar para aba de novo cliente
-        self.notebook.select(0)
-        
+        # Garantir foco no formulário
+        # (Layout único: permanece na mesma tela) 
+    
     def carregar_cliente_para_edicao(self, cliente_id):
         """Carregar dados do cliente para edição"""
         conn = sqlite3.connect(DB_NAME)
@@ -1263,10 +1310,9 @@ Contatos Cadastrados: {total_contatos}"""
                     contato[5] or "", contato[6] or ""
                 ), tags=(contato[0],))
             
-            # Mudar para a primeira aba
-            self.notebook.select(0)
+            # Layout único: permanecer na mesma tela
             
-            # Atualizar dashboards
+            # Atualizar dados derivados (se aplicável)
             self.update_cliente_dashboard()
             self.update_cliente_dashboard_expandido()
             
@@ -1399,8 +1445,7 @@ Contatos Cadastrados: {total_contatos}"""
         self.contato_email_var.set(contato_to_edit['email'])
         self.contato_observacoes_var.set(contato_to_edit['observacoes'])
         
-        # Permanecer na aba de Dados do Cliente, seção de contatos já está na mesma aba
-        self.notebook.select(0)
+        # Layout único: permanecer na mesma tela
         
     def excluir_contato_selecionado(self):
         """Excluir contato selecionado"""
