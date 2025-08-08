@@ -885,13 +885,19 @@ class CotacoesModule(BaseModule):
         try:
             # Obter username do usuário atual para template personalizado
             current_username = self._get_current_username()
-            # Passar contato selecionado para o gerador via variável global simples (set no módulo gerador) ou por DB se necessário
-            sucesso, resultado = gerar_pdf_cotacao_nova(self.current_cotacao_id, DB_NAME, current_username, contato_nome=self.contato_cliente_var.get())
-        
-        if sucesso:
-            self.show_success(f"PDF gerado com sucesso!\nLocal: {resultado}")
-        else:
-            self.show_error(f"Erro ao gerar PDF: {resultado}")
+            # Passar contato selecionado para o gerador
+            sucesso, resultado = gerar_pdf_cotacao_nova(
+                self.current_cotacao_id,
+                DB_NAME,
+                current_username,
+                contato_nome=self.contato_cliente_var.get()
+            )
+            if sucesso:
+                self.show_success(f"PDF gerado com sucesso!\nLocal: {resultado}")
+            else:
+                self.show_error(f"Erro ao gerar PDF: {resultado}")
+        except Exception as e:
+            self.show_error(f"Erro ao gerar PDF: {e}")
             
     def _get_current_username(self):
         """Obter o username do usuário atual"""
