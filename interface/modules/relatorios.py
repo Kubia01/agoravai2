@@ -161,17 +161,7 @@ class RelatoriosModule(BaseModule):
         self.create_vinculacao_section(info_frame)
 
         # Coluna 1: Dashboard (ocupa toda a altura)
-        dashboard_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dashboard_frame.grid(row=0, column=1, sticky="nsew", padx=2, pady=2)
-        dash_canvas = tk.Canvas(dashboard_frame, bg='white', highlightthickness=0)
-        dash_canvas.pack(fill="both", expand=True)
-        dash_h_scrollbar = ttk.Scrollbar(dashboard_frame, orient="horizontal", command=dash_canvas.xview)
-        dash_canvas.configure(xscrollcommand=dash_h_scrollbar.set)
-        dash_h_scrollbar.pack(side="bottom", fill="x")
-        dash_inner = tk.Frame(dash_canvas, bg='white')
-        dash_canvas.create_window((0, 0), window=dash_inner, anchor="nw")
-        dash_inner.bind("<Configure>", lambda e: dash_canvas.configure(scrollregion=dash_canvas.bbox('all')))
-        self.create_relatorio_dashboard(dash_inner)
+        # Coluna 1 removida (dashboard)
 
         # Botões de ação abaixo do grid
         self.create_relatorio_buttons(parent)
@@ -264,107 +254,6 @@ class RelatoriosModule(BaseModule):
         
         # Configurar colunas
         fields_frame.grid_columnconfigure(1, weight=1)
-        
-    def create_relatorio_dashboard(self, parent):
-        """Criar dashboard com informações úteis do relatório"""
-        # Frame do dashboard
-        dashboard_frame = tk.Frame(parent, bg='white', relief='solid', bd=1)
-        dashboard_frame.pack(fill="both", expand=True)
-        
-        # Título
-        title_label = tk.Label(dashboard_frame, text="📊 Dashboard do Relatório", 
-                               font=('Arial', 12, 'bold'), bg='#f8fafc', fg='#1e293b')
-        title_label.pack(fill="x", pady=(10, 15))
-        
-        # Container para cards
-        cards_container = tk.Frame(dashboard_frame, bg='white')
-        cards_container.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-        
-        # Card 1 - Resumo do Relatório
-        summary_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
-        summary_card.pack(fill="x", pady=(0, 10))
-        
-        tk.Label(summary_card, text="📋 Resumo", font=('Arial', 10, 'bold'), 
-                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=10, pady=(10, 5))
-        
-        self.relatorio_summary_text = tk.Text(summary_card, height=8, width=30, font=('Arial', 9),
-                                             bg='white', relief='solid', bd=1, wrap=tk.WORD)
-        self.relatorio_summary_text.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-        
-        # Card 2 - Estatísticas
-        stats_card = tk.Frame(cards_container, bg='#f1f5f9', relief='solid', bd=1)
-        stats_card.pack(fill="both", expand=True)
-        
-        tk.Label(stats_card, text="📈 Estatísticas", font=('Arial', 10, 'bold'), 
-                bg='#f1f5f9', fg='#475569').pack(anchor="w", padx=10, pady=(10, 5))
-        
-        self.relatorio_stats_text = tk.Text(stats_card, height=6, width=30, font=('Arial', 9),
-                                           bg='white', relief='solid', bd=1, wrap=tk.WORD)
-        self.relatorio_stats_text.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-        
-        # Inicializar dados do dashboard
-        self.update_relatorio_dashboard()
-        
-    def update_relatorio_dashboard(self):
-        """Atualizar dados do dashboard do relatório"""
-        if not hasattr(self, 'relatorio_summary_text') or not hasattr(self, 'relatorio_stats_text'):
-            return
-            
-        # Limpar textos
-        self.relatorio_summary_text.delete('1.0', tk.END)
-        self.relatorio_stats_text.delete('1.0', tk.END)
-        
-        # Resumo do relatório atual
-        if hasattr(self, 'numero_relatorio_var') and self.numero_relatorio_var.get():
-            summary_info = f"""Número: {self.numero_relatorio_var.get()}
-Cliente: {self.cliente_var.get()}
-Data: {self.data_criacao_var.get()}
-Formulário: {self.formulario_servico_var.get()}
-Tipo: {self.tipo_servico_var.get()}
-Recebimento: {self.data_recebimento_var.get()}"""
-            
-            self.relatorio_summary_text.insert('1.0', summary_info)
-        
-        # Estatísticas gerais
-        conn = sqlite3.connect(DB_NAME)
-        c = conn.cursor()
-        
-        try:
-            # Total de relatórios
-            c.execute("SELECT COUNT(*) FROM relatorios_tecnicos")
-            total_relatorios = c.fetchone()[0]
-            
-            # Relatórios por tipo
-            c.execute("SELECT tipo_servico, COUNT(*) FROM relatorios_tecnicos GROUP BY tipo_servico")
-            tipo_counts = dict(c.fetchall())
-            
-            # Relatórios por técnico
-            c.execute("""
-                SELECT u.nome_completo, COUNT(*) 
-                FROM relatorios_tecnicos r 
-                JOIN usuarios u ON r.responsavel_id = u.id 
-                GROUP BY r.responsavel_id 
-                ORDER BY COUNT(*) DESC 
-                LIMIT 5
-            """)
-            tecnico_counts = c.fetchall()
-            
-            stats_info = f"""Total de Relatórios: {total_relatorios}
-Por Tipo de Serviço:"""
-            
-            for tipo, count in tipo_counts.items():
-                stats_info += f"\n- {tipo}: {count}"
-            
-            stats_info += "\n\nTop Técnicos:"
-            for tecnico, count in tecnico_counts:
-                stats_info += f"\n- {tecnico}: {count}"
-            
-            self.relatorio_stats_text.insert('1.0', stats_info)
-            
-        except sqlite3.Error as e:
-            self.relatorio_stats_text.insert('1.0', f"Erro ao carregar dados: {e}")
-        finally:
-            conn.close()
         
     def create_tecnicos_section(self, parent):
         section_frame = self.create_section_frame(parent, "Técnicos e Eventos")
