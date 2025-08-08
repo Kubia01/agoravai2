@@ -880,47 +880,6 @@ Contatos Cadastrados: {total_contatos}"""
         salvar_btn = self.create_button(buttons_frame, "Salvar Cliente", self.salvar_cliente)
         salvar_btn.pack(side="left")
         
-    # Aba de lista de clientes removida; lista foi incorporada ao layout principal
-        
-        # Frame de busca
-        search_frame, self.search_var = self.create_search_frame(container, command=self.buscar_clientes)
-        search_frame.pack(fill="x", pady=(0, 15))
-        
-        # Treeview para lista
-        columns = ("nome", "cnpj", "cidade", "telefone", "email")
-        self.clientes_tree = ttk.Treeview(container, columns=columns, show="headings", height=15)
-        
-        # Cabeçalhos
-        self.clientes_tree.heading("nome", text="Nome/Razão Social")
-        self.clientes_tree.heading("cnpj", text="CNPJ")
-        self.clientes_tree.heading("cidade", text="Cidade")
-        self.clientes_tree.heading("telefone", text="Telefone")
-        self.clientes_tree.heading("email", text="Email")
-        
-        # Larguras
-        self.clientes_tree.column("nome", width=250)
-        self.clientes_tree.column("cnpj", width=150)
-        self.clientes_tree.column("cidade", width=120)
-        self.clientes_tree.column("telefone", width=120)
-        self.clientes_tree.column("email", width=200)
-        
-        # Scrollbar
-        lista_scrollbar = ttk.Scrollbar(container, orient="vertical", command=self.clientes_tree.yview)
-        self.clientes_tree.configure(yscrollcommand=lista_scrollbar.set)
-        
-        # Pack
-        self.clientes_tree.pack(side="left", fill="both", expand=True)
-        lista_scrollbar.pack(side="right", fill="y")
-        
-        # Botões da lista
-        lista_buttons = tk.Frame(container, bg='white')
-        lista_buttons.pack(fill="x", pady=(15, 0))
-        
-        editar_btn = self.create_button(lista_buttons, "Editar", self.editar_cliente)
-        editar_btn.pack(side="left", padx=(0, 10))
-        
-        excluir_btn = self.create_button(lista_buttons, "Excluir", self.excluir_cliente, bg='#dc2626')
-        excluir_btn.pack(side="left")
 
     def format_cnpj(self, event=None):
         """Formatar CNPJ automaticamente"""
