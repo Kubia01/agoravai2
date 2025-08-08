@@ -75,73 +75,57 @@ class ClientesModule(BaseModule):
         except ImportError:
             has_matplotlib = False
 
-        # Frame principal com 2 colunas
+        # Frame principal com grid 2 colunas, 1 linha, ambas expandem
         main_frame = tk.Frame(parent, bg='#f5f6fa')
         main_frame.pack(fill="both", expand=True)
         main_frame.grid_columnconfigure(0, weight=1, uniform="col")
         main_frame.grid_columnconfigure(1, weight=1, uniform="col")
         main_frame.grid_rowconfigure(0, weight=1)
 
-        # TOPO: Título e botões
-        header = tk.Frame(main_frame, bg='#f5f6fa')
-        header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10))
-        tk.Label(header, text="Gestão de Clientes", font=("Arial", 18, "bold"), bg='#f5f6fa', fg='#22223b').pack(side="left", padx=(10, 20))
-        self.create_cliente_buttons(header)
-
-        # Painel de cards de dados (esquerda)
-        left_panel = tk.Frame(main_frame, bg='#f5f6fa')
-        left_panel.grid(row=1, column=0, sticky="nsew", padx=(20, 10), pady=(0, 20))
-        left_panel.grid_rowconfigure(0, weight=1)
-        left_panel.grid_columnconfigure(0, weight=1)
-
-        # Scrollbar vertical para painel de dados
-        data_canvas = tk.Canvas(left_panel, bg='#f5f6fa', highlightthickness=0)
-        data_canvas.pack(side="left", fill="both", expand=True)
-        v_scroll = ttk.Scrollbar(left_panel, orient="vertical", command=data_canvas.yview)
-        v_scroll.pack(side="right", fill="y")
-        data_canvas.configure(yscrollcommand=v_scroll.set)
-        data_inner = tk.Frame(data_canvas, bg='#f5f6fa')
-        data_canvas.create_window((0, 0), window=data_inner, anchor="nw")
-        data_inner.bind("<Configure>", lambda e: data_canvas.configure(scrollregion=data_canvas.bbox('all')))
+        # Painel de dados (esquerda)
+        data_panel = tk.Frame(main_frame, bg='#f5f6fa')
+        data_panel.grid(row=0, column=0, sticky="nsew", padx=(20, 10), pady=20)
+        data_panel.grid_rowconfigure((0,1,2,3,4), weight=1)
+        data_panel.grid_columnconfigure(0, weight=1)
 
         # Card: Dados Básicos
-        card1 = tk.Frame(data_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
-        card1.pack(fill="x", pady=(0, 12), padx=0, ipady=4)
+        card1 = tk.Frame(data_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card1.grid(row=0, column=0, sticky="ew", pady=(0, 8))
         tk.Label(card1, text="🧑‍💼 Dados Básicos", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_dados_basicos_section(card1)
 
         # Card: Endereço
-        card2 = tk.Frame(data_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
-        card2.pack(fill="x", pady=(0, 12), padx=0, ipady=4)
+        card2 = tk.Frame(data_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card2.grid(row=1, column=0, sticky="ew", pady=(0, 8))
         tk.Label(card2, text="🏠 Endereço", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_endereco_section(card2)
 
         # Card: Informações Comerciais
-        card3 = tk.Frame(data_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
-        card3.pack(fill="x", pady=(0, 12), padx=0, ipady=4)
+        card3 = tk.Frame(data_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card3.grid(row=2, column=0, sticky="ew", pady=(0, 8))
         tk.Label(card3, text="💼 Informações Comerciais", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_comercial_section(card3)
 
         # Card: Prazo de Pagamento
-        card4 = tk.Frame(data_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
-        card4.pack(fill="x", pady=(0, 12), padx=0, ipady=4)
+        card4 = tk.Frame(data_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card4.grid(row=3, column=0, sticky="ew", pady=(0, 8))
         tk.Label(card4, text="⏳ Prazo de Pagamento", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_prazo_pagamento_section(card4)
 
         # Card: Contatos do Cliente
-        card5 = tk.Frame(data_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
-        card5.pack(fill="x", pady=(0, 0), padx=0, ipady=4)
+        card5 = tk.Frame(data_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card5.grid(row=4, column=0, sticky="nsew", pady=(0, 0))
         tk.Label(card5, text="📇 Contatos do Cliente", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_contatos_integrados_section(card5)
 
         # Painel de dashboard (direita)
-        right_panel = tk.Frame(main_frame, bg='#f5f6fa')
-        right_panel.grid(row=1, column=1, sticky="nsew", padx=(10, 20), pady=(0, 20))
-        right_panel.grid_rowconfigure(0, weight=1)
-        right_panel.grid_columnconfigure(0, weight=1)
+        dashboard_panel = tk.Frame(main_frame, bg='#f5f6fa')
+        dashboard_panel.grid(row=0, column=1, sticky="nsew", padx=(10, 20), pady=20)
+        dashboard_panel.grid_rowconfigure(0, weight=1)
+        dashboard_panel.grid_columnconfigure(0, weight=1)
 
         # Dashboard visual moderno
-        dash_card = tk.Frame(right_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        dash_card = tk.Frame(dashboard_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
         dash_card.pack(fill="both", expand=True, padx=0, pady=0)
         dash_card.grid_rowconfigure(1, weight=1)
         dash_card.grid_columnconfigure(0, weight=1)
@@ -196,6 +180,9 @@ class ClientesModule(BaseModule):
             bars.create_rectangle(50, 100, 70, 20, fill='#60a5fa')
             bars.create_rectangle(80, 100, 100, 80, fill='#60a5fa')
             bars.create_text(60, 110, text='Barras', font=("Arial", 10))
+
+        # Botões de ação no topo
+        self.create_cliente_buttons(parent)
 
     def create_dados_basicos_section(self, parent):
         section_frame = self.create_section_frame(parent, "Dados Básicos")
