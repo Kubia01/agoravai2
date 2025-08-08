@@ -97,11 +97,9 @@ class ClientesModule(BaseModule):
         contatos_frame.grid(row=4, column=0, sticky="nsew", padx=2, pady=2)
         self.create_contatos_integrados_section(contatos_frame)
 
-        # Coluna 1: Dashboards (cada um ocupa metade da altura)
-        # Dashboard Completo (linha 0-2)
+        # Coluna 1: Dashboard Completo ocupa todas as linhas
         dashboard_completo_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dashboard_completo_frame.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=2, pady=2)
-        # Se dashboard for muito largo, canvas só aqui
+        dashboard_completo_frame.grid(row=0, column=1, rowspan=5, sticky="nsew", padx=2, pady=2)
         dash_canvas1 = tk.Canvas(dashboard_completo_frame, bg='white', highlightthickness=0)
         dash_canvas1.pack(fill="both", expand=True)
         dash_h_scrollbar1 = ttk.Scrollbar(dashboard_completo_frame, orient="horizontal", command=dash_canvas1.xview)
@@ -111,19 +109,6 @@ class ClientesModule(BaseModule):
         dash_canvas1.create_window((0, 0), window=dash_inner1, anchor="nw")
         dash_inner1.bind("<Configure>", lambda e: dash_canvas1.configure(scrollregion=dash_canvas1.bbox('all')))
         self.create_cliente_dashboard_expandido(dash_inner1)
-
-        # Dashboard do Cliente (linha 2-4)
-        dashboard_simples_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dashboard_simples_frame.grid(row=2, column=1, rowspan=3, sticky="nsew", padx=2, pady=2)
-        dash_canvas2 = tk.Canvas(dashboard_simples_frame, bg='white', highlightthickness=0)
-        dash_canvas2.pack(fill="both", expand=True)
-        dash_h_scrollbar2 = ttk.Scrollbar(dashboard_simples_frame, orient="horizontal", command=dash_canvas2.xview)
-        dash_canvas2.configure(xscrollcommand=dash_h_scrollbar2.set)
-        dash_h_scrollbar2.pack(side="bottom", fill="x")
-        dash_inner2 = tk.Frame(dash_canvas2, bg='white')
-        dash_canvas2.create_window((0, 0), window=dash_inner2, anchor="nw")
-        dash_inner2.bind("<Configure>", lambda e: dash_canvas2.configure(scrollregion=dash_canvas2.bbox('all')))
-        self.create_cliente_dashboard(dash_inner2)
 
         # Botões de ação abaixo do grid
         self.create_cliente_buttons(parent)
