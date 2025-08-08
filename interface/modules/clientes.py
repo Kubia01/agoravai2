@@ -33,28 +33,72 @@ class ClientesModule(BaseModule):
         # Reservar rodapé com botões do cliente ANTES de adicionar os cards
         self.create_cliente_buttons(form_panel)
 
+        # Área rolável para os cards do formulário
+        scroll_container = tk.Frame(form_panel, bg='#f8fafc')
+        scroll_container.pack(side="top", fill="both", expand=True)
+
+        form_canvas = tk.Canvas(scroll_container, bg='#f8fafc', highlightthickness=0)
+        form_scrollbar = ttk.Scrollbar(scroll_container, orient="vertical", command=form_canvas.yview)
+        form_canvas.configure(yscrollcommand=form_scrollbar.set)
+
+        form_scrollbar.pack(side="right", fill="y")
+        form_canvas.pack(side="left", fill="both", expand=True)
+
+        form_inner = tk.Frame(form_canvas, bg='#f8fafc')
+        form_window = form_canvas.create_window((0, 0), window=form_inner, anchor="nw")
+
+        def _on_inner_configure(event):
+            form_canvas.configure(scrollregion=form_canvas.bbox("all"))
+        form_inner.bind("<Configure>", _on_inner_configure)
+
+        def _on_canvas_configure(event):
+            form_canvas.itemconfigure(form_window, width=event.width)
+        form_canvas.bind("<Configure>", _on_canvas_configure)
+
+        def _on_mousewheel(event):
+            delta = 0
+            if hasattr(event, 'delta') and event.delta:
+                delta = int(-event.delta / 120)
+            elif getattr(event, 'num', None) in (4, 5):
+                delta = -1 if event.num == 5 else 1
+            if delta:
+                form_canvas.yview_scroll(delta, "units")
+
+        def _bind_mousewheel(_):
+            form_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            form_canvas.bind_all("<Button-4>", _on_mousewheel)
+            form_canvas.bind_all("<Button-5>", _on_mousewheel)
+
+        def _unbind_mousewheel(_):
+            form_canvas.unbind_all("<MouseWheel>")
+            form_canvas.unbind_all("<Button-4>")
+            form_canvas.unbind_all("<Button-5>")
+
+        form_canvas.bind("<Enter>", _bind_mousewheel)
+        form_canvas.bind("<Leave>", _unbind_mousewheel)
+
         # Cards/seções do formulário
-        card1 = tk.Frame(form_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card1 = tk.Frame(form_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
         card1.pack(fill="x", pady=(0, 8))
         tk.Label(card1, text="🧑‍💼 Dados Básicos", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_dados_basicos_section(card1)
 
-        card2 = tk.Frame(form_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card2 = tk.Frame(form_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
         card2.pack(fill="x", pady=(0, 8))
         tk.Label(card2, text="🏠 Endereço", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_endereco_section(card2)
 
-        card3 = tk.Frame(form_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card3 = tk.Frame(form_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
         card3.pack(fill="x", pady=(0, 8))
         tk.Label(card3, text="💼 Informações Comerciais", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_comercial_section(card3)
 
-        card4 = tk.Frame(form_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card4 = tk.Frame(form_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
         card4.pack(fill="x", pady=(0, 8))
         tk.Label(card4, text="⏳ Prazo de Pagamento", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_prazo_pagamento_section(card4)
 
-        card5 = tk.Frame(form_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card5 = tk.Frame(form_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
         card5.pack(fill="both", expand=True)
         tk.Label(card5, text="📇 Contatos do Cliente", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_contatos_integrados_section(card5)
