@@ -153,16 +153,13 @@ class CotacoesModule(BaseModule):
 
         # Coluna 0: Dados + Itens (stacked)
         dados_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        dados_frame.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
+        dados_frame.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=2, pady=2)
         self.create_dados_cotacao_section(dados_frame)
         itens_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        itens_frame.grid(row=1, column=0, sticky="nsew", padx=2, pady=2)
+        itens_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=2, pady=2)
         self.create_itens_cotacao_section(itens_frame)
 
-        # Coluna 1 removida (dashboard)
-
-        # Botões de ação abaixo do grid
-        self.create_cotacao_buttons(parent)
+        # Botões de ação já estão fixos no rodapé do painel de formulário (setup_ui)
         
     def create_dados_cotacao_section(self, parent):
         section_frame = self.create_section_frame(parent, "Dados da Cotação")

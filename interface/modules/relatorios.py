@@ -153,7 +153,7 @@ class RelatoriosModule(BaseModule):
 
         # Coluna 0: Informações (stacked)
         info_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-        info_frame.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
+        info_frame.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=2, pady=2)
         self.create_cliente_section(info_frame)
         self.create_servico_section(info_frame)
         self.create_tecnicos_section(info_frame)
@@ -163,8 +163,7 @@ class RelatoriosModule(BaseModule):
         # Coluna 1: Dashboard (ocupa toda a altura)
         # Coluna 1 removida (dashboard)
 
-        # Botões de ação abaixo do grid
-        self.create_relatorio_buttons(parent)
+        # Botões de ação já estão fixos no rodapé do painel de formulário (setup_ui)
 
     def create_cliente_section(self, parent):
         section_frame = self.create_section_frame(parent, "Identificação do Cliente")
