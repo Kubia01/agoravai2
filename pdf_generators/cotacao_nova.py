@@ -130,6 +130,8 @@ class PDFCotacao(FPDF):
                 self.set_top_margin(self._section_top_cont)
             if self._section_bottom_cont is not None:
                 self.set_auto_page_break(auto=True, margin=self._section_bottom_cont)
+            # Marcar que próxima página é complementar da seção
+            self._section_cont_break = True
         return True
 
     def header(self):
@@ -161,6 +163,16 @@ class PDFCotacao(FPDF):
         # Linha de separação
         self.line(10, 35, 200, 35)
         self.ln(5)
+
+        # Se estiver em uma seção, reposicionar após o cabeçalho
+        if self._section_mode:
+            # Se a quebra foi automática (página complementar), usar top_cont; caso contrário, top_first
+            top_offset = self._section_top_cont if getattr(self, '_section_cont_break', False) else self._section_top_first
+            if top_offset is not None:
+                self.set_y(top_offset)
+            # Resetar flag de página complementar
+            if getattr(self, '_section_cont_break', False):
+                self._section_cont_break = False
 
     def footer(self):
         # NÃO exibir footer na página da capa JPEG (primeira página)
@@ -494,8 +506,8 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         if esboco_servico:
             pdf.add_page()
             # Primeira página da seção: mais alto; complementares: afastar ainda mais do cabeçalho
-            pdf.begin_section('esboco', top_first=40, bottom_first=40, top_cont=110, bottom_cont=40)
-            pdf.set_y(40)
+            pdf.begin_section('esboco', top_first=35, bottom_first=40, top_cont=130, bottom_cont=40)
+            pdf.set_y(35)
             pdf.set_font("Arial", 'B', 14)
             pdf.cell(0, 8, clean_text("ESBOÇO DO SERVIÇO A SER EXECUTADO"), 0, 1, 'L')
             pdf.ln(5)
@@ -509,8 +521,8 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         # =====================================================
         if relacao_pecas_substituir:
             pdf.add_page()
-            pdf.begin_section('relacao', top_first=40, bottom_first=40, top_cont=110, bottom_cont=40)
-            pdf.set_y(40)
+            pdf.begin_section('relacao', top_first=35, bottom_first=40, top_cont=130, bottom_cont=40)
+            pdf.set_y(35)
             pdf.set_font("Arial", 'B', 14)
             pdf.cell(0, 8, clean_text("RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS"), 0, 1, 'L')
             pdf.ln(5)
