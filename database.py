@@ -372,15 +372,15 @@ def criar_banco():
 
     # Primeiro, limpar usuários extras (manter apenas os especificados)
     try:
-        # Lista dos usuários que devem ser mantidos
-        usuarios_permitidos = ['admin', 'master', 'valdir', 'vagner', 'rogerio', 'raquel', 'jaqueline', 'adam', 'cicero']
+        # Lista dos usuários que devem ser mantidos (apenas admin)
+        usuarios_permitidos = ['admin']
         
-        # Remover usuários que não estão na lista
+        # Remover todos que não sejam admin
         c.execute("DELETE FROM usuarios WHERE username NOT IN ({})".format(
             ','.join(['?' for _ in usuarios_permitidos])
         ), usuarios_permitidos)
         
-        print(f"Usuários removidos. Mantendo apenas: {', '.join(usuarios_permitidos)}")
+        print("Usuários removidos. Mantendo apenas: admin")
         
     except sqlite3.Error as e:
         print(f"Erro ao limpar usuários: {e}")
@@ -391,25 +391,9 @@ def criar_banco():
         c.execute("INSERT OR IGNORE INTO usuarios (username, password, role, nome_completo, email, telefone) VALUES (?, ?, ?, ?, ?, ?)",
                   ('admin', admin_password, 'admin', 'Administrador Master', 'admin@empresa.com', '(11) 99999-9999'))
         
-        master_password = hashlib.sha256('master123'.encode()).hexdigest()
-        c.execute("INSERT OR IGNORE INTO usuarios (username, password, role, nome_completo, email, telefone) VALUES (?, ?, ?, ?, ?, ?)",
-                  ('master', master_password, 'admin', 'Usuário Master', 'master@empresa.com', '(11) 98888-8888'))
+        # Removido usuário 'master' para manter apenas admin
         
-        # Usuários da empresa de compressores
-        usuarios_empresa = [
-            ('valdir', 'valdir123', 'operador', 'Valdir', 'valdir@worldcompressores.com.br', '(11) 4543-6893'),
-            ('vagner', 'vagner123', 'operador', 'Vagner Cerqueira', 'vagner@worldcompressores.com.br', '(11) 4543-6894'),
-            ('rogerio', 'rogerio123', 'operador', 'Rogério Cerqueira', 'rogerio@worldcompressores.com.br', '(11) 4543-6895'),
-            ('raquel', 'raquel123', 'operador', 'Raquel', 'raquel@worldcompressores.com.br', '(11) 4543-6896'),
-            ('jaqueline', 'jaqueline123', 'operador', 'Jaqueline', 'jaqueline@worldcompressores.com.br', '(11) 4543-6897'),
-            ('adam', 'adam123', 'operador', 'Adam', 'adam@worldcompressores.com.br', '(11) 4543-6899'),
-            ('cicero', 'cicero123', 'operador', 'Cicero', 'cicero@worldcompressores.com.br', '(11) 4543-6898')
-        ]
-        
-        for username, password, role, nome, email, telefone in usuarios_empresa:
-            hashed_password = hashlib.sha256(password.encode()).hexdigest()
-            c.execute("INSERT OR IGNORE INTO usuarios (username, password, role, nome_completo, email, telefone) VALUES (?, ?, ?, ?, ?, ?)",
-                      (username, hashed_password, role, nome, email, telefone))
+        # Removidos usuários pré-cadastrados; manter apenas 'admin' por padrão
                       
     except sqlite3.IntegrityError:
         pass
