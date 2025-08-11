@@ -626,22 +626,114 @@ def gerar_pdf_relatorio(relatorio_id, db_name):
         
         # === TÉCNICOS E EVENTOS ===
         pdf.section_title("REGISTRO DE EVENTOS E TÉCNICOS")
-        
+
+        def format_datetime(dt_val):
+            try:
+                # Aceita formatos ISO ou já formatados
+                if isinstance(dt_val, str):
+                    try:
+                        # Tentar parse ISO completo
+                        dt = datetime.fromisoformat(dt_val.replace('Z', ''))
+                    except ValueError:
+                        # Tentar formatos comuns
+                        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d/%m/%Y %H:%M", "%d/%m/%Y"):
+                            try:
+                                dt = datetime.strptime(dt_val, fmt)
+                                break
+                            except ValueError:
+                                dt = None
+                        if dt is None:
+                            return str(dt_val)
+                else:
+                    dt = dt_val
+                return dt.strftime("%d/%m/%Y %H:%M")
+            except Exception:
+                return str(dt_val)
+
+        # Renderizar tabela somente se houver eventos
         if eventos:
-            # Formato vertical compacto por evento, evitando ultrapassar largura
+            # Larguras das colunas somando 190mm (área útil entre as margens)
+            col_widths = [50, 40, 20, 80]  # Técnico, Data/Hora, Tipo, Evento
+            start_x = 10
+            max_y = 270
+
+            # Cabeçalho da tabela
+            pdf.set_x(start_x)
+            pdf.set_fill_color(*pdf.dark_blue)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_pdf_font('B', 9)
+            headers = ["TÉCNICO", "DATA/HORA", "TIPO", "EVENTO"]
+            for w, htext in zip(col_widths, headers):
+                pdf.cell(w, 7, pdf.clean_pdf_text(htext), 1, 0, 'C', True)
+            pdf.ln(7)
+
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_pdf_font('', 9)
+            line_height = 5
+
             for tecnico, data_hora, desc_evento, tipo_evento in eventos:
-                pdf.field_label_value("TÉCNICO", tecnico)
-                pdf.field_label_value("DATA/HORA", str(data_hora))
-                pdf.field_label_value("TIPO", tipo_evento)
-                pdf.multi_line_field("EVENTO", desc_evento)
-                pdf.ln(2)
+                # Quebra de página se necessário (antes de desenhar a linha)
+                pdf.set_x(start_x)
+                # Calcular altura necessária com base no campo EVENTO
+                evento_text = pdf.clean_pdf_text(str(desc_evento or ''))
+                # Usar split_only=True do fpdf2 para obter linhas sem renderizar
+                try:
+                    lines = pdf.multi_cell(col_widths[3], line_height, evento_text, border=0, align='L', ln=0, split_only=True)
+                    num_lines = max(1, len(lines))
+                except TypeError:
+                    # Fallback se split_only não estiver disponível
+                    approx_chars_per_line = int(col_widths[3] / (pdf.get_string_width('M') or 1) * 1.8)
+                    if approx_chars_per_line <= 0:
+                        approx_chars_per_line = 40
+                    num_lines = max(1, (len(evento_text) // approx_chars_per_line) + 1)
+                row_height = max(line_height, num_lines * line_height)
+
+                if pdf.get_y() + row_height > max_y:
+                    pdf.add_page()
+                    # Reimprimir cabeçalho da tabela na nova página
+                    pdf.set_x(start_x)
+                    pdf.set_fill_color(*pdf.dark_blue)
+                    pdf.set_text_color(255, 255, 255)
+                    pdf.set_pdf_font('B', 9)
+                    for w, htext in zip(col_widths, headers):
+                        pdf.cell(w, 7, pdf.clean_pdf_text(htext), 1, 0, 'C', True)
+                    pdf.ln(7)
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.set_pdf_font('', 9)
+
+                # Posição inicial da linha
+                x0 = start_x
+                y0 = pdf.get_y()
+
+                # Coluna Técnico
+                pdf.set_xy(x0, y0)
+                pdf.cell(col_widths[0], row_height, pdf.clean_pdf_text(str(tecnico or '')), 1, 0, 'L')
+                x0 += col_widths[0]
+
+                # Coluna Data/Hora
+                pdf.set_xy(x0, y0)
+                pdf.cell(col_widths[1], row_height, pdf.clean_pdf_text(format_datetime(data_hora)), 1, 0, 'C')
+                x0 += col_widths[1]
+
+                # Coluna Tipo
+                pdf.set_xy(x0, y0)
+                pdf.cell(col_widths[2], row_height, pdf.clean_pdf_text(str(tipo_evento or '')), 1, 0, 'C')
+                x0 += col_widths[2]
+
+                # Coluna Evento (quebra automática)
+                pdf.set_xy(x0, y0)
+                pdf.multi_cell(col_widths[3], line_height, evento_text, border=1, align='L')
+
+                # Garantir que o cursor vá para o início da próxima linha
+                pdf.set_y(y0 + row_height)
+            pdf.ln(2)
         else:
             pdf.set_pdf_font('', 9)
             pdf.set_text_color(100, 100, 100)
             pdf.cell(0, 5, "Nenhum evento de campo registrado até o momento.", 0, 1)
             pdf.set_text_color(0, 0, 0)
             pdf.ln(2)
-        
+
         # Adicionar informações de tempo se disponíveis
         tempo_trabalho = get_value("tempo_trabalho_total")
         if tempo_trabalho:
