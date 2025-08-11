@@ -3,3 +3,4 @@ requests
 Pillow
 pyinstaller
 reportlab
+openpyxl

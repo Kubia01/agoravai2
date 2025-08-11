@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from .base_module import BaseModule
 from database import DB_NAME
 from utils.formatters import format_currency, format_date
+import os
+from openpyxl import Workbook
 
 class ConsultasModule(BaseModule):
     def setup_ui(self):
@@ -15,549 +17,473 @@ class ConsultasModule(BaseModule):
         # Header
         self.create_header(container)
         
-        # Notebook para organizar seções
-        self.notebook = ttk.Notebook(container)
-        self.notebook.pack(fill="both", expand=True, pady=(20, 0))
+        # Builder visual (uma única aba)
+        self.create_visual_query_ui(container)
         
-        # Aba: Consultas por Status
-        self.create_consultas_status_tab()
-        
-        # Aba: Consultas por Usuário
-        self.create_consultas_usuario_tab()
-        
-        # Aba: Consultas de Faturamento
-        self.create_consultas_faturamento_tab()
-        
-        # Aba: Consultas Personalizadas
-        self.create_consultas_personalizadas_tab()
-        
-        # Inicializar variáveis
+        # Estado
         self.current_user_id = None
-        
+        self.query_result_rows = []
+        self.query_result_columns = []
+    
     def create_header(self, parent):
         header_frame = tk.Frame(parent, bg='#f8fafc')
         header_frame.pack(fill="x", pady=(0, 20))
         
-        title_label = tk.Label(header_frame, text="Consultas Avançadas", 
+        title_label = tk.Label(header_frame, text="Consultas (Construtor Visual)", 
                                font=('Arial', 18, 'bold'),
                                bg='#f8fafc',
                                fg='#1e293b')
         title_label.pack(side="left")
+    
+    def create_visual_query_ui(self, parent):
+        # Config da área principal
+        content = tk.Frame(parent, bg='white', padx=20, pady=20)
+        content.pack(fill='both', expand=True)
         
-    def create_consultas_status_tab(self):
-        """Criar aba de consultas por status"""
-        status_frame = tk.Frame(self.notebook, bg='white')
-        self.notebook.add(status_frame, text="Por Status")
+        # Configuração das tabelas, campos e relações
+        self.tables_config = {
+            'Cotações': {
+                'table': 'cotacoes c',
+                'joins': {
+                    'Cliente': 'JOIN clientes cl ON c.cliente_id = cl.id',
+                    'Responsável': 'JOIN usuarios u ON c.responsavel_id = u.id',
+                    'Itens da Cotação': 'LEFT JOIN itens_cotacao ic ON ic.cotacao_id = c.id'
+                },
+                'fields': {
+                    'Número': 'c.numero_proposta',
+                    'Data': 'c.data_criacao',
+                    'Status': 'c.status',
+                    'Valor Total': 'c.valor_total',
+                    'Cliente': 'cl.nome',
+                    'CNPJ Cliente': 'cl.cnpj',
+                    'Cidade Cliente': 'cl.cidade',
+                    'Responsável': 'u.nome_completo',
+                    'Tipo Item (ic)': 'ic.tipo',
+                    'Descrição Item (ic)': 'ic.item_nome',
+                    'Qtd Item (ic)': 'ic.quantidade',
+                    'Vlr Unit Item (ic)': 'ic.valor_unitario',
+                    'Vlr Total Item (ic)': 'ic.valor_total_item'
+                }
+            },
+            'Clientes': {
+                'table': 'clientes cl',
+                'joins': {
+                    'Cotações': 'LEFT JOIN cotacoes c ON c.cliente_id = cl.id',
+                    'Responsável (Cotação)': 'LEFT JOIN usuarios u ON u.id = c.responsavel_id'
+                },
+                'fields': {
+                    'ID Cliente': 'cl.id',
+                    'Nome': 'cl.nome',
+                    'Nome Fantasia': 'cl.nome_fantasia',
+                    'CNPJ': 'cl.cnpj',
+                    'Cidade': 'cl.cidade',
+                    'Estado': 'cl.estado',
+                    'Telefone': 'cl.telefone',
+                    'Email': 'cl.email',
+                    'Número Proposta (c)': 'c.numero_proposta',
+                    'Data Cotação (c)': 'c.data_criacao',
+                    'Status Cotação (c)': 'c.status',
+                    'Responsável (u)': 'u.nome_completo'
+                }
+            },
+            'Relatórios Técnicos': {
+                'table': 'relatorios_tecnicos r',
+                'joins': {
+                    'Cliente': 'JOIN clientes cl ON r.cliente_id = cl.id',
+                    'Responsável': 'JOIN usuarios u ON r.responsavel_id = u.id',
+                    'Eventos de Campo': 'LEFT JOIN eventos_campo e ON e.relatorio_id = r.id'
+                },
+                'fields': {
+                    'Número Relatório': 'r.numero_relatorio',
+                    'Data Criação': 'r.data_criacao',
+                    'Cliente': 'cl.nome',
+                    'Responsável': 'u.nome_completo',
+                    'Tipo Serviço': 'r.tipo_servico',
+                    'Tempo Trabalho Total': 'r.tempo_trabalho_total',
+                    'Tempo Deslocamento Total': 'r.tempo_deslocamento_total',
+                    'Evento (e)': 'e.evento',
+                    'Tipo Evento (e)': 'e.tipo',
+                    'Data/Hora Evento (e)': 'e.data_hora'
+                }
+            },
+            'Itens de Cotação': {
+                'table': 'itens_cotacao ic',
+                'joins': {
+                    'Cotação': 'JOIN cotacoes c ON ic.cotacao_id = c.id',
+                    'Cliente': 'JOIN clientes cl ON c.cliente_id = cl.id'
+                },
+                'fields': {
+                    'ID Item': 'ic.id',
+                    'Tipo': 'ic.tipo',
+                    'Item Nome': 'ic.item_nome',
+                    'Quantidade': 'ic.quantidade',
+                    'Valor Unitário': 'ic.valor_unitario',
+                    'Valor Total Item': 'ic.valor_total_item',
+                    'Número Proposta (c)': 'c.numero_proposta',
+                    'Cliente (cl)': 'cl.nome',
+                    'Data Cotação (c)': 'c.data_criacao'
+                }
+            },
+            'Usuários': {
+                'table': 'usuarios u',
+                'joins': {
+                    'Cotações': 'LEFT JOIN cotacoes c ON c.responsavel_id = u.id',
+                    'Relatórios': 'LEFT JOIN relatorios_tecnicos r ON r.responsavel_id = u.id'
+                },
+                'fields': {
+                    'ID Usuário': 'u.id',
+                    'Nome Completo': 'u.nome_completo',
+                    'Username': 'u.username',
+                    'Email': 'u.email',
+                    'Telefone': 'u.telefone',
+                    'Qtd Cotações (c)': 'COUNT(DISTINCT c.id)',
+                    'Qtd Relatórios (r)': 'COUNT(DISTINCT r.id)'
+                }
+            },
+            'Eventos de Campo': {
+                'table': 'eventos_campo e',
+                'joins': {
+                    'Relatório': 'JOIN relatorios_tecnicos r ON e.relatorio_id = r.id',
+                    'Técnico (Usuários)': 'JOIN usuarios u ON e.tecnico_id = u.id',
+                    'Cliente': 'JOIN clientes cl ON r.cliente_id = cl.id'
+                },
+                'fields': {
+                    'ID Evento': 'e.id',
+                    'Técnico': 'u.nome_completo',
+                    'Data/Hora': 'e.data_hora',
+                    'Tipo': 'e.tipo',
+                    'Evento': 'e.evento',
+                    'Nº Relatório (r)': 'r.numero_relatorio',
+                    'Cliente (cl)': 'cl.nome'
+                }
+            }
+        }
         
-        content_frame = tk.Frame(status_frame, bg='white', padx=20, pady=20)
-        content_frame.pack(fill="both", expand=True)
+        # Linha de seleção de base e relações
+        top_bar = tk.Frame(content, bg='white')
+        top_bar.pack(fill='x', pady=(0, 10))
         
-        # Frame de filtros
-        filtros_frame = tk.Frame(content_frame, bg='white')
-        filtros_frame.pack(fill="x", pady=(0, 15))
+        tk.Label(top_bar, text='Base:', font=('Arial', 10, 'bold'), bg='white').pack(side='left')
+        self.base_table_var = tk.StringVar(value='Cotações')
+        self.base_combo = ttk.Combobox(top_bar, textvariable=self.base_table_var, values=list(self.tables_config.keys()), state='readonly', width=25)
+        self.base_combo.pack(side='left', padx=(8, 20))
+        self.base_combo.bind('<<ComboboxSelected>>', lambda e: self.on_base_change())
         
-        # Status
-        tk.Label(filtros_frame, text="Status:", font=('Arial', 10, 'bold'), bg='white').pack(side="left")
-        self.status_var = tk.StringVar(value="Todas")
-        status_combo = ttk.Combobox(filtros_frame, textvariable=self.status_var, 
-                                   values=["Todas", "Em Aberto", "Aprovada", "Rejeitada"], 
-                                   width=15, state="readonly")
-        status_combo.pack(side="left", padx=(10, 20))
+        self.relations_frame = tk.Frame(content, bg='white')
+        self.relations_frame.pack(fill='x', pady=(0, 10))
         
-        # Período
-        tk.Label(filtros_frame, text="Período:", font=('Arial', 10, 'bold'), bg='white').pack(side="left")
-        self.periodo_var = tk.StringVar(value="Últimos 30 dias")
-        periodo_combo = ttk.Combobox(filtros_frame, textvariable=self.periodo_var, 
-                                    values=["Últimos 7 dias", "Últimos 30 dias", "Últimos 90 dias", "Este ano", "Todos"], 
-                                    width=15, state="readonly")
-        periodo_combo.pack(side="left", padx=(10, 20))
+        # Seleção de campos
+        fields_section = tk.Frame(content, bg='white')
+        fields_section.pack(fill='x', pady=(0, 10))
+        tk.Label(fields_section, text='Campos:', font=('Arial', 10, 'bold'), bg='white').pack(anchor='w')
         
-        # Botão consultar
-        consultar_btn = self.create_button(filtros_frame, "Consultar", self.consultar_por_status, bg='#3b82f6')
-        consultar_btn.pack(side="left", padx=(10, 0))
+        list_frame = tk.Frame(fields_section, bg='white')
+        list_frame.pack(fill='x')
         
-        # Treeview para resultados
-        columns = ("numero", "cliente", "responsavel", "data", "status", "valor")
-        self.status_tree = ttk.Treeview(content_frame, columns=columns, show="headings", height=15)
+        self.fields_listbox = tk.Listbox(list_frame, selectmode='extended', width=70, height=8)
+        self.fields_listbox.pack(side='left', fill='x', expand=True)
         
-        self.status_tree.heading("numero", text="Número")
-        self.status_tree.heading("cliente", text="Cliente")
-        self.status_tree.heading("responsavel", text="Responsável")
-        self.status_tree.heading("data", text="Data")
-        self.status_tree.heading("status", text="Status")
-        self.status_tree.heading("valor", text="Valor")
+        scrollbar = ttk.Scrollbar(list_frame, orient='vertical', command=self.fields_listbox.yview)
+        self.fields_listbox.configure(yscrollcommand=scrollbar.set)
+        scrollbar.pack(side='left', fill='y')
         
-        self.status_tree.column("numero", width=150)
-        self.status_tree.column("cliente", width=200)
-        self.status_tree.column("responsavel", width=150)
-        self.status_tree.column("data", width=100)
-        self.status_tree.column("status", width=100)
-        self.status_tree.column("valor", width=120)
+        buttons_side = tk.Frame(list_frame, bg='white')
+        buttons_side.pack(side='left', padx=(10, 0))
+        self.create_button(buttons_side, 'Selecionar Todos', self.select_all_fields, bg='#64748b').pack(fill='x')
+        self.create_button(buttons_side, 'Limpar Seleção', self.clear_field_selection, bg='#94a3b8').pack(fill='x', pady=(6,0))
         
-        # Scrollbar
-        status_scrollbar = ttk.Scrollbar(content_frame, orient="vertical", command=self.status_tree.yview)
-        self.status_tree.configure(yscrollcommand=status_scrollbar.set)
+        # Filtros
+        filters_section = tk.Frame(content, bg='white')
+        filters_section.pack(fill='x', pady=(10, 10))
         
-        self.status_tree.pack(side="left", fill="both", expand=True)
-        status_scrollbar.pack(side="right", fill="y")
+        header_filters = tk.Frame(filters_section, bg='white')
+        header_filters.pack(fill='x')
+        tk.Label(header_filters, text='Filtros:', font=('Arial', 10, 'bold'), bg='white').pack(side='left')
+        self.create_button(header_filters, '+ Adicionar filtro', self.add_filter_row, bg='#10b981').pack(side='left', padx=(10,0))
         
-    def create_consultas_usuario_tab(self):
-        """Criar aba de consultas por usuário"""
-        usuario_frame = tk.Frame(self.notebook, bg='white')
-        self.notebook.add(usuario_frame, text="Por Usuário")
+        self.filters_rows_frame = tk.Frame(filters_section, bg='white')
+        self.filters_rows_frame.pack(fill='x', pady=(6, 0))
+        self.filter_rows = []
         
-        content_frame = tk.Frame(usuario_frame, bg='white', padx=20, pady=20)
-        content_frame.pack(fill="both", expand=True)
+        # Ordenação e Limite
+        order_section = tk.Frame(content, bg='white')
+        order_section.pack(fill='x', pady=(10, 10))
         
-        # Frame de filtros
-        filtros_frame = tk.Frame(content_frame, bg='white')
-        filtros_frame.pack(fill="x", pady=(0, 15))
+        tk.Label(order_section, text='Ordenar por:', font=('Arial', 10, 'bold'), bg='white').pack(side='left')
+        self.order_field_var = tk.StringVar()
+        self.order_field_combo = ttk.Combobox(order_section, textvariable=self.order_field_var, state='readonly', width=30)
+        self.order_field_combo.pack(side='left', padx=(8, 10))
         
-        # Usuário
-        tk.Label(filtros_frame, text="Usuário:", font=('Arial', 10, 'bold'), bg='white').pack(side="left")
-        self.usuario_var = tk.StringVar()
-        self.usuario_combo = ttk.Combobox(filtros_frame, textvariable=self.usuario_var, width=25)
-        self.usuario_combo.pack(side="left", padx=(10, 20))
+        self.order_dir_var = tk.StringVar(value='ASC')
+        ttk.Combobox(order_section, textvariable=self.order_dir_var, state='readonly', values=['ASC', 'DESC'], width=6).pack(side='left')
         
-        # Tipo de consulta
-        tk.Label(filtros_frame, text="Tipo:", font=('Arial', 10, 'bold'), bg='white').pack(side="left")
-        self.tipo_usuario_var = tk.StringVar(value="Cotações")
-        tipo_combo = ttk.Combobox(filtros_frame, textvariable=self.tipo_usuario_var, 
-                                 values=["Cotações", "Relatórios", "Faturamento"], 
-                                 width=15, state="readonly")
-        tipo_combo.pack(side="left", padx=(10, 20))
+        tk.Label(order_section, text='Limite:', font=('Arial', 10, 'bold'), bg='white').pack(side='left', padx=(20, 0))
+        self.limit_var = tk.StringVar(value='200')
+        tk.Entry(order_section, textvariable=self.limit_var, width=8).pack(side='left', padx=(8, 0))
         
-        # Botão consultar
-        consultar_btn = self.create_button(filtros_frame, "Consultar", self.consultar_por_usuario, bg='#3b82f6')
-        consultar_btn.pack(side="left", padx=(10, 0))
+        # Ações
+        actions = tk.Frame(content, bg='white')
+        actions.pack(fill='x', pady=(5, 10))
+        self.create_button(actions, 'Executar', self.build_and_execute_query, bg='#3b82f6').pack(side='left')
+        self.create_button(actions, 'Exportar Excel', self.export_to_excel, bg='#0ea5e9').pack(side='left', padx=(10,0))
         
-        # Treeview para resultados
-        columns = ("data", "tipo", "numero", "cliente", "valor")
-        self.usuario_tree = ttk.Treeview(content_frame, columns=columns, show="headings", height=15)
+        # Resultados
+        results = tk.Frame(content, bg='white')
+        results.pack(fill='both', expand=True)
+        self.results_tree = ttk.Treeview(results, columns=("resultado"), show='headings', height=16)
+        self.results_tree.pack(side='left', fill='both', expand=True)
+        res_scroll = ttk.Scrollbar(results, orient='vertical', command=self.results_tree.yview)
+        self.results_tree.configure(yscrollcommand=res_scroll.set)
+        res_scroll.pack(side='right', fill='y')
         
-        self.usuario_tree.heading("data", text="Data")
-        self.usuario_tree.heading("tipo", text="Tipo")
-        self.usuario_tree.heading("numero", text="Número")
-        self.usuario_tree.heading("cliente", text="Cliente")
-        self.usuario_tree.heading("valor", text="Valor")
+        # Inicializar UI
+        self.on_base_change()
+    
+    def on_base_change(self):
+        # Limpar relações e campos
+        for child in self.relations_frame.winfo_children():
+            child.destroy()
+        self.fields_listbox.delete(0, tk.END)
+        self.filter_rows.clear()
+        for child in self.filters_rows_frame.winfo_children():
+            child.destroy()
         
-        self.usuario_tree.column("data", width=100)
-        self.usuario_tree.column("tipo", width=100)
-        self.usuario_tree.column("numero", width=150)
-        self.usuario_tree.column("cliente", width=200)
-        self.usuario_tree.column("valor", width=120)
+        base = self.base_table_var.get()
+        cfg = self.tables_config.get(base, {})
         
-        # Scrollbar
-        usuario_scrollbar = ttk.Scrollbar(content_frame, orient="vertical", command=self.usuario_tree.yview)
-        self.usuario_tree.configure(yscrollcommand=usuario_scrollbar.set)
+        # Renderizar relações como checkbuttons
+        self.selected_relations = {}
+        joins = cfg.get('joins', {})
+        if joins:
+            tk.Label(self.relations_frame, text='Relações:', font=('Arial', 10, 'bold'), bg='white').pack(anchor='w')
+            rels_bar = tk.Frame(self.relations_frame, bg='white')
+            rels_bar.pack(fill='x', pady=(4,0))
+            for rel_name in joins.keys():
+                var = tk.BooleanVar(value=True if base in ['Cotações', 'Relatórios Técnicos'] and rel_name in ['Cliente', 'Responsável'] else False)
+                chk = tk.Checkbutton(rels_bar, text=rel_name, variable=var, bg='white', onvalue=True, offvalue=False, command=self.update_fields_and_relations)
+                chk.pack(side='left', padx=(0, 10))
+                self.selected_relations[rel_name] = var
         
-        self.usuario_tree.pack(side="left", fill="both", expand=True)
-        usuario_scrollbar.pack(side="right", fill="y")
+        self.update_fields_and_relations()
+    
+    def update_fields_and_relations(self):
+        # Atualiza campos disponíveis e opções de ordenação conforme relações marcadas
+        base = self.base_table_var.get()
+        cfg = self.tables_config.get(base, {})
+        base_fields = cfg.get('fields', {})
+        joins_selected = {name for name, var in self.selected_relations.items() if var.get()} if hasattr(self, 'selected_relations') else set()
         
-        # Carregar usuários
-        self.carregar_usuarios()
+        # Regra simples: campos cujo identificador contém apelido de join ausente serão ocultados
+        def field_allowed(label, expr):
+            if ' cl.' in f' {expr}' and 'Cliente' not in joins_selected and base != 'Clientes':
+                return False
+            if ' u.' in f' {expr}' and not any(rel in joins_selected for rel in ['Responsável', 'Responsável (Cotação)', 'Técnico (Usuários)']) and base != 'Usuários':
+                return False
+            if ' ic.' in f' {expr}' and 'Itens da Cotação' not in joins_selected and base != 'Itens de Cotação':
+                return False
+            if ' e.' in f' {expr}' and 'Eventos de Campo' not in joins_selected and base != 'Eventos de Campo':
+                return False
+            if ' r.' in f' {expr}' and 'Relatório' not in joins_selected and base != 'Relatórios Técnicos' and base != 'Eventos de Campo':
+                # Permite r.* quando base é Relatórios Técnicos ou Eventos
+                return False
+            if ' c.' in f' {expr}' and 'Cotação' not in joins_selected and base != 'Cotações' and base != 'Itens de Cotação' and base != 'Clientes' and base != 'Usuários':
+                return False
+            return True
         
-    def create_consultas_faturamento_tab(self):
-        """Criar aba de consultas de faturamento"""
-        faturamento_frame = tk.Frame(self.notebook, bg='white')
-        self.notebook.add(faturamento_frame, text="Faturamento")
+        # Repopular listbox de campos
+        self.fields_listbox.delete(0, tk.END)
+        self.current_field_map = {}
+        for label, expr in base_fields.items():
+            if field_allowed(label, expr):
+                self.current_field_map[label] = expr
+                self.fields_listbox.insert(tk.END, label)
         
-        content_frame = tk.Frame(faturamento_frame, bg='white', padx=20, pady=20)
-        content_frame.pack(fill="both", expand=True)
+        # Atualizar opções de ordenação
+        self.order_field_combo['values'] = list(self.current_field_map.keys())
+        if self.order_field_var.get() not in self.order_field_combo['values']:
+            self.order_field_var.set('')
         
-        # Frame de filtros
-        filtros_frame = tk.Frame(content_frame, bg='white')
-        filtros_frame.pack(fill="x", pady=(0, 15))
+        # Se não houver filtro ainda, adicionar um por padrão
+        if not self.filter_rows:
+            self.add_filter_row()
+    
+    def select_all_fields(self):
+        self.fields_listbox.select_set(0, tk.END)
+    
+    def clear_field_selection(self):
+        self.fields_listbox.selection_clear(0, tk.END)
+    
+    def add_filter_row(self):
+        row = tk.Frame(self.filters_rows_frame, bg='white')
+        row.pack(fill='x', pady=3)
         
-        # Tipo de faturamento
-        tk.Label(filtros_frame, text="Tipo:", font=('Arial', 10, 'bold'), bg='white').pack(side="left")
-        self.tipo_faturamento_var = tk.StringVar(value="Por Usuário")
-        tipo_combo = ttk.Combobox(filtros_frame, textvariable=self.tipo_faturamento_var, 
-                                 values=["Por Usuário", "Por Tipo de Produto", "Por Cliente"], 
-                                 width=15, state="readonly")
-        tipo_combo.pack(side="left", padx=(10, 20))
+        field_var = tk.StringVar()
+        field_combo = ttk.Combobox(row, textvariable=field_var, values=list(self.current_field_map.keys()), state='readonly', width=30)
+        field_combo.pack(side='left')
         
-        # Período
-        tk.Label(filtros_frame, text="Período:", font=('Arial', 10, 'bold'), bg='white').pack(side="left")
-        self.periodo_faturamento_var = tk.StringVar(value="Este mês")
-        periodo_combo = ttk.Combobox(filtros_frame, textvariable=self.periodo_faturamento_var, 
-                                    values=["Este mês", "Mês passado", "Este trimestre", "Este ano"], 
-                                    width=15, state="readonly")
-        periodo_combo.pack(side="left", padx=(10, 20))
+        op_var = tk.StringVar(value='=')
+        ops = ['=', '!=', 'contém', 'não contém', '>', '>=', '<', '<=', 'entre']
+        op_combo = ttk.Combobox(row, textvariable=op_var, values=ops, state='readonly', width=12)
+        op_combo.pack(side='left', padx=(8, 8))
         
-        # Botão consultar
-        consultar_btn = self.create_button(filtros_frame, "Consultar", self.consultar_faturamento, bg='#3b82f6')
-        consultar_btn.pack(side="left", padx=(10, 0))
+        value_var = tk.StringVar()
+        value_entry = tk.Entry(row, textvariable=value_var, width=30)
+        value_entry.pack(side='left')
         
-        # Treeview para resultados
-        columns = ("categoria", "quantidade", "valor_total", "media")
-        self.faturamento_tree = ttk.Treeview(content_frame, columns=columns, show="headings", height=15)
+        remove_btn = self.create_button(row, 'Remover', lambda r=row: self.remove_filter_row(r), bg='#ef4444')
+        remove_btn.pack(side='left', padx=(8, 0))
         
-        self.faturamento_tree.heading("categoria", text="Categoria")
-        self.faturamento_tree.heading("quantidade", text="Quantidade")
-        self.faturamento_tree.heading("valor_total", text="Valor Total")
-        self.faturamento_tree.heading("media", text="Média")
+        self.filter_rows.append({'frame': row, 'field': field_var, 'op': op_var, 'value': value_var})
+    
+    def remove_filter_row(self, row_frame):
+        for fr in list(self.filter_rows):
+            if fr['frame'] == row_frame:
+                fr['frame'].destroy()
+                self.filter_rows.remove(fr)
+                break
+    
+    def build_and_execute_query(self):
+        base = self.base_table_var.get()
+        cfg = self.tables_config.get(base, {})
+        table = cfg.get('table')
+        if not table:
+            self.show_error('Tabela base inválida.')
+            return
         
-        self.faturamento_tree.column("categoria", width=200)
-        self.faturamento_tree.column("quantidade", width=100)
-        self.faturamento_tree.column("valor_total", width=150)
-        self.faturamento_tree.column("media", width=120)
+        # Campos selecionados
+        selected_indices = self.fields_listbox.curselection()
+        selected_labels = [self.fields_listbox.get(i) for i in selected_indices] if selected_indices else list(self.current_field_map.keys())[:6]
+        if not selected_labels:
+            self.show_warning('Selecione ao menos um campo.')
+            return
         
-        # Scrollbar
-        faturamento_scrollbar = ttk.Scrollbar(content_frame, orient="vertical", command=self.faturamento_tree.yview)
-        self.faturamento_tree.configure(yscrollcommand=faturamento_scrollbar.set)
+        fields_exprs = [self.current_field_map[lbl] for lbl in selected_labels]
         
-        self.faturamento_tree.pack(side="left", fill="both", expand=True)
-        faturamento_scrollbar.pack(side="right", fill="y")
+        # FROM + JOINS
+        joins_sql = []
+        for rel_name, var in getattr(self, 'selected_relations', {}).items():
+            if var.get():
+                join_clause = cfg['joins'].get(rel_name)
+                if join_clause:
+                    joins_sql.append(join_clause)
         
-    def create_consultas_personalizadas_tab(self):
-        """Criar aba de consultas personalizadas"""
-        personalizada_frame = tk.Frame(self.notebook, bg='white')
-        self.notebook.add(personalizada_frame, text="Personalizadas")
-        
-        content_frame = tk.Frame(personalizada_frame, bg='white', padx=20, pady=20)
-        content_frame.pack(fill="both", expand=True)
-        
-        # Frame de consulta SQL
-        sql_frame = tk.Frame(content_frame, bg='white')
-        sql_frame.pack(fill="both", expand=True, pady=(0, 15))
-        
-        tk.Label(sql_frame, text="Consulta SQL:", font=('Arial', 10, 'bold'), bg='white').pack(anchor="w")
-        
-        self.sql_text = scrolledtext.ScrolledText(sql_frame, height=8, width=80)
-        self.sql_text.pack(fill="both", expand=True, pady=(5, 10))
-        
-        # Exemplos de consultas
-        exemplos_frame = tk.Frame(sql_frame, bg='white')
-        exemplos_frame.pack(fill="x")
-        
-        tk.Label(exemplos_frame, text="Exemplos:", font=('Arial', 10, 'bold'), bg='white').pack(anchor="w")
-        
-        exemplos = [
-            "SELECT COUNT(*) as total FROM cotacoes WHERE status = 'Aprovada'",
-            "SELECT u.nome_completo, COUNT(c.id) as cotações FROM usuarios u LEFT JOIN cotacoes c ON u.id = c.responsavel_id GROUP BY u.id",
-            "SELECT c.nome, SUM(co.valor_total) as faturamento FROM clientes c LEFT JOIN cotacoes co ON c.id = co.cliente_id GROUP BY c.id"
-        ]
-        
-        for exemplo in exemplos:
-            exemplo_btn = tk.Button(exemplos_frame, text=exemplo, 
-                                   command=lambda e=exemplo: self.sql_text.insert("1.0", e),
-                                   bg='#f1f5f9', relief='flat', cursor='hand2')
-            exemplo_btn.pack(fill="x", pady=2)
-        
-        # Botões
-        buttons_frame = tk.Frame(content_frame, bg='white')
-        buttons_frame.pack(fill="x")
-        
-        executar_btn = self.create_button(buttons_frame, "Executar Consulta", self.executar_consulta_personalizada, bg='#10b981')
-        executar_btn.pack(side="left", padx=(0, 10))
-        
-        limpar_btn = self.create_button(buttons_frame, "Limpar", lambda: self.sql_text.delete("1.0", tk.END), bg='#f59e0b')
-        limpar_btn.pack(side="left")
-        
-        # Treeview para resultados
-        columns = ("resultado")
-        self.personalizada_tree = ttk.Treeview(content_frame, columns=columns, show="headings", height=10)
-        
-        self.personalizada_tree.heading("resultado", text="Resultado")
-        self.personalizada_tree.column("resultado", width=600)
-        
-        # Scrollbar
-        personalizada_scrollbar = ttk.Scrollbar(content_frame, orient="vertical", command=self.personalizada_tree.yview)
-        self.personalizada_tree.configure(yscrollcommand=personalizada_scrollbar.set)
-        
-        self.personalizada_tree.pack(side="left", fill="both", expand=True)
-        personalizada_scrollbar.pack(side="right", fill="y")
-        
-    def carregar_usuarios(self):
-        """Carregar lista de usuários"""
-        try:
-            conn = sqlite3.connect(DB_NAME)
-            c = conn.cursor()
-            
-            c.execute("SELECT id, nome_completo FROM usuarios ORDER BY nome_completo")
-            usuarios = c.fetchall()
-            
-            # Popular combobox
-            valores = [f"{row[1]} (ID: {row[0]})" for row in usuarios]
-            self.usuario_combo['values'] = valores
-            
-            # Armazenar mapeamento
-            self.usuarios_dict = {f"{row[1]} (ID: {row[0]})": row[0] for row in usuarios}
-            
-        except sqlite3.Error as e:
-            self.show_error(f"Erro ao carregar usuários: {e}")
-        finally:
-            conn.close()
-            
-    def consultar_por_status(self):
-        """Consultar cotações por status"""
-        # Limpar resultados
-        for item in self.status_tree.get_children():
-            self.status_tree.delete(item)
-            
-        status = self.status_var.get()
-        periodo = self.periodo_var.get()
-        
-        # Calcular data limite
-        data_limite = self.calcular_data_limite(periodo)
-        
-        try:
-            conn = sqlite3.connect(DB_NAME)
-            c = conn.cursor()
-            
-            if status == "Todas":
-                if data_limite:
-                    c.execute("""
-                        SELECT c.numero_proposta, cl.nome, u.nome_completo, c.data_criacao, c.status, c.valor_total
-                        FROM cotacoes c
-                        JOIN clientes cl ON c.cliente_id = cl.id
-                        JOIN usuarios u ON c.responsavel_id = u.id
-                        WHERE c.data_criacao >= ?
-                        ORDER BY c.data_criacao DESC
-                    """, (data_limite,))
-                else:
-                    c.execute("""
-                        SELECT c.numero_proposta, cl.nome, u.nome_completo, c.data_criacao, c.status, c.valor_total
-                        FROM cotacoes c
-                        JOIN clientes cl ON c.cliente_id = cl.id
-                        JOIN usuarios u ON c.responsavel_id = u.id
-                        ORDER BY c.data_criacao DESC
-                    """)
+        # WHERE
+        where_clauses = []
+        params = []
+        for fr in self.filter_rows:
+            field_lbl = fr['field'].get()
+            op = fr['op'].get()
+            val = fr['value'].get().strip()
+            if not field_lbl or not op or val == '':
+                continue
+            expr = self.current_field_map.get(field_lbl)
+            if not expr:
+                continue
+            if op == 'contém':
+                where_clauses.append(f"{expr} LIKE ?")
+                params.append(f"%{val}%")
+            elif op == 'não contém':
+                where_clauses.append(f"{expr} NOT LIKE ?")
+                params.append(f"%{val}%")
+            elif op == 'entre':
+                # aceitar 'v1;v2' ou 'v1,v2'
+                sep = ';' if ';' in val else (',' if ',' in val else None)
+                if not sep:
+                    self.show_warning("Para operador 'entre', use 'valor1;valor2'.")
+                    return
+                v1, v2 = [v.strip() for v in val.split(sep, 1)]
+                where_clauses.append(f"{expr} BETWEEN ? AND ?")
+                params.extend([v1, v2])
             else:
-                if data_limite:
-                    c.execute("""
-                        SELECT c.numero_proposta, cl.nome, u.nome_completo, c.data_criacao, c.status, c.valor_total
-                        FROM cotacoes c
-                        JOIN clientes cl ON c.cliente_id = cl.id
-                        JOIN usuarios u ON c.responsavel_id = u.id
-                        WHERE c.status = ? AND c.data_criacao >= ?
-                        ORDER BY c.data_criacao DESC
-                    """, (status, data_limite))
-                else:
-                    c.execute("""
-                        SELECT c.numero_proposta, cl.nome, u.nome_completo, c.data_criacao, c.status, c.valor_total
-                        FROM cotacoes c
-                        JOIN clientes cl ON c.cliente_id = cl.id
-                        JOIN usuarios u ON c.responsavel_id = u.id
-                        WHERE c.status = ?
-                        ORDER BY c.data_criacao DESC
-                    """, (status,))
-            
-            for row in c.fetchall():
-                numero, cliente, responsavel, data, status, valor = row
-                self.status_tree.insert("", "end", values=(
-                    numero,
-                    cliente,
-                    responsavel,
-                    format_date(data),
-                    status,
-                    format_currency(valor or 0)
-                ))
-                
-        except sqlite3.Error as e:
-            self.show_error(f"Erro ao consultar: {e}")
-        finally:
-            conn.close()
-            
-    def consultar_por_usuario(self):
-        """Consultar por usuário"""
-        # Limpar resultados
-        for item in self.usuario_tree.get_children():
-            self.usuario_tree.delete(item)
-            
-        usuario_str = self.usuario_var.get()
-        tipo = self.tipo_usuario_var.get()
+                where_clauses.append(f"{expr} {op} ?")
+                params.append(val)
         
-        if not usuario_str:
-            self.show_warning("Selecione um usuário.")
+        # ORDER
+        order_sql = ''
+        if self.order_field_var.get():
+            order_expr = self.current_field_map.get(self.order_field_var.get())
+            if order_expr:
+                order_sql = f" ORDER BY {order_expr} {self.order_dir_var.get()}"
+        
+        # LIMIT
+        limit_sql = ''
+        try:
+            limit_val = int(self.limit_var.get()) if self.limit_var.get().strip() else 0
+            if limit_val > 0:
+                limit_sql = f" LIMIT {limit_val}"
+        except ValueError:
+            self.show_warning('Limite inválido.')
             return
-            
-        # Obter ID do usuário
-        usuario_id = self.usuarios_dict.get(usuario_str)
-        if not usuario_id:
-            self.show_warning("Usuário selecionado inválido.")
-            return
-            
+        
+        # Montar SQL
+        select_parts = []
+        aliases = []
+        for lbl, expr in zip(selected_labels, fields_exprs):
+            select_parts.append(f"{expr} AS '{lbl}'")
+            aliases.append(lbl)
+        
+        sql = f"SELECT {', '.join(select_parts)} FROM {table} " + ' '.join(joins_sql)
+        if where_clauses:
+            sql += ' WHERE ' + ' AND '.join(where_clauses)
+        sql += order_sql + limit_sql
+        
+        # Executar
         try:
             conn = sqlite3.connect(DB_NAME)
             c = conn.cursor()
-            
-            if tipo == "Cotações":
-                c.execute("""
-                    SELECT c.data_criacao, 'Cotação' as tipo, c.numero_proposta, cl.nome, c.valor_total
-                    FROM cotacoes c
-                    JOIN clientes cl ON c.cliente_id = cl.id
-                    WHERE c.responsavel_id = ?
-                    ORDER BY c.data_criacao DESC
-                """, (usuario_id,))
-            elif tipo == "Relatórios":
-                c.execute("""
-                    SELECT r.data_criacao, 'Relatório' as tipo, r.numero_relatorio, cl.nome, 0 as valor
-                    FROM relatorios_tecnicos r
-                    JOIN clientes cl ON r.cliente_id = cl.id
-                    WHERE r.responsavel_id = ?
-                    ORDER BY r.data_criacao DESC
-                """, (usuario_id,))
-            else:  # Faturamento
-                c.execute("""
-                    SELECT c.data_criacao, 'Cotação' as tipo, c.numero_proposta, cl.nome, c.valor_total
-                    FROM cotacoes c
-                    JOIN clientes cl ON c.cliente_id = cl.id
-                    WHERE c.responsavel_id = ? AND c.status = 'Aprovada'
-                    ORDER BY c.data_criacao DESC
-                """, (usuario_id,))
-            
-            for row in c.fetchall():
-                data, tipo, numero, cliente, valor = row
-                self.usuario_tree.insert("", "end", values=(
-                    format_date(data),
-                    tipo,
-                    numero,
-                    cliente,
-                    format_currency(valor or 0)
-                ))
-                
+            c.execute(sql, params)
+            rows = c.fetchall()
+            col_names = [d[0] for d in c.description]
         except sqlite3.Error as e:
-            self.show_error(f"Erro ao consultar: {e}")
-        finally:
-            conn.close()
-            
-    def consultar_faturamento(self):
-        """Consultar faturamento"""
-        # Limpar resultados
-        for item in self.faturamento_tree.get_children():
-            self.faturamento_tree.delete(item)
-            
-        tipo = self.tipo_faturamento_var.get()
-        periodo = self.periodo_faturamento_var.get()
-        
-        # Calcular data limite
-        data_limite = self.calcular_data_limite(periodo)
-        
-        try:
-            conn = sqlite3.connect(DB_NAME)
-            c = conn.cursor()
-            
-            if tipo == "Por Usuário":
-                if data_limite:
-                    c.execute("""
-                        SELECT u.nome_completo, COUNT(c.id) as quantidade, 
-                               SUM(c.valor_total) as valor_total, AVG(c.valor_total) as media
-                        FROM usuarios u
-                        LEFT JOIN cotacoes c ON u.id = c.responsavel_id AND c.data_criacao >= ?
-                        WHERE c.status = 'Aprovada'
-                        GROUP BY u.id, u.nome_completo
-                        ORDER BY valor_total DESC
-                    """, (data_limite,))
-                else:
-                    c.execute("""
-                        SELECT u.nome_completo, COUNT(c.id) as quantidade, 
-                               SUM(c.valor_total) as valor_total, AVG(c.valor_total) as media
-                        FROM usuarios u
-                        LEFT JOIN cotacoes c ON u.id = c.responsavel_id
-                        WHERE c.status = 'Aprovada'
-                        GROUP BY u.id, u.nome_completo
-                        ORDER BY valor_total DESC
-                    """)
-            elif tipo == "Por Tipo de Produto":
-                if data_limite:
-                    c.execute("""
-                        SELECT ic.tipo, COUNT(ic.id) as quantidade, 
-                               SUM(ic.valor_total_item) as valor_total, AVG(ic.valor_total_item) as media
-                        FROM itens_cotacao ic
-                        JOIN cotacoes c ON ic.cotacao_id = c.id
-                        WHERE c.status = 'Aprovada' AND c.data_criacao >= ?
-                        GROUP BY ic.tipo
-                        ORDER BY valor_total DESC
-                    """, (data_limite,))
-                else:
-                    c.execute("""
-                        SELECT ic.tipo, COUNT(ic.id) as quantidade, 
-                               SUM(ic.valor_total_item) as valor_total, AVG(ic.valor_total_item) as media
-                        FROM itens_cotacao ic
-                        JOIN cotacoes c ON ic.cotacao_id = c.id
-                        WHERE c.status = 'Aprovada'
-                        GROUP BY ic.tipo
-                        ORDER BY valor_total DESC
-                    """)
-            else:  # Por Cliente
-                if data_limite:
-                    c.execute("""
-                        SELECT cl.nome, COUNT(c.id) as quantidade, 
-                               SUM(c.valor_total) as valor_total, AVG(c.valor_total) as media
-                        FROM clientes cl
-                        LEFT JOIN cotacoes c ON cl.id = c.cliente_id AND c.data_criacao >= ?
-                        WHERE c.status = 'Aprovada'
-                        GROUP BY cl.id, cl.nome
-                        ORDER BY valor_total DESC
-                    """, (data_limite,))
-                else:
-                    c.execute("""
-                        SELECT cl.nome, COUNT(c.id) as quantidade, 
-                               SUM(c.valor_total) as valor_total, AVG(c.valor_total) as media
-                        FROM clientes cl
-                        LEFT JOIN cotacoes c ON cl.id = c.cliente_id
-                        WHERE c.status = 'Aprovada'
-                        GROUP BY cl.id, cl.nome
-                        ORDER BY valor_total DESC
-                    """)
-            
-            for row in c.fetchall():
-                categoria, quantidade, valor_total, media = row
-                self.faturamento_tree.insert("", "end", values=(
-                    categoria or "N/A",
-                    quantidade or 0,
-                    format_currency(valor_total or 0),
-                    format_currency(media or 0)
-                ))
-                
-        except sqlite3.Error as e:
-            self.show_error(f"Erro ao consultar: {e}")
-        finally:
-            conn.close()
-            
-    def executar_consulta_personalizada(self):
-        """Executar consulta SQL personalizada"""
-        # Limpar resultados
-        for item in self.personalizada_tree.get_children():
-            self.personalizada_tree.delete(item)
-            
-        sql = self.sql_text.get("1.0", tk.END).strip()
-        
-        if not sql:
-            self.show_warning("Digite uma consulta SQL.")
+            self.show_error(f"Erro ao executar consulta: {e}")
             return
-            
-        try:
-            conn = sqlite3.connect(DB_NAME)
-            c = conn.cursor()
-            
-            c.execute(sql)
-            resultados = c.fetchall()
-            
-            # Obter nomes das colunas
-            colunas = [description[0] for description in c.description]
-            
-            # Configurar colunas da tree
-            self.personalizada_tree["columns"] = colunas
-            for col in colunas:
-                self.personalizada_tree.heading(col, text=col)
-                self.personalizada_tree.column(col, width=150)
-            
-            # Inserir resultados
-            for row in resultados:
-                self.personalizada_tree.insert("", "end", values=row)
-                
-        except sqlite3.Error as e:
-            self.show_error(f"Erro na consulta SQL: {e}")
         finally:
-            conn.close()
+            if 'conn' in locals():
+                conn.close()
+        
+        # Atualizar resultados
+        self.query_result_rows = rows
+        self.query_result_columns = col_names
+        
+        # Configurar treeview
+        self.results_tree.delete(*self.results_tree.get_children())
+        self.results_tree['columns'] = col_names
+        for col in col_names:
+            self.results_tree.heading(col, text=col)
+            self.results_tree.column(col, width=150)
+        for row in rows:
+            self.results_tree.insert('', 'end', values=row)
+    
+    def export_to_excel(self):
+        if not self.query_result_rows or not self.query_result_columns:
+            self.show_warning('Nenhum resultado para exportar.')
+            return
+        
+        try:
+            os.makedirs(os.path.join('data', 'consultas', 'exports'), exist_ok=True)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            base = self.base_table_var.get().replace(' ', '_').lower()
+            filepath = os.path.join('data', 'consultas', 'exports', f'consulta_{base}_{timestamp}.xlsx')
             
+            wb = Workbook()
+            ws = wb.active
+            ws.title = 'Resultados'
+            
+            # Cabeçalhos
+            ws.append(self.query_result_columns)
+            
+            # Linhas
+            for r in self.query_result_rows:
+                ws.append(list(r))
+            
+            wb.save(filepath)
+            self.show_success(f'Arquivo exportado: {filepath}')
+        except Exception as e:
+            self.show_error(f'Erro ao exportar: {e}')
+    
     def calcular_data_limite(self, periodo):
-        """Calcular data limite baseada no período"""
+        # Mantido para compatibilidade com possíveis usos
         hoje = datetime.now()
-        
         if periodo == "Últimos 7 dias":
             return (hoje - timedelta(days=7)).strftime('%Y-%m-%d')
         elif periodo == "Últimos 30 dias":
@@ -576,8 +502,7 @@ class ConsultasModule(BaseModule):
             return f"{hoje.year}-{trimestre:02d}-01"
         else:
             return None
-            
+    
     def handle_event(self, event_type, data=None):
-        """Manipular eventos do sistema"""
         if event_type == 'usuario_changed':
             self.current_user_id = data
