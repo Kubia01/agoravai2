@@ -73,6 +73,14 @@ class CotacoesModule(BaseModule):
         
         # Conteúdo do formulário
         self.create_cotacao_content(form_inner)
+
+        # Preencher número sequencial automaticamente ao abrir, se não houver cotação carregada
+        try:
+            if not self.current_cotacao_id:
+                numero = self.gerar_numero_sequencial()
+                self.numero_var.set(numero)
+        except Exception as e:
+            print(f"Aviso ao gerar número sequencial inicial de cotação: {e}")
         
         # Painel da lista (direita)
         lista_panel = tk.Frame(main_frame, bg='#f8fafc')
