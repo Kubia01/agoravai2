@@ -52,6 +52,9 @@ class UsuariosModule(BaseModule):
         self.password_var = tk.StringVar()
         self.confirm_password_var = tk.StringVar()
         self.role_var = tk.StringVar(value="operador")
+        self.role_admin_var = tk.BooleanVar(value=False)
+        self.role_operador_var = tk.BooleanVar(value=True)
+        self.role_tecnico_var = tk.BooleanVar(value=False)
         self.nome_completo_var = tk.StringVar()
         self.email_var = tk.StringVar()
         self.telefone_var = tk.StringVar()
@@ -75,11 +78,13 @@ class UsuariosModule(BaseModule):
         tk.Entry(fields_frame, textvariable=self.confirm_password_var, font=('Arial', 10), width=30, show="*").grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
         row += 1
         
-        # Role
-        tk.Label(fields_frame, text="Perfil *:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
-        role_combo = ttk.Combobox(fields_frame, textvariable=self.role_var, 
-                                 values=["admin", "operador", "tecnico"], width=27, state="readonly")
-        role_combo.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+        # Roles (múltiplos)
+        tk.Label(fields_frame, text="Perfis *:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="nw", pady=5)
+        roles_frame = tk.Frame(fields_frame, bg='white')
+        roles_frame.grid(row=row, column=1, sticky="w", padx=(10, 0), pady=5)
+        tk.Checkbutton(roles_frame, text="Admin", variable=self.role_admin_var, bg='white').pack(side='left', padx=(0, 10))
+        tk.Checkbutton(roles_frame, text="Operador", variable=self.role_operador_var, bg='white').pack(side='left', padx=(0, 10))
+        tk.Checkbutton(roles_frame, text="Técnico", variable=self.role_tecnico_var, bg='white').pack(side='left', padx=(0, 10))
         row += 1
         
         # Nome Completo
@@ -164,7 +169,7 @@ class UsuariosModule(BaseModule):
         
         self.usuarios_tree.column("username", width=120)
         self.usuarios_tree.column("nome_completo", width=200)
-        self.usuarios_tree.column("role", width=100)
+        self.usuarios_tree.column("role", width=150)
         self.usuarios_tree.column("email", width=200)
         self.usuarios_tree.column("telefone", width=120)
         
@@ -198,6 +203,10 @@ class UsuariosModule(BaseModule):
         self.username_var.set("")
         self.password_var.set("")
         self.confirm_password_var.set("")
+        # Papéis padrão: operador marcado
+        self.role_admin_var.set(False)
+        self.role_operador_var.set(True)
+        self.role_tecnico_var.set(False)
         self.role_var.set("operador")
         self.nome_completo_var.set("")
         self.email_var.set("")
@@ -206,11 +215,23 @@ class UsuariosModule(BaseModule):
         self.template_image_path_var.set("")
         self.upload_frame.pack_forget()
         
+    def _construir_roles_string(self) -> str:
+        roles = []
+        if self.role_admin_var.get():
+            roles.append('admin')
+        if self.role_operador_var.get():
+            roles.append('operador')
+        if self.role_tecnico_var.get():
+            roles.append('tecnico')
+        if not roles:
+            roles = ['operador']
+        return ','.join(roles)
+        
     def salvar_usuario(self):
         username = self.username_var.get().strip()
         password = self.password_var.get()
         confirm_password = self.confirm_password_var.get()
-        role = self.role_var.get()
+        role = self._construir_roles_string()
         
         if not username:
             self.show_warning("O username é obrigatório.")
@@ -265,11 +286,6 @@ class UsuariosModule(BaseModule):
             self.carregar_usuarios()
             
         except sqlite3.IntegrityError as e:
-            if "username" in str(e).lower():
-                self.show_error("Username já existe no sistema.")
-            else:
-                self.show_error(f"Erro de integridade: {e}")
-        except sqlite3.Error as e:
             self.show_error(f"Erro ao salvar usuário: {e}")
         finally:
             conn.close()
@@ -277,16 +293,25 @@ class UsuariosModule(BaseModule):
     def carregar_usuarios(self):
         for item in self.usuarios_tree.get_children():
             self.usuarios_tree.delete(item)
-            
+        
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
         
         try:
-            c.execute("""
-                SELECT id, username, nome_completo, role, email, telefone
-                FROM usuarios
-                ORDER BY username
-            """)
+            termo = self.search_var.get().strip() if hasattr(self, 'search_var') else ''
+            if termo:
+                c.execute("""
+                    SELECT id, username, nome_completo, role, email, telefone
+                    FROM usuarios
+                    WHERE username LIKE ? OR nome_completo LIKE ?
+                    ORDER BY username
+                """, (f"%{termo}%", f"%{termo}%"))
+            else:
+                c.execute("""
+                    SELECT id, username, nome_completo, role, email, telefone
+                    FROM usuarios
+                    ORDER BY username
+                """)
             
             for row in c.fetchall():
                 usuario_id, username, nome_completo, role, email, telefone = row
@@ -299,7 +324,7 @@ class UsuariosModule(BaseModule):
                 ), tags=(usuario_id,))
                 
         except sqlite3.Error as e:
-            self.show_error(f"Erro ao carregar usuários: {e}")
+            self.show_error(f"Erro ao buscar usuários: {e}")
         finally:
             conn.close()
             
@@ -308,7 +333,7 @@ class UsuariosModule(BaseModule):
         
         for item in self.usuarios_tree.get_children():
             self.usuarios_tree.delete(item)
-            
+        
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
         
@@ -372,7 +397,12 @@ class UsuariosModule(BaseModule):
             self.username_var.set(usuario[1] or "")  # username
             self.password_var.set("")  # Não mostrar senha
             self.confirm_password_var.set("")
-            self.role_var.set(usuario[3] or "operador")  # role
+            role_str = usuario[3] or "operador"
+            self.role_var.set(role_str)
+            roles = set([r.strip().lower() for r in role_str.split(',') if r.strip()])
+            self.role_admin_var.set('admin' in roles)
+            self.role_operador_var.set('operador' in roles)
+            self.role_tecnico_var.set('tecnico' in roles)
             self.nome_completo_var.set(usuario[4] or "")  # nome_completo
             self.email_var.set(usuario[5] or "")  # email
             self.telefone_var.set(format_phone(usuario[6]) if usuario[6] else "")  # telefone
@@ -388,7 +418,7 @@ class UsuariosModule(BaseModule):
             self.show_error(f"Erro ao carregar usuário: {e}")
         finally:
             conn.close()
-            
+        
     def resetar_senha(self):
         selected = self.usuarios_tree.selection()
         if not selected:
@@ -421,7 +451,7 @@ class UsuariosModule(BaseModule):
             self.show_error(f"Erro ao resetar senha: {e}")
         finally:
             conn.close()
-            
+        
     def excluir_usuario(self):
         selected = self.usuarios_tree.selection()
         if not selected:
@@ -442,7 +472,7 @@ class UsuariosModule(BaseModule):
         if usuario_id == self.user_id:
             self.show_warning("Você não pode excluir seu próprio usuário.")
             return
-            
+        
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
         

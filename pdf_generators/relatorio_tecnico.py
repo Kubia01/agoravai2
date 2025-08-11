@@ -6,6 +6,7 @@ import json
 from utils.formatters import format_date, format_cnpj, format_phone
 from PIL import Image
 import tempfile
+from assets.filiais.filiais_config import obter_filial
 
 def clean_text(text, aggressive=False):
     """Substitui tabs por espaços e remove caracteres problemáticos"""
@@ -22,8 +23,8 @@ def clean_text(text, aggressive=False):
     replacements = {
         '"': '"',  # Smart quotes
         '"': '"',
-        ''': "'",
-        ''': "'",
+        '’': "'",
+        '‘': "'",
         '…': '...',
         '–': '-',
         '—': '-',
@@ -63,13 +64,14 @@ def clean_text(text, aggressive=False):
     return text
 
 class RelatorioPDF(FPDF):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, dados_filial=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.set_auto_page_break(auto=True, margin=25)
         self.baby_blue = (137, 207, 240)  # Azul bebê corporativo
         self.dark_blue = (41, 128, 185)   # Azul escuro para títulos
         self.light_gray = (245, 245, 245) # Cinza claro para backgrounds
         self.first_page = True
+        self.dados_filial = dados_filial or {}
         
         # Adicionar fonte Unicode para suportar caracteres especiais
         try:
@@ -104,7 +106,7 @@ class RelatorioPDF(FPDF):
         self.set_text_color(*self.dark_blue)
         self.set_pdf_font('B', 12)
         self.set_y(12)
-        self.cell(0, 6, self.clean_pdf_text("WORLD COMP DO BRASIL COMPRESSORES EIRELI"), 0, 1, 'C')
+        self.cell(0, 6, self.clean_pdf_text(self.dados_filial.get('nome', 'WORLD COMP DO BRASIL COMPRESSORES LTDA')), 0, 1, 'C')
         
         self.set_pdf_font('B', 10)
         self.cell(0, 5, self.clean_pdf_text("ORDEM DE SERVIÇO DE CAMPO SIMPLIFICADA"), 0, 1, 'C')
@@ -138,8 +140,14 @@ class RelatorioPDF(FPDF):
         
         self.set_pdf_font('', 8)
         self.set_text_color(*self.dark_blue)
-        self.cell(0, 4, self.clean_pdf_text("Rua Fernando Pessoa, 17 - Batistini - São Bernardo do Campo/SP - CEP 09844-390"), 0, 1, 'C')
-        self.cell(0, 4, self.clean_pdf_text("E-mail: rogerio@worldcompressores.com.br | Fone: (11) 4543-6896/4543-6857/4357-8062"), 0, 1, 'C')
+        endereco = self.dados_filial.get('endereco', 'Rua Fernando Pessoa, 17 – Batistini – São Bernardo do Campo – SP')
+        cep = self.dados_filial.get('cep', '09844-390')
+        email = self.dados_filial.get('email', 'rogerio@worldcompressores.com.br')
+        telefones = self.dados_filial.get('telefones', '(11) 4543-6896/4543-6857/4357-8062')
+        cnpj = self.dados_filial.get('cnpj', 'N/A')
+        
+        self.cell(0, 4, self.clean_pdf_text(f"{endereco} - CEP {cep}"), 0, 1, 'C')
+        self.cell(0, 4, self.clean_pdf_text(f"CNPJ: {cnpj} | E-mail: {email} | Fone: {telefones}"), 0, 1, 'C')
         
         # Número da página
         self.set_text_color(100, 100, 100)
@@ -434,7 +442,7 @@ def gerar_pdf_relatorio(relatorio_id, db_name):
         column_names = [column[1] for column in columns_info]
         
         # Construir a query dinamicamente com base nas colunas existentes - EXPANDIDA PARA 4 ABAS
-        base_columns = ["r.numero_relatorio", "r.data_criacao", "c.nome", "c.cnpj", "c.endereco", "c.cidade", "c.estado"]
+        base_columns = ["r.numero_relatorio", "r.data_criacao", "c.nome", "c.cnpj", "c.endereco", "c.cidade", "c.estado", "r.filial_id"]
         
         # Verificar quais colunas existem na tabela para as 4 abas
         report_columns = []
@@ -538,9 +546,9 @@ def gerar_pdf_relatorio(relatorio_id, db_name):
         
         # Obter eventos
         c.execute("""
-            SELECT t.nome, e.data_hora, e.evento, e.tipo
+            SELECT u.nome_completo, e.data_hora, e.evento, e.tipo
             FROM eventos_campo e
-            JOIN tecnicos t ON e.tecnico_id = t.id
+            JOIN usuarios u ON e.tecnico_id = u.id
             WHERE e.relatorio_id = ?
             ORDER BY e.data_hora
         """, (relatorio_id,))
@@ -563,14 +571,15 @@ def gerar_pdf_relatorio(relatorio_id, db_name):
                     except (json.JSONDecodeError, TypeError):
                         anexos_abas[aba_num] = []
         
-        # Criar PDF
-        pdf = RelatorioPDF()
+        # Criar PDF com filial
+        filial_id = get_value("filial_id") or 2
+        dados_filial = obter_filial(int(filial_id)) or {}
+        pdf = RelatorioPDF(dados_filial)
         
         # Configurar dados para cabeçalho
         pdf.numero_relatorio = get_value("numero_relatorio")
         pdf.data_relatorio = format_date(get_value("data_criacao"))
         
-        # Não adicionar capa para relatórios técnicos (conforme solicitado)
         # Iniciar diretamente com o conteúdo
         pdf.add_page()
         
@@ -579,14 +588,14 @@ def gerar_pdf_relatorio(relatorio_id, db_name):
         
         nome_cliente = get_value("nome")
         pdf.field_label_value("RAZÃO SOCIAL", nome_cliente)
-            
+        
         cnpj_cliente = get_value("cnpj")
         if cnpj_cliente:
             pdf.field_label_value("CNPJ", format_cnpj(cnpj_cliente))
-            
+        
         endereco_cliente = get_value("endereco")
         pdf.field_label_value("ENDEREÇO", endereco_cliente)
-            
+        
         cidade = get_value("cidade")
         estado = get_value("estado")
         if cidade and estado:
@@ -599,17 +608,17 @@ def gerar_pdf_relatorio(relatorio_id, db_name):
         
         numero_rel = get_value("numero_relatorio")
         pdf.field_label_value("Nº RELATÓRIO", numero_rel)
-            
+        
         data_criacao = get_value("data_criacao")
         if data_criacao:
             pdf.field_label_value("DATA", format_date(data_criacao))
-            
+        
         formulario = get_value("formulario_servico")
         pdf.field_label_value("FORMULÁRIO DE SERVIÇO", formulario)
-            
+        
         tipo_servico = get_value("tipo_servico")
         pdf.field_label_value("TIPO DE SERVIÇO", tipo_servico)
-            
+        
         descricao_servico = get_value("descricao_servico")
         pdf.multi_line_field("DESCRIÇÃO DO SERVIÇO", descricao_servico)
         
@@ -627,7 +636,6 @@ def gerar_pdf_relatorio(relatorio_id, db_name):
                 pdf.multi_line_field("EVENTO", desc_evento)
                 pdf.ln(2)
         else:
-            # Mostrar seção mesmo sem eventos registrados
             pdf.set_pdf_font('', 9)
             pdf.set_text_color(100, 100, 100)
             pdf.cell(0, 5, "Nenhum evento de campo registrado até o momento.", 0, 1)

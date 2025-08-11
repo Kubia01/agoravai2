@@ -168,7 +168,7 @@ class DashboardModule(BaseModule):
         
         try:
             # Carregar estatísticas baseadas no perfil do usuário
-            if self.role == 'admin':
+            if self.has_role('admin'):
                 # Admin vê dados gerais de todos
                 # Clientes
                 c.execute("SELECT COUNT(*) FROM clientes")
@@ -229,7 +229,7 @@ class DashboardModule(BaseModule):
             self.quotes_tree.delete(item)
             
         # Buscar cotações recentes baseadas no perfil
-        if self.role == 'admin':
+        if self.has_role('admin'):
             cursor.execute("""
                 SELECT c.numero_proposta, cl.nome, c.data_criacao, c.valor_total, c.status
                 FROM cotacoes c
@@ -264,7 +264,7 @@ class DashboardModule(BaseModule):
             self.reports_tree.delete(item)
             
         # Buscar relatórios recentes baseadas no perfil
-        if self.role == 'admin':
+        if self.has_role('admin'):
             cursor.execute("""
                 SELECT r.numero_relatorio, cl.nome, r.data_criacao, u.nome_completo, r.tipo_servico
                 FROM relatorios_tecnicos r
