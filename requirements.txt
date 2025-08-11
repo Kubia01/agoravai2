@@ -1,6 +1,3 @@
 fpdf2
-requests
 Pillow
-pyinstaller
-reportlab
 openpyxl
