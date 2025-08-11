@@ -195,7 +195,7 @@ def criar_banco():
         parafusos_pinos TEXT,
         superficie_vedacao TEXT,
         engrenagens TEXT,
-        bico_injertor TEXT,
+        bico_injetor TEXT,
         rolamentos TEXT,
         aspecto_oleo TEXT,
         data_peritagem TEXT,
@@ -346,6 +346,29 @@ def criar_banco():
             print("Coluna filial_id adicionada com sucesso!")
     except sqlite3.Error as e:
         print(f"Erro ao adicionar coluna filial_id: {e}")
+
+    # Adicionar coluna filial_id à tabela relatorios_tecnicos se não existir
+    try:
+        c.execute("PRAGMA table_info(relatorios_tecnicos)")
+        columns = [column[1] for column in c.fetchall()]
+        if 'filial_id' not in columns:
+            print("Adicionando coluna filial_id à tabela relatorios_tecnicos...")
+            c.execute("ALTER TABLE relatorios_tecnicos ADD COLUMN filial_id INTEGER DEFAULT 2")
+            print("Coluna filial_id adicionada com sucesso em relatorios_tecnicos!")
+    except sqlite3.Error as e:
+        print(f"Erro ao adicionar coluna filial_id em relatorios_tecnicos: {e}")
+
+    # Corrigir nome da coluna bico_injertor -> bico_injetor, mantendo compatibilidade
+    try:
+        c.execute("PRAGMA table_info(relatorios_tecnicos)")
+        columns = [column[1] for column in c.fetchall()]
+        if 'bico_injetor' not in columns and 'bico_injertor' in columns:
+            print("Adicionando coluna bico_injetor e migrando dados de bico_injertor...")
+            c.execute("ALTER TABLE relatorios_tecnicos ADD COLUMN bico_injetor TEXT")
+            c.execute("UPDATE relatorios_tecnicos SET bico_injetor = bico_injertor WHERE bico_injertor IS NOT NULL")
+            print("Coluna bico_injetor criada e dados migrados.")
+    except sqlite3.Error as e:
+        print(f"Erro ao migrar coluna bico_injetor: {e}")
 
     # Primeiro, limpar usuários extras (manter apenas os especificados)
     try:

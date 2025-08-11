@@ -190,8 +190,19 @@ class RelatoriosModule(BaseModule):
         refresh_clientes_btn = self.create_button(cliente_frame, "🔄", self.refresh_clientes, bg='#10b981')
         refresh_clientes_btn.pack(side="right", padx=(5, 0))
         
+        # Filial
+        tk.Label(fields_frame, text="Filial *:", 
+                 font=('Arial', 10, 'bold'), bg='white').grid(row=0, column=2, sticky="w", pady=5, padx=(20, 0))
+        self.filial_var = tk.StringVar(value="2")
+        filial_combo = ttk.Combobox(fields_frame, textvariable=self.filial_var, 
+                                   values=["1 - WORLD COMP COMPRESSORES LTDA", 
+                                          "2 - WORLD COMP DO BRASIL COMPRESSORES LTDA"], 
+                                   width=45, state="readonly")
+        filial_combo.grid(row=0, column=3, sticky="ew", padx=(10, 0), pady=5)
+        
         # Configurar colunas
         fields_frame.grid_columnconfigure(1, weight=1)
+        fields_frame.grid_columnconfigure(3, weight=1)
         
     def create_servico_section(self, parent):
         section_frame = self.create_section_frame(parent, "Dados do Serviço")
@@ -621,11 +632,12 @@ class RelatoriosModule(BaseModule):
         
         tk.Label(add_evento_frame, text="Evento:", font=('Arial', 9, 'bold'), bg='white').grid(row=1, column=0, sticky="w")
         evento_var = tk.StringVar()
-        tk.Entry(add_evento_frame, textvariable=evento_var, width=50).grid(row=1, column=1, columnspan=2, padx=5, sticky="ew")
+        evento_entry = tk.Entry(add_evento_frame, textvariable=evento_var, width=50)
+        evento_entry.grid(row=1, column=1, columnspan=2, padx=5, sticky="ew")
         
-        add_evento_btn = self.create_button(add_evento_frame, "Adicionar", 
-                                           lambda: self.adicionar_evento(tecnico_id, data_hora_var, tipo_var, evento_var, eventos_tree))
-        add_evento_btn.grid(row=1, column=3, padx=5)
+        # Substitui botão grande por Enter para adicionar
+        evento_entry.bind('<Return>', lambda e: self.adicionar_evento(tecnico_id, data_hora_var, tipo_var, evento_var, eventos_tree))
+        tipo_combo.bind('<Return>', lambda e: self.adicionar_evento(tecnico_id, data_hora_var, tipo_var, evento_var, eventos_tree))
         
         # Grid de eventos
         eventos_tree = ttk.Treeview(tecnico_frame, columns=("data_hora", "tipo", "evento"), show="headings", height=8)
@@ -727,6 +739,28 @@ class RelatoriosModule(BaseModule):
         print(f"DEBUG: Aba {aba_num} tem {len(anexos)} anexos: {json_result}")
         return json_result
     
+    def gerar_numero_sequencial_relatorio(self) -> str:
+        """Gerar número sequencial para relatório técnico (formato REL-000001)."""
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            c.execute("SELECT MAX(CAST(SUBSTR(numero_relatorio, 5) AS INTEGER)) FROM relatorios_tecnicos WHERE numero_relatorio LIKE 'REL-%'")
+            result = c.fetchone()
+            if result and result[0]:
+                proximo = result[0] + 1
+            else:
+                proximo = 1
+            return f"REL-{proximo:06d}"
+        except sqlite3.Error as e:
+            print(f"Erro ao gerar número sequencial de relatório: {e}")
+            from datetime import datetime
+            return f"REL-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
     def novo_relatorio(self):
         """Limpar formulário para novo relatório"""
         self.current_relatorio_id = None
@@ -763,8 +797,8 @@ class RelatoriosModule(BaseModule):
         # Limpar cotação
         self.cotacao_var.set("")
         
-        # Gerar número automático
-        numero = f"REL-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        # Gerar número sequencial automático
+        numero = self.gerar_numero_sequencial_relatorio()
         self.numero_relatorio_var.set(numero)
         
     def limpar_formulario_edicao(self):
@@ -824,7 +858,11 @@ class RelatoriosModule(BaseModule):
         cotacao_id = None
         if cotacao_str:
             cotacao_id = self.cotacoes_dict.get(cotacao_str)
-            
+        
+        # Obter ID da filial
+        filial_str = self.filial_var.get()
+        filial_id = int(filial_str.split(' - ')[0]) if ' - ' in filial_str else int(filial_str or 2)
+        
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
         
@@ -878,7 +916,8 @@ class RelatoriosModule(BaseModule):
                 self._debug_anexos_json(1),  # anexos_aba1
                 self._debug_anexos_json(2),  # anexos_aba2
                 self._debug_anexos_json(3),  # anexos_aba3
-                self._debug_anexos_json(4)   # anexos_aba4
+                self._debug_anexos_json(4),  # anexos_aba4
+                filial_id
             )
             
             if self.current_relatorio_id:
@@ -895,9 +934,10 @@ class RelatoriosModule(BaseModule):
                         interf_mancais = ?, galeria_hidraulica = ?, data_desmembracao = ?,
                         servicos_propostos = ?, pecas_recomendadas = ?, data_pecas = ?,
                         cotacao_id = ?, tempo_trabalho_total = ?, tempo_deslocamento_total = ?,
-                        fotos = ?, anexos_aba1 = ?, anexos_aba2 = ?, anexos_aba3 = ?, anexos_aba4 = ?
+                        fotos = ?, anexos_aba1 = ?, anexos_aba2 = ?, anexos_aba3 = ?, anexos_aba4 = ?,
+                        filial_id = ?
                     WHERE id = ?
-                """, (dados_relatorio[0], dados_relatorio[1]) + dados_relatorio[4:] + (self.current_relatorio_id,))
+                """, (dados_relatorio[0], dados_relatorio[1]) + dados_relatorio[4:-1] + (dados_relatorio[-1], self.current_relatorio_id,))
                 
                 # Remover eventos antigos
                 c.execute("DELETE FROM eventos_campo WHERE relatorio_id = ?", (self.current_relatorio_id,))
@@ -914,8 +954,8 @@ class RelatoriosModule(BaseModule):
                         interf_desmontagem, aspecto_rotores_aba3, aspecto_carcaca, interf_mancais,
                         galeria_hidraulica, data_desmembracao, servicos_propostos, pecas_recomendadas,
                         data_pecas, cotacao_id, tempo_trabalho_total, tempo_deslocamento_total,
-                        fotos, anexos_aba1, anexos_aba2, anexos_aba3, anexos_aba4
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        fotos, anexos_aba1, anexos_aba2, anexos_aba3, anexos_aba4, filial_id
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, dados_relatorio)
                 
                 relatorio_id = c.lastrowid
@@ -1041,22 +1081,9 @@ class RelatoriosModule(BaseModule):
             return
             
         relatorio_id = tags[0]
-        
-        # Verificar se deve abrir no editor PDF ou no formulário
-        resposta = messagebox.askyesno(
-            "Edição de Relatório", 
-            "Como deseja editar este relatório?\n\n"
-            "Sim: Editor PDF (recomendado)\n"
-            "Não: Formulário tradicional"
-        )
-        
-        if resposta:
-            # Abrir no editor PDF
-            self.abrir_relatorio_editor_pdf(relatorio_id)
-        else:
-            # Carregar no formulário tradicional
-            self.carregar_relatorio_para_edicao(relatorio_id)
-            # Layout único: permanecer na mesma tela
+        # Carregar no formulário tradicional diretamente (editor avançado removido)
+        self.carregar_relatorio_para_edicao(relatorio_id)
+        # Layout único: permanecer na mesma tela
         
     def carregar_relatorio_para_edicao(self, relatorio_id):
         """Carregar dados do relatório para edição"""
@@ -1128,6 +1155,17 @@ class RelatoriosModule(BaseModule):
                         self.cotacao_var.set(key)
                         break
             
+            # Filial: buscar de forma robusta
+            try:
+                c.execute("SELECT filial_id FROM relatorios_tecnicos WHERE id = ?", (relatorio_id,))
+                row_f = c.fetchone()
+                if row_f and row_f[0] in (1, 2):
+                    filial_id = row_f[0]
+                    nome_filial = "WORLD COMP COMPRESSORES LTDA" if filial_id == 1 else "WORLD COMP DO BRASIL COMPRESSORES LTDA"
+                    self.filial_var.set(f"{filial_id} - {nome_filial}")
+            except Exception:
+                pass
+            
             # Carregar anexos (índices 35-38)
             for aba_num in range(1, 5):
                 # Limpar anexos e listbox desta aba primeiro
@@ -1167,60 +1205,9 @@ class RelatoriosModule(BaseModule):
             conn.close()
             
     def abrir_relatorio_editor_pdf(self, relatorio_id):
-        """Abrir relatório no editor PDF para edição"""
-        try:
-            # Garantir que o editor PDF está carregado
-            editor_module = self.main_window.editor_avancado_module
-            if editor_module is None:
-                # Carregar o editor se não estiver carregado
-                self.main_window.load_pdf_editor()
-                editor_module = self.main_window.editor_avancado_module
-                
-            if editor_module is None:
-                self.show_error("Erro ao carregar o editor PDF.")
-                return
-            
-            # Gerar PDF do relatório atual
-            from pdf_generators.relatorio_tecnico import gerar_relatorio_pdf
-            
-            # Obter dados do relatório
-            conn = sqlite3.connect(DB_NAME)
-            c = conn.cursor()
-            c.execute("SELECT * FROM relatorios_tecnicos WHERE id = ?", (relatorio_id,))
-            relatorio = c.fetchone()
-            
-            if not relatorio:
-                self.show_error("Relatório não encontrado.")
-                conn.close()
-                return
-            
-            # Gerar PDF temporário
-            import tempfile
-            with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as temp_file:
-                pdf_path = temp_file.name
-            
-            success = gerar_relatorio_pdf(relatorio_id, pdf_path)
-            conn.close()
-            
-            if success:
-                # Carregar PDF no editor
-                editor_module.load_pdf_for_editing(pdf_path, relatorio_id)
-                
-                # Mudar para aba do editor PDF
-                notebook = self.main_window.notebook
-                for i in range(notebook.index("end")):
-                    if "Editor Avançado" in notebook.tab(i, "text"):
-                        notebook.select(i)
-                        break
-                        
-                self.show_info("Relatório aberto no Editor PDF para edição.")
-            else:
-                self.show_error("Erro ao gerar PDF do relatório.")
-                
-        except Exception as e:
-            self.show_error(f"Erro ao abrir relatório no editor PDF: {e}")
-            import traceback
-            print(f"Erro completo: {traceback.format_exc()}")
+        """Método descontinuado: editor de templates removido."""
+        self.show_warning("O Editor de Templates foi removido do sistema.")
+        # Sem ação
 
     def carregar_eventos_relatorio(self, relatorio_id):
         """Carregar eventos dos técnicos do relatório"""
@@ -1277,9 +1264,9 @@ class RelatoriosModule(BaseModule):
         relatorio_id = tags[0]
         self.carregar_relatorio_para_edicao(relatorio_id)
         
-        # Limpar ID e gerar novo número
+        # Limpar ID e gerar novo número sequencial
         self.current_relatorio_id = None
-        numero = f"REL-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        numero = self.gerar_numero_sequencial_relatorio()
         self.numero_relatorio_var.set(numero)
         self.data_criacao_var.set(datetime.now().strftime('%d/%m/%Y'))
         

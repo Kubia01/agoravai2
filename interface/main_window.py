@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from interface.modules import CotacoesModule, RelatoriosModule, ClientesModule, ProdutosModule, UsuariosModule, DashboardModule, PermissoesModule, ConsultasModule, EditorTemplatePDFModule
+from interface.modules import CotacoesModule, RelatoriosModule, ClientesModule, ProdutosModule, UsuariosModule, DashboardModule, PermissoesModule, ConsultasModule
 
 class MainWindow:
     def __init__(self, root, user_id, role, nome_completo):
@@ -35,6 +35,14 @@ class MainWindow:
         x = (self.root.winfo_screenwidth() // 2) - (width // 2)
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f'{width}x{height}+{x}+{y}')
+        
+    def has_role(self, role_name: str) -> bool:
+        """Verifica se o usuário possui o perfil informado (suporta múltiplos perfis separados por vírgula)."""
+        try:
+            roles = [r.strip().lower() for r in (self.role or '').split(',') if r.strip()]
+            return role_name.lower() in roles
+        except Exception:
+            return self.role == role_name
         
     def register_listener(self, listener_func):
         """Registrar um listener para eventos do sistema"""
@@ -130,73 +138,16 @@ class MainWindow:
         self.notebook.add(consultas_frame, text="🔍 Consultas")
         self.consultas_module = ConsultasModule(consultas_frame, self.user_id, self.role, self)
         
-        # Usuários (apenas para admins)
-        if self.role == 'admin':
+        # Usuários e Permissões (apenas para admins)
+        if self.has_role('admin'):
             usuarios_frame = tk.Frame(self.notebook)
             self.notebook.add(usuarios_frame, text="👤 Usuários")
             self.usuarios_module = UsuariosModule(usuarios_frame, self.user_id, self.role, self)
             
-            # Permissões (apenas para admins)
             permissoes_frame = tk.Frame(self.notebook)
             self.notebook.add(permissoes_frame, text="🔐 Permissões")
             self.permissoes_module = PermissoesModule(permissoes_frame, self.user_id, self.role, self)
-            
-
         
-        # Editor de PDF Avançado (carregamento sob demanda)
-        editor_avancado_frame = tk.Frame(self.notebook)
-        self.notebook.add(editor_avancado_frame, text="🎨 Editor Templates")
-        self.editor_avancado_module = None  # Será carregado quando necessário
-        self.editor_avancado_frame = editor_avancado_frame
-        
-        # Configurar evento para carregar o editor quando a aba for selecionada
-        self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
-    
-    def on_tab_changed(self, event):
-        """Callback para quando uma aba é alterada"""
-        try:
-            selected_tab = self.notebook.select()
-            tab_text = self.notebook.tab(selected_tab, "text")
-
-            # Se a aba do Editor Templates foi selecionada e ainda não foi carregada
-            if "Editor Templates" in tab_text and self.editor_avancado_module is None:
-                self.load_pdf_editor()
-            # Se a aba já foi carregada
-            elif "Editor Templates" in tab_text and self.editor_avancado_module is not None:
-                # Editor já carregado, nada mais a fazer
-                pass
-        except Exception as e:
-            print(f"Erro ao trocar de aba: {e}")
-    
-    def auto_open_pdf_viewer(self):
-        """Abrir visualizador PDF automaticamente"""
-        try:
-            if hasattr(self.editor_avancado_module, 'show_original_template_fullscreen'):
-                self.editor_avancado_module.show_original_template_fullscreen()
-        except Exception as e:
-            print(f"Erro ao abrir visualizador automaticamente: {e}")
-    
-    def load_pdf_editor(self):
-        """Carregar o editor PDF sob demanda"""
-        try:
-            print("Carregando Editor de Templates PDF...")
-            self.editor_avancado_module = EditorTemplatePDFModule(
-                self.editor_avancado_frame, 
-                self.user_id, 
-                self.role, 
-                self
-            )
-            print("Editor de Templates PDF carregado com sucesso!")
-        except Exception as e:
-            print(f"Erro ao carregar editor PDF: {e}")
-            # Criar interface simples de erro
-            error_label = tk.Label(
-                self.editor_avancado_frame,
-                text=f"Erro ao carregar editor: {e}",
-                fg="red"
-            )
-            error_label.pack(pady=20)
-
     def logout(self):
         """Fazer logout e voltar para tela de login"""
         if messagebox.askyesno("Logout", "Tem certeza que deseja sair?"):

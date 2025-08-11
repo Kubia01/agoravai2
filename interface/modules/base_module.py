@@ -34,6 +34,14 @@ class BaseModule:
         if hasattr(self.main_window, 'emit_event'):
             self.main_window.emit_event(event_type, data)
     
+    def has_role(self, role_name: str) -> bool:
+        """Verifica se o usuário possui o perfil informado (suporta múltiplos perfis separados por vírgula)."""
+        try:
+            roles = [r.strip().lower() for r in (self.role or '').split(',') if r.strip()]
+            return role_name.lower() in roles
+        except Exception:
+            return self.role == role_name
+    
     def create_section_frame(self, parent, title, padx=10, pady=10):
         """Criar frame de seção com título"""
         section_frame = tk.LabelFrame(parent, text=title, 
