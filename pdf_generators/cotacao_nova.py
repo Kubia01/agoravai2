@@ -102,13 +102,15 @@ class PDFCotacao(FPDF):
         self._section_bottom_cont = None
         self._default_top = 10
         self._default_bottom = 25
+        self._section_title = None
 
-    def begin_section(self, name, top_first, bottom_first, top_cont, bottom_cont):
+    def begin_section(self, name, top_first, bottom_first, top_cont, bottom_cont, title=None):
         self._section_mode = name
         self._section_top_first = top_first
         self._section_bottom_first = bottom_first
         self._section_top_cont = top_cont
         self._section_bottom_cont = bottom_cont
+        self._section_title = title
         # Aplicar margens da primeira página da seção
         self.set_top_margin(top_first)
         self.set_auto_page_break(auto=True, margin=bottom_first)
@@ -122,6 +124,7 @@ class PDFCotacao(FPDF):
         self._section_bottom_first = None
         self._section_top_cont = None
         self._section_bottom_cont = None
+        self._section_title = None
 
     def accept_page_break(self):
         # Em páginas complementares de uma seção, usar margens de continuação
@@ -164,15 +167,16 @@ class PDFCotacao(FPDF):
         self.line(10, 35, 200, 35)
         self.ln(5)
 
-        # Se estiver em uma seção, reposicionar após o cabeçalho
-        if self._section_mode:
-            # Se a quebra foi automática (página complementar), usar top_cont; caso contrário, top_first
-            top_offset = self._section_top_cont if getattr(self, '_section_cont_break', False) else self._section_top_first
-            if top_offset is not None:
-                self.set_y(top_offset)
-            # Resetar flag de página complementar
-            if getattr(self, '_section_cont_break', False):
-                self._section_cont_break = False
+        # Se estiver em seção e esta for uma página complementar, reposicionar e imprimir o título do módulo
+        if self._section_mode and getattr(self, '_section_cont_break', False):
+            if self._section_top_cont is not None:
+                self.set_y(self._section_top_cont)
+            if self._section_title:
+                self.set_font("Arial", 'B', 14)
+                self.cell(0, 8, clean_text(self._section_title), 0, 1, 'L')
+                self.ln(5)
+            # limpar flag de página complementar
+            self._section_cont_break = False
 
     def footer(self):
         # NÃO exibir footer na página da capa JPEG (primeira página)
@@ -506,7 +510,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         if esboco_servico:
             pdf.add_page()
             # Primeira página da seção: mais alto; complementares: afastar ainda mais do cabeçalho
-            pdf.begin_section('esboco', top_first=35, bottom_first=40, top_cont=130, bottom_cont=40)
+            pdf.begin_section('esboco', top_first=35, bottom_first=40, top_cont=130, bottom_cont=40, title="ESBOÇO DO SERVIÇO A SER EXECUTADO")
             pdf.set_y(35)
             pdf.set_font("Arial", 'B', 14)
             pdf.cell(0, 8, clean_text("ESBOÇO DO SERVIÇO A SER EXECUTADO"), 0, 1, 'L')
@@ -521,7 +525,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         # =====================================================
         if relacao_pecas_substituir:
             pdf.add_page()
-            pdf.begin_section('relacao', top_first=35, bottom_first=40, top_cont=130, bottom_cont=40)
+            pdf.begin_section('relacao', top_first=35, bottom_first=40, top_cont=130, bottom_cont=40, title="RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS")
             pdf.set_y(35)
             pdf.set_font("Arial", 'B', 14)
             pdf.cell(0, 8, clean_text("RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS"), 0, 1, 'L')
