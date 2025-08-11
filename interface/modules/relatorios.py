@@ -74,6 +74,14 @@ class RelatoriosModule(BaseModule):
         
         # Conteúdo do formulário
         self.create_relatorio_content(form_inner)
+
+        # Preencher número sequencial automaticamente ao abrir, se não houver relatório carregado
+        try:
+            if not self.current_relatorio_id:
+                numero = self.gerar_numero_sequencial_relatorio()
+                self.numero_relatorio_var.set(numero)
+        except Exception as e:
+            print(f"Aviso ao gerar número sequencial inicial de relatório: {e}")
         
         # Painel da lista (direita)
         lista_panel = tk.Frame(main_frame, bg='#f8fafc')
@@ -126,6 +134,9 @@ class RelatoriosModule(BaseModule):
         
         gerar_pdf_lista_btn = self.create_button(lista_buttons, "Gerar PDF", self.gerar_pdf_selecionado, bg='#10b981')
         gerar_pdf_lista_btn.pack(side="right")
+        
+        excluir_btn = self.create_button(lista_buttons, "Excluir", self.excluir_relatorio, bg='#dc2626')
+        excluir_btn.pack(side="right", padx=(10, 0))
         
         # Dados iniciais
         self.refresh_all_data()
@@ -692,28 +703,25 @@ class RelatoriosModule(BaseModule):
             
     def adicionar_anexo(self, aba_numero):
         """Adicionar anexo à aba"""
-        filepath = filedialog.askopenfilename(
-            title=f"Selecionar Anexo para Aba {aba_numero}",
+        filepaths = filedialog.askopenfilenames(
+            title=f"Selecionar Anexos para Aba {aba_numero}",
             filetypes=[("Todos os arquivos", "*.*"), ("Imagens", "*.jpg *.jpeg *.png"), ("PDFs", "*.pdf")]
         )
         
-        if not filepath:
+        if not filepaths:
             return
-            
-        # Criar um dicionário com informações do anexo
-        nome_arquivo = filepath.split('/')[-1]
-        anexo_info = {
-            'nome': nome_arquivo,
-            'caminho': filepath,
-            'descricao': f'Anexo da Aba {aba_numero}'
-        }
         
-        # Adicionar à lista de anexos
-        self.anexos_aba[aba_numero].append(anexo_info)
-        
-        # Atualizar listbox
         listbox = getattr(self, f'anexos_listbox_aba{aba_numero}')
-        listbox.insert(tk.END, nome_arquivo)  # Mostrar apenas o nome do arquivo
+        
+        for filepath in filepaths:
+            nome_arquivo = filepath.split('/')[-1]
+            anexo_info = {
+                'nome': nome_arquivo,
+                'caminho': filepath,
+                'descricao': f'Anexo da Aba {aba_numero}'
+            }
+            self.anexos_aba[aba_numero].append(anexo_info)
+            listbox.insert(tk.END, nome_arquivo)
         
     def remover_anexo(self, aba_numero):
         """Remover anexo selecionado"""
@@ -1316,3 +1324,27 @@ class RelatoriosModule(BaseModule):
         elif event_type == 'cotacao_created':
             self.refresh_cotacoes()
             print("Lista de cotações atualizada automaticamente!")
+
+    def excluir_relatorio(self):
+        selected = self.relatorios_tree.selection()
+        if not selected:
+            self.show_warning("Selecione um relatório para excluir.")
+            return
+        tags = self.relatorios_tree.item(selected[0])['tags']
+        if not tags:
+            return
+        relatorio_id = tags[0]
+        if not messagebox.askyesno("Confirmar Exclusão", "Tem certeza que deseja excluir o relatório selecionado?"):
+            return
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        try:
+            c.execute("DELETE FROM eventos_campo WHERE relatorio_id = ?", (relatorio_id,))
+            c.execute("DELETE FROM relatorios_tecnicos WHERE id = ?", (relatorio_id,))
+            conn.commit()
+            self.show_success("Relatório excluído com sucesso!")
+            self.carregar_relatorios()
+        except sqlite3.Error as e:
+            self.show_error(f"Erro ao excluir relatório: {e}")
+        finally:
+            conn.close()

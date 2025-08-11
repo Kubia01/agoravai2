@@ -628,13 +628,47 @@ def gerar_pdf_relatorio(relatorio_id, db_name):
         pdf.section_title("REGISTRO DE EVENTOS E TÉCNICOS")
         
         if eventos:
-            for evento in eventos:
-                tecnico, data_hora, desc_evento, tipo_evento = evento
-                pdf.field_label_value("TÉCNICO", tecnico)
-                pdf.field_label_value("DATA/HORA", str(data_hora))
-                pdf.field_label_value("TIPO", tipo_evento)
-                pdf.multi_line_field("EVENTO", desc_evento)
-                pdf.ln(2)
+            # Agrupar por técnico
+            eventos_por_tecnico = {}
+            for tecnico, data_hora, desc_evento, tipo_evento in eventos:
+                eventos_por_tecnico.setdefault(tecnico, []).append((data_hora, tipo_evento, desc_evento))
+            
+            for tecnico, linhas in eventos_por_tecnico.items():
+                # Cabeçalho do técnico
+                pdf.set_pdf_font('B', 10)
+                pdf.cell(0, 6, pdf.clean_pdf_text(f"Técnico: {tecnico}"), 0, 1)
+                
+                # Cabeçalho da tabela
+                pdf.set_pdf_font('B', 9)
+                col_w = [40, 25, 120]
+                headers = ["Data/Hora", "Tipo", "Evento"]
+                for i, h in enumerate(headers):
+                    pdf.cell(col_w[i], 6, pdf.clean_pdf_text(h), 1, 0, 'C')
+                pdf.ln(6)
+                
+                # Linhas
+                pdf.set_pdf_font('', 9)
+                for data_hora, tipo_evento, desc_evento in linhas:
+                    y_before = pdf.get_y()
+                    x_start = pdf.get_x()
+                    # Data/Hora
+                    pdf.cell(col_w[0], 6, pdf.clean_pdf_text(str(data_hora)), 1, 0)
+                    # Tipo
+                    pdf.cell(col_w[1], 6, pdf.clean_pdf_text(tipo_evento), 1, 0)
+                    # Evento (pode quebrar linha)
+                    texto = pdf.clean_pdf_text(desc_evento)
+                    # Se o texto for grande, usar multi_cell e redesenhar bordas corretamente
+                    x_evento = pdf.get_x()
+                    y_evento = pdf.get_y()
+                    pdf.multi_cell(col_w[2], 6, texto, 1)
+                    # Ajustar se multi_cell quebrou linha e precisamos fechar bordas das células anteriores
+                    y_after = pdf.get_y()
+                    altura = y_after - y_before
+                    # Corrigir alturas das duas primeiras células se a multi_cell ocupou mais de uma linha
+                    if altura > 6:
+                        pdf.rect(x_start, y_before, col_w[0], altura)
+                        pdf.rect(x_start + col_w[0], y_before, col_w[1], altura)
+                pdf.ln(4)
         else:
             pdf.set_pdf_font('', 9)
             pdf.set_text_color(100, 100, 100)
