@@ -5,6 +5,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
 from PyPDF2 import PdfReader, PdfWriter
+import unicodedata
 
 
 def _clean(text):
@@ -131,17 +132,55 @@ def gerar_pdf_locacao(dados: dict, output_path: str):
     """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    model_docx = os.path.join(os.getcwd(), "Modelo Contrato de Locação (1).docx")
+    def _normalize(s: str) -> str:
+        return ''.join(c for c in unicodedata.normalize('NFKD', s) if not unicodedata.combining(c)).lower()
+
+    # 1) Procurar PDF base enviado (ex: exemplolocação.pdf) no diretório do projeto
+    project_dir = os.getcwd()
+    candidate_pdf = None
+    for fname in os.listdir(project_dir):
+        if not fname.lower().endswith('.pdf'):
+            continue
+        name_norm = _normalize(fname)
+        if 'exemplo' in name_norm and 'loca' in name_norm:
+            candidate_pdf = os.path.join(project_dir, fname)
+            break
+
+    # 2) Se não encontrar no root, procurar em subpastas comuns (assets, data, pdf_generators)
+    if not candidate_pdf:
+        for sub in ['assets', 'data', 'pdf_generators']:
+            subdir = os.path.join(project_dir, sub)
+            if not os.path.isdir(subdir):
+                continue
+            try:
+                for fname in os.listdir(subdir):
+                    if not fname.lower().endswith('.pdf'):
+                        continue
+                    name_norm = _normalize(fname)
+                    if 'exemplo' in name_norm and 'loca' in name_norm:
+                        candidate_pdf = os.path.join(subdir, fname)
+                        break
+            except Exception:
+                pass
+            if candidate_pdf:
+                break
+
+    # 3) Se o PDF de exemplo existir, usar diretamente; senão, fazer fallback para DOCX -> PDF
+    if candidate_pdf and os.path.exists(candidate_pdf):
+        _overlay_dynamic_fields(candidate_pdf, output_path, dados)
+        return
+
+    # Fallback para DOCX
+    model_docx = os.path.join(project_dir, "Modelo Contrato de Locação (1).docx")
     if not os.path.exists(model_docx):
-        # Nome alternativo com cedilha/acentos, conforme repositório
-        for fname in os.listdir(os.getcwd()):
+        for fname in os.listdir(project_dir):
             if fname.lower().startswith("modelo contrato de loc") and fname.lower().endswith('.docx'):
-                model_docx = os.path.join(os.getcwd(), fname)
+                model_docx = os.path.join(project_dir, fname)
                 break
 
     base_pdf = os.path.join(os.path.dirname(output_path), "_modelo_base_locacao.pdf")
     if not _docx_to_pdf(model_docx, base_pdf):
-        raise RuntimeError("Falha ao converter o modelo DOCX para PDF. Instale LibreOffice no ambiente.")
+        raise RuntimeError("Modelo PDF 'exemplolocação.pdf' não encontrado e DOCX->PDF falhou (LibreOffice ausente).")
 
     _overlay_dynamic_fields(base_pdf, output_path, dados)
     try:
