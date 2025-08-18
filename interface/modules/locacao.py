@@ -22,7 +22,7 @@ class LocacaoModule(BaseModule):
         header.pack(fill="x", pady=(0, 10))
         tk.Label(header, text="Gestão de Locação", font=('Arial', 16, 'bold'), bg='#f8fafc', fg='#1e293b').pack(side="left")
 
-        # Layout principal em 2 colunas, igual cotações
+        # Layout principal em 2 colunas (form à esquerda, lista à direita)
         main_frame = tk.Frame(container, bg='#f8fafc')
         main_frame.pack(fill="both", expand=True)
         main_frame.grid_columnconfigure(0, weight=1, uniform="cols")
@@ -43,7 +43,8 @@ class LocacaoModule(BaseModule):
         self.numero_var = tk.StringVar(value="")
         self.filial_var = tk.StringVar(value="2 - WORLD COMP DO BRASIL COMPRESSORES LTDA")
         self.cliente_var = tk.StringVar()
-        self.contato_var = tk.StringVar()
+        # Contato do cliente (combobox dependente)
+        self.contato_cliente_var = tk.StringVar()
         self.marca_var = tk.StringVar()
         self.modelo_var = tk.StringVar()
         self.serie_var = tk.StringVar()
@@ -55,7 +56,7 @@ class LocacaoModule(BaseModule):
         self.condicoes_pagamento_text = scrolledtext.ScrolledText(form, height=5, width=40, font=('Arial', 10))
         self.imagem_compressor_var = tk.StringVar()
 
-        # Grid
+        # Helper para grid
         row = 0
         def add_row(label, widget):
             nonlocal row
@@ -75,8 +76,8 @@ class LocacaoModule(BaseModule):
         # Cliente
         cliente_frame = tk.Frame(form, bg='white')
         self.cliente_combo = ttk.Combobox(cliente_frame, textvariable=self.cliente_var, width=40)
-        # Forçar atualização sempre que abrir o dropdown
         try:
+            # Atualiza a lista sempre que abrir o dropdown
             self.cliente_combo.configure(postcommand=self.refresh_clientes)
         except Exception:
             pass
@@ -85,7 +86,17 @@ class LocacaoModule(BaseModule):
         tk.Button(cliente_frame, text="🔄", bg='#10b981', fg='white', relief='flat', command=self.refresh_clientes).pack(side="left", padx=(8, 0))
         add_row("Cliente:", cliente_frame)
 
-        add_row("Contato:", tk.Entry(form, textvariable=self.contato_var, font=('Arial', 10)))
+        # Contato do Cliente (Combobox preenchido a partir do cliente selecionado)
+        contato_frame = tk.Frame(form, bg='white')
+        self.contato_cliente_combo = ttk.Combobox(contato_frame, textvariable=self.contato_cliente_var, width=40, state="readonly")
+        try:
+            # Atualiza a lista de contatos sempre que abrir
+            self.contato_cliente_combo.configure(postcommand=self._refresh_contatos_do_cliente)
+        except Exception:
+            pass
+        self.contato_cliente_combo.pack(side="left", fill="x", expand=True)
+        add_row("Contato:", contato_frame)
+
         add_row("Marca do Equipamento:", tk.Entry(form, textvariable=self.marca_var, font=('Arial', 10)))
         add_row("Modelo do Equipamento:", tk.Entry(form, textvariable=self.modelo_var, font=('Arial', 10)))
         add_row("Número de Série:", tk.Entry(form, textvariable=self.serie_var, font=('Arial', 10)))
@@ -120,7 +131,7 @@ class LocacaoModule(BaseModule):
         nova_btn = self.create_button(actions, "Nova Locação", self.nova_locacao, bg='#e2e8f0', fg='#475569')
         nova_btn.pack(side="left")
 
-        # Painel de lista (direita)
+        # Painel da lista (direita)
         lista_panel = tk.Frame(main_frame, bg='#f8fafc')
         lista_panel.grid(row=0, column=1, sticky="nsew", padx=(10, 10), pady=(10, 10))
         lista_panel.grid_columnconfigure(0, weight=1)
@@ -166,7 +177,7 @@ class LocacaoModule(BaseModule):
 
         # Dados iniciais
         self.refresh_all_data()
-        # Preencher número sequencial automático
+        # Número sequencial automático
         try:
             if not self.current_locacao_id:
                 self.numero_var.set(self.gerar_numero_sequencial_locacao())
@@ -204,7 +215,7 @@ class LocacaoModule(BaseModule):
             c.execute("SELECT id, nome FROM clientes ORDER BY nome")
             rows = c.fetchall()
             self._clientes_cache = rows
-            # Mapa idêntico ao de cotações: "Nome (ID: X)" -> id
+            # Mapa no mesmo formato da aba de cotações: "Nome (ID: X)"
             self.clientes_dict = {f"{nome} (ID: {cid})": cid for cid, nome in rows}
             self.cliente_combo['values'] = list(self.clientes_dict.keys())
         except Exception as e:
@@ -216,7 +227,7 @@ class LocacaoModule(BaseModule):
                 pass
 
     def on_cliente_selected(self, event=None):
-        """Preencher condição de pagamento conforme cadastro do cliente."""
+        """Preencher prazo/condições e contatos do cliente selecionado."""
         cliente_str = self.cliente_var.get()
         if not cliente_str:
             return
@@ -226,26 +237,48 @@ class LocacaoModule(BaseModule):
         try:
             conn = sqlite3.connect(DB_NAME)
             c = conn.cursor()
+            # Buscar prazo de pagamento do cliente
             c.execute("SELECT prazo_pagamento FROM clientes WHERE id = ?", (cliente_id,))
             result = c.fetchone()
             if result and result[0]:
                 self.condicoes_pagamento_text.delete('1.0', 'end')
                 self.condicoes_pagamento_text.insert('1.0', str(result[0]))
+            # Carregar contatos do cliente
+            c.execute("SELECT nome FROM contatos WHERE cliente_id = ? ORDER BY nome", (cliente_id,))
+            contatos = [row[0] for row in c.fetchall()]
+            self.contato_cliente_combo['values'] = contatos
+            if contatos:
+                self.contato_cliente_var.set(contatos[0])
+            else:
+                self.contato_cliente_var.set("")
         except Exception as e:
-            print(f"Erro ao buscar prazo de pagamento do cliente: {e}")
+            print(f"Erro ao buscar dados do cliente: {e}")
         finally:
             try:
                 conn.close()
             except Exception:
                 pass
 
-    def _obter_cliente_id_por_nome(self, nome):
-        if not getattr(self, '_clientes_cache', None):
-            return None
-        for cid, n in self._clientes_cache:
-            if n == nome:
-                return cid
-        return None
+    def _refresh_contatos_do_cliente(self):
+        """Atualiza a lista de contatos ao abrir o combobox de contatos."""
+        cliente_str = self.cliente_var.get()
+        cliente_id = getattr(self, 'clientes_dict', {}).get(cliente_str)
+        if not cliente_id:
+            self.contato_cliente_combo['values'] = []
+            return
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            c.execute("SELECT nome FROM contatos WHERE cliente_id = ? ORDER BY nome", (cliente_id,))
+            contatos = [row[0] for row in c.fetchall()]
+            self.contato_cliente_combo['values'] = contatos
+        except Exception:
+            self.contato_cliente_combo['values'] = []
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     def _salvar_locacao(self):
         dados = self._coletar_dados()
@@ -266,12 +299,12 @@ class LocacaoModule(BaseModule):
                 dados['imagem_compressor']
             ))
             conn.commit()
-            messagebox.showinfo("Sucesso", "Locação salva com sucesso!")
+            self.show_success("Locação salva com sucesso!")
             # Emitir evento e atualizar lista
             self.emit_event('locacao_created')
             self.refresh_lista_locacoes()
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao salvar locação: {e}")
+            self.show_error(f"Erro ao salvar locação: {e}")
         finally:
             try:
                 conn.close()
@@ -284,11 +317,11 @@ class LocacaoModule(BaseModule):
         cliente_id = getattr(self, 'clientes_dict', {}).get(self.cliente_var.get())
         condicoes_pg = (self.condicoes_pagamento_text.get('1.0', 'end') or '').strip()
         return {
-            'numero': (self.numero_var.get() or self._gerar_numero_sugerido()).strip(),
+            'numero': (self.numero_var.get() or self.gerar_numero_sequencial_locacao()).strip(),
             'filial_id': filial_id,
             'cliente_id': cliente_id,
             'responsavel_id': getattr(self.main_window, 'user_id', None),
-            'contato': self.contato_var.get().strip(),
+            'contato': (self.contato_cliente_var.get() or '').strip(),
             'marca': (self.marca_var.get() or '').strip(),
             'modelo': (self.modelo_var.get() or '').strip(),
             'serie': (self.serie_var.get() or '').strip(),
@@ -305,7 +338,7 @@ class LocacaoModule(BaseModule):
     def _gerar_pdf(self):
         dados = self._coletar_dados()
         if not dados['cliente_id']:
-            messagebox.showwarning("Aviso", "Selecione um cliente válido para gerar o PDF.")
+            self.show_warning("Selecione um cliente válido para gerar o PDF.")
             return
         try:
             output_dir = os.path.join('data', 'locacoes')
@@ -335,10 +368,10 @@ class LocacaoModule(BaseModule):
                     dados['imagem_compressor'], output_path
                 ))
             conn.commit()
-            messagebox.showinfo("PDF Gerado", f"Contrato de locação gerado com sucesso:\n{output_path}")
+            self.show_success(f"PDF gerado com sucesso!\nLocal: {output_path}")
             self.refresh_lista_locacoes()
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao gerar PDF: {e}")
+            self.show_error(f"Erro ao gerar PDF: {e}")
         finally:
             try:
                 conn.close()
@@ -367,7 +400,7 @@ class LocacaoModule(BaseModule):
             )
             params = []
             if termo_busca:
-                base_sql += " WHERE l.numero_proposta LIKE ? OR cliente LIKE ?"
+                base_sql += " WHERE l.numero_proposta LIKE ? OR COALESCE(c.nome_fantasia, c.nome) LIKE ?"
                 like = f"%{termo_busca}%"
                 params.extend([like, like])
             base_sql += " ORDER BY l.id DESC"
@@ -409,7 +442,6 @@ class LocacaoModule(BaseModule):
             self.numero_var.set(numero or "")
             # Selecionar filial por id
             try:
-                # Reconstruir string "id - nome" a partir da lista
                 filiais = [f"{fid} - {nome}" for fid, nome in listar_filiais()]
                 for s in filiais:
                     if s.startswith(f"{filial_id} - "):
@@ -417,13 +449,22 @@ class LocacaoModule(BaseModule):
                         break
             except Exception:
                 pass
-            # Selecionar cliente (chave do dict é "Nome (ID: X)")
+            # Selecionar cliente (display "Nome (ID: X)")
             self.refresh_clientes()
             if hasattr(self, 'clientes_dict'):
                 for display, cid in self.clientes_dict.items():
                     if cid == cliente_id:
                         self.cliente_var.set(display)
                         break
+            # Carregar contatos e setar
+            try:
+                c.execute("SELECT nome FROM contatos WHERE cliente_id = ? ORDER BY nome", (cliente_id,))
+                contatos = [row[0] for row in c.fetchall()]
+                self.contato_cliente_combo['values'] = contatos
+            except Exception:
+                self.contato_cliente_combo['values'] = []
+            self.contato_cliente_var.set(self.contato_cliente_combo['values'][0] if self.contato_cliente_combo['values'] else "")
+
             self.data_inicio_var.set(di or "")
             self.data_fim_var.set(df or "")
             self.marca_var.set(marca or "")
@@ -511,7 +552,11 @@ class LocacaoModule(BaseModule):
         self.numero_var.set(self.gerar_numero_sequencial_locacao())
         self.filial_var.set("2 - WORLD COMP DO BRASIL COMPRESSORES LTDA")
         self.cliente_var.set("")
-        self.contato_var.set("")
+        try:
+            self.contato_cliente_var.set("")
+            self.contato_cliente_combo['values'] = []
+        except Exception:
+            pass
         self.marca_var.set("")
         self.modelo_var.set("")
         self.serie_var.set("")
@@ -522,4 +567,3 @@ class LocacaoModule(BaseModule):
         self.vencimento_dia_var.set("10")
         self.condicoes_pagamento_text.delete('1.0', 'end')
         self.imagem_compressor_var.set("")
-
