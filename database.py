@@ -171,6 +171,29 @@ def criar_banco():
         FOREIGN KEY (kit_id) REFERENCES itens_cotacao(id)
     )''')
 
+    # Tabela Locações - NOVA
+    c.execute('''CREATE TABLE IF NOT EXISTS locacoes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        numero_proposta TEXT NOT NULL UNIQUE,
+        cliente_id INTEGER NOT NULL,
+        filial_id INTEGER DEFAULT 2,
+        responsavel_id INTEGER NOT NULL,
+        data_inicio DATE,
+        data_fim DATE,
+        marca TEXT,
+        modelo TEXT,
+        numero_serie TEXT,
+        valor_mensal REAL DEFAULT 0,
+        moeda TEXT DEFAULT 'BRL',
+        vencimento_dia TEXT,
+        condicoes_pagamento TEXT,
+        imagem_compressor TEXT,
+        caminho_pdf TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (cliente_id) REFERENCES clientes(id),
+        FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
+    )''')
+
     # Tabela Relatórios Técnicos - ATUALIZADA com campos das abas 2 e 3
     c.execute('''CREATE TABLE IF NOT EXISTS relatorios_tecnicos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
