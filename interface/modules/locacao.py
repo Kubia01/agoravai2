@@ -75,9 +75,14 @@ class LocacaoModule(BaseModule):
         # Cliente
         cliente_frame = tk.Frame(form, bg='white')
         self.cliente_combo = ttk.Combobox(cliente_frame, textvariable=self.cliente_var, width=40)
+        # Forçar atualização sempre que abrir o dropdown
+        try:
+            self.cliente_combo.configure(postcommand=self.refresh_clientes)
+        except Exception:
+            pass
         self.cliente_combo.pack(side="left", fill="x", expand=True)
         self.cliente_combo.bind("<<ComboboxSelected>>", self.on_cliente_selected)
-        tk.Button(cliente_frame, text="🔄", bg='#10b981', fg='white', relief='flat', command=self._carregar_clientes).pack(side="left", padx=(8, 0))
+        tk.Button(cliente_frame, text="🔄", bg='#10b981', fg='white', relief='flat', command=self.refresh_clientes).pack(side="left", padx=(8, 0))
         add_row("Cliente:", cliente_frame)
 
         add_row("Contato:", tk.Entry(form, textvariable=self.contato_var, font=('Arial', 10)))
@@ -190,7 +195,7 @@ class LocacaoModule(BaseModule):
             except Exception:
                 pass
 
-    def _carregar_clientes(self):
+    def refresh_clientes(self):
         try:
             conn = sqlite3.connect(DB_NAME)
             c = conn.cursor()
@@ -411,7 +416,7 @@ class LocacaoModule(BaseModule):
             except Exception:
                 pass
             # Selecionar cliente por nome
-            self._carregar_clientes()
+            self.refresh_clientes()
             if hasattr(self, 'clientes_dict'):
                 for nome, cid in self.clientes_dict.items():
                     if cid == cliente_id:
@@ -494,7 +499,7 @@ class LocacaoModule(BaseModule):
 
     def handle_event(self, event_type, data=None):
         if event_type == 'cliente_created':
-            self._carregar_clientes()
+            self.refresh_clientes()
         elif event_type == 'locacao_created':
             self.refresh_lista_locacoes()
 
