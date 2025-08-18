@@ -344,7 +344,7 @@ class LocacaoModule(BaseModule):
                 pass
 
     def refresh_all_data(self):
-        self._carregar_clientes()
+        self.refresh_clientes()
         self.refresh_lista_locacoes()
 
     def buscar_locacoes(self):
