@@ -146,19 +146,28 @@ def _generate_basic_pdf(dados: dict, output_path: str):
             self.set_doc_option('core_fonts_encoding', 'latin-1')
 
         def header(self):
-            self.set_line_width(0.5)
-            self.rect(5, 5, 200, 287)
+            # Cabeçalho com logo da empresa
+            if self.page_no() == 1:
+                logo_path = self.dados_filial.get('logo_path')
+                if logo_path and os.path.exists(logo_path):
+                    try:
+                        self.image(logo_path, x=10, y=10, w=30)
+                    except Exception:
+                        pass
+                
+                # Nome da empresa
+                self.set_font('Arial', 'B', 14)
+                self.cell(0, 10, _clean(self.dados_filial.get('nome', 'EMPRESA LTDA')), 0, 1, 'C')
+                self.set_font('Arial', '', 10)
+                self.cell(0, 5, _clean(self.dados_filial.get('endereco', '')), 0, 1, 'C')
+                self.cell(0, 5, _clean(f"CEP: {self.dados_filial.get('cep', '')} - CNPJ: {self.dados_filial.get('cnpj', '')}"), 0, 1, 'C')
+                self.cell(0, 5, _clean(f"Tel: {self.dados_filial.get('telefones', '')} - Email: {self.dados_filial.get('email', '')}"), 0, 1, 'C')
+                self.ln(10)
 
         def footer(self):
-            self.set_y(-20)
-            self.set_font('Arial', '', 9)
-            endereco = self.dados_filial.get('endereco', '')
-            cep = self.dados_filial.get('cep', '')
-            cnpj = self.dados_filial.get('cnpj', 'N/A')
-            email = self.dados_filial.get('email', '')
-            telefones = self.dados_filial.get('telefones', '')
-            self.cell(0, 5, _clean(f"{endereco} - CEP: {cep}"), 0, 1, 'C')
-            self.cell(0, 5, _clean(f"CNPJ: {cnpj} | E-mail: {email} | Fone: {telefones}"), 0, 0, 'C')
+            self.set_y(-15)
+            self.set_font('Arial', '', 8)
+            self.cell(0, 5, f"Página {self.page_no()}", 0, 0, 'C')
 
     def _clean(text):
         if text is None:
@@ -167,6 +176,7 @@ def _generate_basic_pdf(dados: dict, output_path: str):
         replacements = {
             '–': '-', '—': '-', ''': "'", ''': "'", '"': '"', '"': '"',
             '…': '...', '®': '(R)', '©': '(C)', '™': '(TM)', 'º': 'o', 'ª': 'a',
+            '•': '-', '·': '-', '‣': '-', '⁃': '-', '◦': '-', '▪': '-', '▫': '-',
         }
         for a, b in replacements.items():
             s = s.replace(a, b)
@@ -180,99 +190,201 @@ def _generate_basic_pdf(dados: dict, output_path: str):
 
     # Página 1: Capa
     pdf.add_page()
-    pdf.set_font('Arial', 'B', 16)
-    pdf.cell(0, 10, 'CONTRATO DE LOCAÇÃO DE COMPRESSORES', 0, 1, 'C')
+    pdf.set_font('Arial', 'B', 18)
+    pdf.cell(0, 15, 'CONTRATO DE LOCAÇÃO DE COMPRESSORES', 0, 1, 'C')
     pdf.ln(10)
+    
+    # Informações da proposta
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, 'INFORMAÇÕES DA PROPOSTA', 0, 1, 'L')
     pdf.set_font('Arial', '', 12)
     pdf.cell(0, 8, f'Proposta: {dados.get("numero", "")}', 0, 1, 'L')
     pdf.cell(0, 8, f'Cliente: {dados.get("cliente_nome", "")}', 0, 1, 'L')
     pdf.cell(0, 8, f'Data: {datetime.today().strftime("%d/%m/%Y")}', 0, 1, 'L')
-
-    # Página 2: Saudação dinâmica
-    pdf.add_page()
+    pdf.ln(10)
+    
+    # Dados do equipamento
     pdf.set_font('Arial', 'B', 14)
-    pdf.cell(0, 8, 'CORRESPONDÊNCIA', 0, 1, 'L')
-    pdf.ln(5)
-    equip = 'compressor'
-    if dados.get('marca') or dados.get('modelo'):
-        equip = f"compressor {dados.get('marca') or ''} {dados.get('modelo') or ''}".strip()
-    saudacao = f"Prezados Senhores, referente à locação de {equip}."
-    pdf.set_font('Arial', '', 12)
-    # Usar cell em vez de multi_cell para evitar problemas de layout
-    pdf.cell(0, 8, _clean(saudacao), 0, 1, 'L')
-
-    # Página 3: Dados do equipamento
-    pdf.add_page()
-    pdf.set_font('Arial', 'B', 14)
-    pdf.cell(0, 8, 'DADOS DO EQUIPAMENTO', 0, 1, 'L')
-    pdf.ln(5)
+    pdf.cell(0, 10, 'DADOS DO EQUIPAMENTO', 0, 1, 'L')
     pdf.set_font('Arial', '', 12)
     pdf.cell(0, 8, f'Marca: {dados.get("marca", "")}', 0, 1, 'L')
     pdf.cell(0, 8, f'Modelo: {dados.get("modelo", "")}', 0, 1, 'L')
     pdf.cell(0, 8, f'Número de Série: {dados.get("serie", "")}', 0, 1, 'L')
     pdf.cell(0, 8, f'Período: {dados.get("data_inicio", "")} a {dados.get("data_fim", "")}', 0, 1, 'L')
+    pdf.cell(0, 8, f'Valor Mensal: R$ {dados.get("valor_mensal", "")}', 0, 1, 'L')
+    pdf.cell(0, 8, f'Vencimento: Dia {dados.get("vencimento_dia", "10")}', 0, 1, 'L')
 
-    # Página 4: Imagem do compressor
+    # Página 2: Correspondência
     pdf.add_page()
-    pdf.set_font('Arial', 'B', 14)
-    pdf.cell(0, 8, 'IMAGEM DO EQUIPAMENTO', 0, 1, 'L')
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 10, 'CORRESPONDÊNCIA', 0, 1, 'L')
     pdf.ln(5)
+    
+    # Saudação dinâmica
+    equip = 'compressor'
+    if dados.get('marca') or dados.get('modelo'):
+        equip = f"compressor {dados.get('marca') or ''} {dados.get('modelo') or ''}".strip()
+    saudacao = f"Prezados Senhores, referente à locação de {equip}."
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(0, 8, _clean(saudacao), 0, 1, 'L')
+    pdf.ln(5)
+    
+    # Texto da correspondência
+    pdf.set_font('Arial', '', 11)
+    correspondencia_texto = """
+    Apresentamos nossa proposta comercial para locação de equipamento compressor, 
+    conforme especificações técnicas e condições comerciais detalhadas neste documento.
+    
+    Esta proposta tem validade de 30 (trinta) dias a partir da data de emissão.
+    
+    Para esclarecimentos adicionais, estamos à disposição através dos contatos 
+    fornecidos no cabeçalho deste documento.
+    """
+    for linha in correspondencia_texto.strip().split('\n'):
+        if linha.strip():
+            pdf.cell(0, 6, _clean(linha.strip()), 0, 1, 'L')
+
+    # Página 3: Especificações Técnicas
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 10, 'ESPECIFICAÇÕES TÉCNICAS', 0, 1, 'L')
+    pdf.ln(5)
+    
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, 'DADOS DO EQUIPAMENTO', 0, 1, 'L')
+    pdf.set_font('Arial', '', 11)
+    pdf.cell(0, 7, f'Marca: {dados.get("marca", "")}', 0, 1, 'L')
+    pdf.cell(0, 7, f'Modelo: {dados.get("modelo", "")}', 0, 1, 'L')
+    pdf.cell(0, 7, f'Número de Série: {dados.get("serie", "")}', 0, 1, 'L')
+    pdf.cell(0, 7, f'Capacidade: Conforme especificação do modelo', 0, 1, 'L')
+    pdf.cell(0, 7, f'Pressão de Trabalho: Conforme especificação do modelo', 0, 1, 'L')
+    pdf.ln(5)
+    
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, 'PERÍODO DE LOCAÇÃO', 0, 1, 'L')
+    pdf.set_font('Arial', '', 11)
+    pdf.cell(0, 7, f'Data de Início: {dados.get("data_inicio", "")}', 0, 1, 'L')
+    pdf.cell(0, 7, f'Data de Término: {dados.get("data_fim", "")}', 0, 1, 'L')
+
+    # Página 4: Imagem do Compressor
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 10, 'IMAGEM DO EQUIPAMENTO', 0, 1, 'L')
+    pdf.ln(5)
+    
     img_path = dados.get('imagem_compressor')
     if not img_path or not os.path.exists(img_path):
         fallback = filial.get('logo_path')
         if fallback and os.path.exists(fallback):
             img_path = fallback
+    
     if img_path and os.path.exists(img_path):
         try:
-            pdf.image(img_path, x=25, y=40, w=160)
+            pdf.image(img_path, x=25, y=50, w=160)
         except Exception:
             pdf.set_font('Arial', 'I', 11)
             pdf.cell(0, 8, 'Imagem do compressor não fornecida.', 0, 1, 'L')
     else:
         pdf.set_font('Arial', 'I', 11)
         pdf.cell(0, 8, 'Imagem do compressor não fornecida.', 0, 1, 'L')
+    
+    pdf.ln(10)
+    pdf.set_font('Arial', '', 11)
+    pdf.cell(0, 7, 'O equipamento será entregue em perfeitas condições de funcionamento,', 0, 1, 'L')
+    pdf.cell(0, 7, 'com todos os acessórios necessários para sua operação.', 0, 1, 'L')
 
-    # Página 5: Condições gerais
+    # Página 5: Condições Comerciais
     pdf.add_page()
-    pdf.set_font('Arial', 'B', 14)
-    pdf.cell(0, 8, 'CONDIÇÕES GERAIS', 0, 1, 'L')
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 10, 'CONDIÇÕES COMERCIAIS', 0, 1, 'L')
     pdf.ln(5)
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(0, 8, _clean("Contrato de locação sujeito às condições gerais da empresa."), 0, 1, 'L')
+    
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, 'VALORES', 0, 1, 'L')
+    pdf.set_font('Arial', '', 11)
+    pdf.cell(0, 7, f'Valor Mensal: R$ {dados.get("valor_mensal", "")}', 0, 1, 'L')
+    pdf.cell(0, 7, f'Moeda: {dados.get("moeda", "BRL")}', 0, 1, 'L')
+    pdf.ln(5)
+    
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, 'FORMA DE PAGAMENTO', 0, 1, 'L')
+    pdf.set_font('Arial', '', 11)
+    pdf.cell(0, 7, f'Vencimento: Todo dia {dados.get("vencimento_dia", "10")} de cada mês', 0, 1, 'L')
+    pdf.cell(0, 7, 'Forma: Boleto bancário ou transferência', 0, 1, 'L')
 
-    # Página 6: Condições de pagamento dinâmicas
+    # Página 6: Condições de Pagamento
     pdf.add_page()
-    pdf.set_font('Arial', 'B', 14)
-    pdf.cell(0, 8, 'CONDIÇÕES DE PAGAMENTO', 0, 1, 'L')
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 10, 'CONDIÇÕES DE PAGAMENTO', 0, 1, 'L')
     pdf.ln(5)
+    
     condicoes = dados.get('condicoes_pagamento')
     if not condicoes:
         dia = dados.get('vencimento_dia') or '10'
         condicoes = f"A vencimento de cada mensalidade, todo dia {dia}, conforme proposta acordada com o cliente."
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(0, 8, _clean(condicoes), 0, 1, 'L')
-
-    # Página 7: Termos e condições + imagem
-    pdf.add_page()
-    pdf.set_font('Arial', 'B', 14)
-    pdf.cell(0, 8, 'TERMOS E CONDIÇÕES GERAIS', 0, 1, 'L')
+    
+    pdf.set_font('Arial', '', 11)
+    pdf.cell(0, 7, _clean(condicoes), 0, 1, 'L')
     pdf.ln(5)
+    
+    # Condições adicionais
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, 'CONDIÇÕES ADICIONAIS:', 0, 1, 'L')
+    pdf.set_font('Arial', '', 11)
+    condicoes_adicionais = [
+        "- Pagamento antecipado mensal",
+        "- Multa de 2% ao mes em caso de atraso",
+        "- Juros de 1% ao mes sobre valores em atraso",
+        "- Cobranca bancaria automatica",
+        "- Reajuste anual conforme indices oficiais"
+    ]
+    for condicao in condicoes_adicionais:
+        pdf.cell(0, 7, _clean(condicao), 0, 1, 'L')
+
+    # Página 7: Termos e Condições Gerais
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 10, 'TERMOS E CONDIÇÕES GERAIS', 0, 1, 'L')
+    pdf.ln(5)
+    
+    # Informações da filial e locatária
     filial_nome = filial.get('nome', '')
     locataria = dados.get('cliente_nome', '')
     proposta = dados.get('numero', '')
     
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(0, 8, f"Filial: {filial_nome}", 0, 1, 'L')
-    pdf.cell(0, 8, f"Locatária: {locataria}", 0, 1, 'L')
-    pdf.cell(0, 8, f"Nº da Proposta: {proposta}", 0, 1, 'L')
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, 'INFORMAÇÕES CONTRATUAIS:', 0, 1, 'L')
+    pdf.set_font('Arial', '', 11)
+    pdf.cell(0, 7, f"Filial: {filial_nome}", 0, 1, 'L')
+    pdf.cell(0, 7, f"Locatária: {locataria}", 0, 1, 'L')
+    pdf.cell(0, 7, f"Nº da Proposta: {proposta}", 0, 1, 'L')
     pdf.ln(5)
-    pdf.cell(0, 8, "As demais cláusulas e responsabilidades permanecem conforme as normas de locação da empresa.", 0, 1, 'L')
+    
+    # Termos gerais
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(0, 8, 'CLÁUSULAS GERAIS:', 0, 1, 'L')
+    pdf.set_font('Arial', '', 11)
+    termos_gerais = [
+        "1. O equipamento permanece propriedade da locadora",
+        "2. Responsabilidade pela manutenção preventiva da locadora",
+        "3. Responsabilidade pela manutenção corretiva da locadora",
+        "4. Seguro do equipamento por conta da locadora",
+        "5. Respeito às normas de segurança na operação",
+        "6. Proibição de sublocação sem autorização",
+        "7. Rescisão contratual com aviso prévio de 30 dias"
+    ]
+    for termo in termos_gerais:
+        pdf.cell(0, 7, termo, 0, 1, 'L')
+    
+    pdf.ln(5)
+    pdf.cell(0, 7, "As demais cláusulas e responsabilidades permanecem conforme as normas de locação da empresa.", 0, 1, 'L')
 
     # Imagem na página 7 também
     if img_path and os.path.exists(img_path):
         try:
             y = pdf.get_y() + 5
-            pdf.image(img_path, x=25, y=y, w=70)
+            if y < 250:  # Só adiciona se houver espaço
+                pdf.image(img_path, x=25, y=y, w=70)
         except Exception:
             pass
 
@@ -309,20 +421,41 @@ def gerar_pdf_locacao(dados: dict, output_path: str):
     def _normalize(s: str) -> str:
         return ''.join(c for c in unicodedata.normalize('NFKD', s) if not unicodedata.combining(c)).lower()
 
-    # 1) Procurar PDF base enviado (ex: exemplolocação.pdf) no diretório do projeto
+    # Busca robusta pelo PDF de exemplo
     project_dir = os.getcwd()
     candidate_pdf = None
-    for fname in os.listdir(project_dir):
-        if not fname.lower().endswith('.pdf'):
-            continue
-        name_norm = _normalize(fname)
-        if 'exemplo' in name_norm and 'loca' in name_norm:
-            candidate_pdf = os.path.join(project_dir, fname)
+    
+    # Lista de possíveis nomes do arquivo de exemplo
+    possible_names = [
+        "exemplolocação.pdf",
+        "exemplo_locacao.pdf", 
+        "exemplo-locacao.pdf",
+        "exemplolocacao.pdf",
+        "modelo_locacao.pdf",
+        "contrato_exemplo.pdf",
+        "exemplo_contrato.pdf"
+    ]
+    
+    # 1) Procurar no diretório raiz
+    for fname in possible_names:
+        test_path = os.path.join(project_dir, fname)
+        if os.path.exists(test_path):
+            candidate_pdf = test_path
             break
-
-    # 2) Se não encontrar no root, procurar em subpastas comuns (assets, data, pdf_generators)
+    
+    # 2) Se não encontrar, procurar por arquivos que contenham "exemplo" e "locacao"
     if not candidate_pdf:
-        for sub in ['assets', 'data', 'pdf_generators']:
+        for fname in os.listdir(project_dir):
+            if not fname.lower().endswith('.pdf'):
+                continue
+            name_norm = _normalize(fname)
+            if ('exemplo' in name_norm or 'modelo' in name_norm) and ('loca' in name_norm or 'contrato' in name_norm):
+                candidate_pdf = os.path.join(project_dir, fname)
+                break
+
+    # 3) Se não encontrar no root, procurar em subpastas comuns
+    if not candidate_pdf:
+        for sub in ['assets', 'data', 'pdf_generators', 'templates', 'models']:
             subdir = os.path.join(project_dir, sub)
             if not os.path.isdir(subdir):
                 continue
@@ -331,7 +464,7 @@ def gerar_pdf_locacao(dados: dict, output_path: str):
                     if not fname.lower().endswith('.pdf'):
                         continue
                     name_norm = _normalize(fname)
-                    if 'exemplo' in name_norm and 'loca' in name_norm:
+                    if ('exemplo' in name_norm or 'modelo' in name_norm) and ('loca' in name_norm or 'contrato' in name_norm):
                         candidate_pdf = os.path.join(subdir, fname)
                         break
             except Exception:
@@ -339,12 +472,13 @@ def gerar_pdf_locacao(dados: dict, output_path: str):
             if candidate_pdf:
                 break
 
-    # 3) Se o PDF de exemplo existir, usar diretamente; senão, fazer fallback para DOCX -> PDF
+    # 4) Se o PDF de exemplo existir, usar diretamente; senão, fazer fallback para DOCX -> PDF
     if candidate_pdf and os.path.exists(candidate_pdf):
+        print(f"Usando template PDF: {candidate_pdf}")
         _overlay_dynamic_fields(candidate_pdf, output_path, dados)
         return
 
-    # Fallback para DOCX
+    # 5) Fallback para DOCX
     model_docx = os.path.join(project_dir, "Modelo Contrato de Locação (1).docx")
     if not os.path.exists(model_docx):
         for fname in os.listdir(project_dir):
@@ -352,20 +486,23 @@ def gerar_pdf_locacao(dados: dict, output_path: str):
                 model_docx = os.path.join(project_dir, fname)
                 break
 
-    base_pdf = os.path.join(os.path.dirname(output_path), "_modelo_base_locacao.pdf")
-    if not _docx_to_pdf(model_docx, base_pdf):
-        # Se tudo falhar, usar o gerador básico
-        if FPDF_AVAILABLE:
-            _generate_basic_pdf(dados, output_path)
-        else:
-            _generate_text_fallback(dados, output_path)
-        return
+    if os.path.exists(model_docx):
+        print(f"Convertendo DOCX para PDF: {model_docx}")
+        base_pdf = os.path.join(os.path.dirname(output_path), "_modelo_base_locacao.pdf")
+        if _docx_to_pdf(model_docx, base_pdf):
+            _overlay_dynamic_fields(base_pdf, output_path, dados)
+            try:
+                os.remove(base_pdf)
+            except Exception:
+                pass
+            return
 
-    _overlay_dynamic_fields(base_pdf, output_path, dados)
-    try:
-        os.remove(base_pdf)
-    except Exception:
-        pass
+    # 6) Se tudo falhar, usar o gerador básico melhorado
+    print("Usando gerador FPDF melhorado (template não encontrado)")
+    if FPDF_AVAILABLE:
+        _generate_basic_pdf(dados, output_path)
+    else:
+        _generate_text_fallback(dados, output_path)
 
 
 def _generate_text_fallback(dados: dict, output_path: str):
