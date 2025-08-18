@@ -7,7 +7,7 @@ from datetime import datetime
 from .base_module import BaseModule
 from database import DB_NAME
 from assets.filiais.filiais_config import listar_filiais
-from pdf_generators.locacao_contrato import gerar_pdf_locacao
+# Import adiado do gerador de PDF para evitar quebrar a UI em ambientes sem dependências
 
 
 class LocacaoModule(BaseModule):
@@ -336,6 +336,13 @@ class LocacaoModule(BaseModule):
         }
 
     def _gerar_pdf(self):
+        # Importar aqui para evitar erro de import quebrar a carga da UI
+        try:
+            from pdf_generators.locacao_contrato import gerar_pdf_locacao
+        except Exception as e:
+            self.show_error(f"Erro de dependências do gerador de PDF: {e}\nInstale as dependências e tente novamente.")
+            return
+
         dados = self._coletar_dados()
         if not dados['cliente_id']:
             self.show_warning("Selecione um cliente válido para gerar o PDF.")
