@@ -1,178 +1,151 @@
 import os
-from fpdf import FPDF
 from datetime import datetime
 from assets.filiais.filiais_config import obter_filial
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import ImageReader
+from PyPDF2 import PdfReader, PdfWriter
 
 
 def _clean(text):
-    if text is None:
-        return ""
-    s = str(text).replace('\t', '    ')
-    replacements = {
-        '–': '-',
-        '—': '-',
-        '’': "'",
-        '‘': "'",
-        '“': '"',
-        '”': '"',
-        '…': '...',
-        '®': '(R)',
-        '©': '(C)',
-        '™': '(TM)',
-        'º': 'o',
-        'ª': 'a',
-    }
-    for a, b in replacements.items():
-        s = s.replace(a, b)
-    try:
-        s.encode('latin-1')
-    except Exception:
-        s = s.encode('latin-1', 'ignore').decode('latin-1')
-    return s
+    return "" if text is None else str(text)
 
 
-class PDFLocacao(FPDF):
-    def __init__(self, dados_filial, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.dados_filial = dados_filial or {}
-        self.set_auto_page_break(auto=True, margin=20)
-        self.set_doc_option('core_fonts_encoding', 'latin-1')
-
-    def header(self):
-        # Borda simples
-        self.set_line_width(0.5)
-        self.rect(5, 5, 200, 287)
-
-    def footer(self):
-        self.set_y(-20)
-        self.set_font('Arial', '', 9)
-        endereco = self.dados_filial.get('endereco', '')
-        cep = self.dados_filial.get('cep', '')
-        cnpj = self.dados_filial.get('cnpj', 'N/A')
-        email = self.dados_filial.get('email', '')
-        telefones = self.dados_filial.get('telefones', '')
-        self.cell(0, 5, _clean(f"{endereco} - CEP: {cep}"), 0, 1, 'C')
-        self.cell(0, 5, _clean(f"CNPJ: {cnpj} | E-mail: {email} | Fone: {telefones}"), 0, 0, 'C')
+def _docx_to_pdf(docx_path: str, pdf_path: str):
+    """Converte DOCX em PDF usando LibreOffice se disponível; caso contrário, falha."""
+    cmd = f"libreoffice --headless --convert-to pdf --outdir {os.path.dirname(pdf_path)} '{docx_path}'"
+    code = os.system(cmd)
+    # O LibreOffice produzirá um PDF com o mesmo nome base
+    expected = os.path.join(os.path.dirname(pdf_path), os.path.splitext(os.path.basename(docx_path))[0] + ".pdf")
+    if code == 0 and os.path.exists(expected):
+        # Renomear para o destino desejado
+        if expected != pdf_path:
+            try:
+                os.replace(expected, pdf_path)
+            except Exception:
+                pass
+        return True
+    return False
 
 
-def _page_title(pdf: PDFLocacao, title: str):
-    pdf.set_font('Arial', 'B', 14)
-    pdf.ln(5)
-    pdf.cell(0, 8, _clean(title), 0, 1, 'L')
-    pdf.ln(2)
+def _overlay_dynamic_fields(template_pdf: str, output_pdf: str, dados: dict):
+    reader = PdfReader(template_pdf)
+    writer = PdfWriter()
 
+    # Canvas temporário para sobrepor textos e imagens
+    from tempfile import NamedTemporaryFile
 
-def _label_value(pdf: PDFLocacao, label: str, value: str):
-    # Ensure we start at left margin and compute explicit width to avoid width=0 issues
-    left_margin = getattr(pdf, 'l_margin', 10)
-    right_margin = getattr(pdf, 'r_margin', 10)
-    page_w = getattr(pdf, 'w', 210)
-    effective_w = page_w - left_margin - right_margin
-    label_w = 55
-    value_w = max(10, effective_w - label_w)
+    num_pages = len(reader.pages)
+    for page_index in range(num_pages):
+        page = reader.pages[page_index]
 
-    pdf.set_x(left_margin)
-    pdf.set_font('Arial', 'B', 11)
-    pdf.cell(label_w, 7, _clean(label + ':'), 0, 0)
-    pdf.set_font('Arial', '', 11)
-    pdf.multi_cell(value_w, 7, _clean(value or ''))
+        # Criar uma camada transparente com ReportLab
+        with NamedTemporaryFile(delete=False, suffix=".pdf") as temp_overlay:
+            c = canvas.Canvas(temp_overlay.name, pagesize=A4)
+
+            # Página 2: Atualizar a saudação "Prezados ..." conforme o que será locado
+            if page_index == 1:
+                equip = 'compressor'
+                if dados.get('marca') or dados.get('modelo'):
+                    equip = f"compressor {dados.get('marca') or ''} {dados.get('modelo') or ''}".strip()
+                saudacao = f"Prezados Senhores, referente à locação de {equip}."
+                # Coordenadas aproximadas; ajuste fino pode ser necessário para "idêntico"
+                c.setFont("Helvetica", 11)
+                c.drawString(70, 700, saudacao)
+
+            # Página 4: Desenho/Imagem do compressor de acordo com a logo/marca
+            if page_index == 3:
+                img_path = dados.get('imagem_compressor')
+                if not img_path or not os.path.exists(img_path):
+                    filial = obter_filial(dados.get('filial_id') or 2) or {}
+                    fallback = filial.get('logo_path')
+                    if fallback and os.path.exists(fallback):
+                        img_path = fallback
+                if img_path and os.path.exists(img_path):
+                    try:
+                        c.drawImage(ImageReader(img_path), 60, 420, width=470, height=300, preserveAspectRatio=True, mask='auto')
+                    except Exception:
+                        pass
+
+            # Página 6: Condições de pagamento
+            if page_index == 5:
+                condicoes = dados.get('condicoes_pagamento')
+                if not condicoes:
+                    dia = dados.get('vencimento_dia') or '10'
+                    condicoes = f"A vencimento de cada mensalidade, todo dia {dia}, conforme proposta acordada com o cliente."
+                c.setFont("Helvetica", 11)
+                text_obj = c.beginText(70, 700)
+                for line in _clean(condicoes).splitlines() or [condicoes]:
+                    text_obj.textLine(line)
+                c.drawText(text_obj)
+
+            # Página 7: Termos & Condições + imagem por marca
+            if page_index == 6:
+                filial = obter_filial(dados.get('filial_id') or 2) or {}
+                filial_nome = filial.get('nome', '')
+                locataria = dados.get('cliente_nome', '')
+                proposta = dados.get('numero', '')
+                termos = [
+                    f"Filial: {filial_nome}",
+                    f"Locatária: {locataria}",
+                    f"Nº da Proposta: {proposta}",
+                ]
+                c.setFont("Helvetica", 11)
+                text_obj = c.beginText(70, 700)
+                for line in termos:
+                    text_obj.textLine(line)
+                c.drawText(text_obj)
+
+                # imagem por marca também aqui
+                img_path = dados.get('imagem_compressor')
+                if not img_path or not os.path.exists(img_path):
+                    fallback = filial.get('logo_path')
+                    if fallback and os.path.exists(fallback):
+                        img_path = fallback
+                if img_path and os.path.exists(img_path):
+                    try:
+                        c.drawImage(ImageReader(img_path), 60, 420, width=200, height=130, preserveAspectRatio=True, mask='auto')
+                    except Exception:
+                        pass
+
+            c.save()
+
+            # Mesclar a camada ao PDF-base
+            overlay_pdf = PdfReader(temp_overlay.name)
+            page.merge_page(overlay_pdf.pages[0])
+
+        writer.add_page(page)
+
+    with open(output_pdf, "wb") as f_out:
+        writer.write(f_out)
 
 
 def gerar_pdf_locacao(dados: dict, output_path: str):
-    filial = obter_filial(dados.get('filial_id') or 2) or {}
-    pdf = PDFLocacao(filial, orientation='P', unit='mm', format='A4')
+    """Gera um PDF idêntico ao DOCX de modelo, com sobreposição dos campos dinâmicos.
 
-    # Página 1: Capa simples (pode ser ajustada conforme modelo)
-    pdf.add_page()
-    _page_title(pdf, 'Contrato de Locação de Compressores')
-    pdf.set_font('Arial', '', 12)
-    pdf.ln(10)
-    _label_value(pdf, 'Proposta', dados.get('numero'))
-    _label_value(pdf, 'Cliente', dados.get('cliente_nome'))
-    _label_value(pdf, 'Filial', filial.get('nome', ''))
-    _label_value(pdf, 'Data', datetime.today().strftime('%d/%m/%Y'))
-
-    # Página 2: Saudação personalizada
-    pdf.add_page()
-    _page_title(pdf, 'Correspondência')
-    pdf.set_font('Arial', '', 12)
-    saudacao_base = 'Prezados Senhores'
-    # Ajuste "de acordo com que vamos locar": usar marca/modelo quando houver
-    equip = 'compressor'
-    if dados.get('marca') or dados.get('modelo'):
-        equip = f"compressor {dados.get('marca') or ''} {dados.get('modelo') or ''}".strip()
-    saudacao = f"{saudacao_base}, referente à locação de {equip}."
-    pdf.multi_cell(0, 7, _clean(saudacao))
-
-    # Página 3: Dados do equipamento
-    pdf.add_page()
-    _page_title(pdf, 'Dados do Equipamento')
-    _label_value(pdf, 'Marca', dados.get('marca'))
-    _label_value(pdf, 'Modelo', dados.get('modelo'))
-    _label_value(pdf, 'Número de Série', dados.get('serie'))
-    _label_value(pdf, 'Período', f"{dados.get('data_inicio') or ''} a {dados.get('data_fim') or ''}")
-
-    # Página 4: Desenho do compressor por marca/logo
-    pdf.add_page()
-    _page_title(pdf, 'Imagem do Equipamento')
-    img_path = dados.get('imagem_compressor')
-    if not img_path or not os.path.exists(img_path):
-        # opcional: usar logo da filial como fallback
-        fallback = filial.get('logo_path')
-        if fallback and os.path.exists(fallback):
-            img_path = fallback
-    if img_path and os.path.exists(img_path):
-        pdf.image(img_path, x=25, y=40, w=160)
-    else:
-        pdf.set_font('Arial', 'I', 11)
-        pdf.multi_cell(0, 7, 'Imagem do compressor não fornecida.')
-
-    # Página 5: Condições gerais básicas
-    pdf.add_page()
-    _page_title(pdf, 'Condições Gerais')
-    texto = (
-        "Contrato de locação sujeito às condições gerais da empresa. "
-        "O equipamento deverá ser utilizado conforme as instruções do fabricante."
-    )
-    pdf.set_font('Arial', '', 11)
-    pdf.multi_cell(0, 7, _clean(texto))
-
-    # Página 6: Condições de pagamento dinâmicas
-    pdf.add_page()
-    _page_title(pdf, 'Condições de Pagamento')
-    condicoes = dados.get('condicoes_pagamento')
-    if not condicoes:
-        # fallback com vencimento mensal
-        dia = dados.get('vencimento_dia') or '10'
-        condicoes = f"A vencimento de cada mensalidade, todo dia {dia}, conforme proposta acordada com o cliente."
-    pdf.set_font('Arial', '', 11)
-    pdf.multi_cell(0, 7, _clean(condicoes))
-
-    # Página 7: Termos & condições gerais com filial/locatária/nº proposta
-    pdf.add_page()
-    _page_title(pdf, 'Termos e Condições Gerais')
-    filial_nome = filial.get('nome', '')
-    locataria = dados.get('cliente_nome', '')
-    proposta = dados.get('numero', '')
-    termos = (
-        f"Filial: {filial_nome}\n"
-        f"Locatária: {locataria}\n"
-        f"Nº da Proposta: {proposta}\n\n"
-        "As demais cláusulas e responsabilidades permanecem conforme as normas de locação da empresa."
-    )
-    pdf.set_font('Arial', '', 11)
-    pdf.multi_cell(0, 7, _clean(termos))
-
-    # Inserir novamente imagem por marca na página 7 (conforme requisito)
-    img_path2 = dados.get('imagem_compressor')
-    if not img_path2 or not os.path.exists(img_path2):
-        fallback = filial.get('logo_path')
-        if fallback and os.path.exists(fallback):
-            img_path2 = fallback
-    if img_path2 and os.path.exists(img_path2):
-        y = pdf.get_y() + 5
-        pdf.image(img_path2, x=25, y=y, w=70)
-
+    Páginas estáticas são mantidas; as seguintes são dinâmicas:
+      - Página 2: saudação conforme equipamento
+      - Página 4: desenho/imagem por marca
+      - Página 6: condições de pagamento
+      - Página 7: filial, locatária e número da proposta + imagem por marca
+    """
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    pdf.output(output_path)
+
+    model_docx = os.path.join(os.getcwd(), "Modelo Contrato de Locação (1).docx")
+    if not os.path.exists(model_docx):
+        # Nome alternativo com cedilha/acentos, conforme repositório
+        for fname in os.listdir(os.getcwd()):
+            if fname.lower().startswith("modelo contrato de loc") and fname.lower().endswith('.docx'):
+                model_docx = os.path.join(os.getcwd(), fname)
+                break
+
+    base_pdf = os.path.join(os.path.dirname(output_path), "_modelo_base_locacao.pdf")
+    if not _docx_to_pdf(model_docx, base_pdf):
+        raise RuntimeError("Falha ao converter o modelo DOCX para PDF. Instale LibreOffice no ambiente.")
+
+    _overlay_dynamic_fields(base_pdf, output_path, dados)
+    try:
+        os.remove(base_pdf)
+    except Exception:
+        pass
 

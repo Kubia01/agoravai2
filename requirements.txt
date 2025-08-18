@@ -1,3 +1,5 @@
 fpdf2
 Pillow
 openpyxl
+reportlab
+PyPDF2
