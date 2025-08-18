@@ -351,6 +351,8 @@ class LocacaoModule(BaseModule):
             output_dir = os.path.join('data', 'locacoes')
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, f"contrato_locacao_{dados['numero'].replace('/', '-')}.pdf")
+            
+            # Chamar a função importada
             gerar_pdf_locacao(dados, output_path)
 
             # Persistir caminho no banco, criando/atualizando registro
@@ -493,6 +495,13 @@ class LocacaoModule(BaseModule):
                 pass
 
     def gerar_pdf_selecionado(self):
+        # Importar aqui para evitar erro de import quebrar a carga da UI
+        try:
+            from pdf_generators.locacao_contrato import gerar_pdf_locacao
+        except Exception as e:
+            self.show_error(f"Erro de dependências do gerador de PDF: {e}\nInstale as dependências e tente novamente.")
+            return
+            
         selected = self.locacoes_tree.selection()
         if not selected:
             self.show_warning("Selecione uma locação para gerar PDF.")
@@ -535,7 +544,10 @@ class LocacaoModule(BaseModule):
             output_dir = os.path.join('data', 'locacoes')
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, f"contrato_locacao_{numero.replace('/', '-')}.pdf")
+            
+            # Chamar a função importada
             gerar_pdf_locacao(dados, output_path)
+            
             c.execute("UPDATE locacoes SET caminho_pdf = ? WHERE id = ?", (output_path, locacao_id))
             conn.commit()
             self.show_success(f"PDF gerado com sucesso!\nLocal: {output_path}")
