@@ -113,10 +113,12 @@ class LocacaoModule(BaseModule):
         # Ações
         actions = tk.Frame(form_card, bg='white')
         actions.pack(fill="x", padx=12, pady=(0, 12))
-        gerar_btn = self.create_button(actions, "Gerar PDF de Locação", self._gerar_pdf, bg='#10b981')
+        gerar_btn = self.create_button(actions, "Gerar PDF", self._gerar_pdf, bg='#10b981')
         gerar_btn.pack(side="right")
-        salvar_btn = self.create_button(actions, "Salvar Dados", self._salvar_locacao, bg='#3b82f6')
+        salvar_btn = self.create_button(actions, "Salvar Locação", self._salvar_locacao, bg='#3b82f6')
         salvar_btn.pack(side="right", padx=(0, 10))
+        nova_btn = self.create_button(actions, "Nova Locação", self.nova_locacao, bg='#e2e8f0', fg='#475569')
+        nova_btn.pack(side="left")
 
         # Painel de lista (direita)
         lista_panel = tk.Frame(main_frame, bg='#f8fafc')
@@ -199,11 +201,11 @@ class LocacaoModule(BaseModule):
         try:
             conn = sqlite3.connect(DB_NAME)
             c = conn.cursor()
-            c.execute("SELECT id, COALESCE(nome_fantasia, nome) FROM clientes ORDER BY nome")
+            c.execute("SELECT id, nome FROM clientes ORDER BY nome")
             rows = c.fetchall()
             self._clientes_cache = rows
-            # Mapa para seleção similar ao usado em cotações
-            self.clientes_dict = {nome: cid for cid, nome in rows}
+            # Mapa idêntico ao de cotações: "Nome (ID: X)" -> id
+            self.clientes_dict = {f"{nome} (ID: {cid})": cid for cid, nome in rows}
             self.cliente_combo['values'] = list(self.clientes_dict.keys())
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar clientes: {e}")
@@ -279,7 +281,7 @@ class LocacaoModule(BaseModule):
     def _coletar_dados(self):
         filial_str = self.filial_var.get() or "2 - WORLD COMP DO BRASIL COMPRESSORES LTDA"
         filial_id = int(filial_str.split(' - ')[0]) if ' - ' in filial_str else 2
-        cliente_id = self._obter_cliente_id_por_nome(self.cliente_var.get())
+        cliente_id = getattr(self, 'clientes_dict', {}).get(self.cliente_var.get())
         condicoes_pg = (self.condicoes_pagamento_text.get('1.0', 'end') or '').strip()
         return {
             'numero': (self.numero_var.get() or self._gerar_numero_sugerido()).strip(),
@@ -415,12 +417,12 @@ class LocacaoModule(BaseModule):
                         break
             except Exception:
                 pass
-            # Selecionar cliente por nome
+            # Selecionar cliente (chave do dict é "Nome (ID: X)")
             self.refresh_clientes()
             if hasattr(self, 'clientes_dict'):
-                for nome, cid in self.clientes_dict.items():
+                for display, cid in self.clientes_dict.items():
                     if cid == cliente_id:
-                        self.cliente_var.set(nome)
+                        self.cliente_var.set(display)
                         break
             self.data_inicio_var.set(di or "")
             self.data_fim_var.set(df or "")
@@ -502,4 +504,22 @@ class LocacaoModule(BaseModule):
             self.refresh_clientes()
         elif event_type == 'locacao_created':
             self.refresh_lista_locacoes()
+
+    def nova_locacao(self):
+        """Limpar formulário e gerar novo número sequencial, similar a Cotações."""
+        self.current_locacao_id = None
+        self.numero_var.set(self.gerar_numero_sequencial_locacao())
+        self.filial_var.set("2 - WORLD COMP DO BRASIL COMPRESSORES LTDA")
+        self.cliente_var.set("")
+        self.contato_var.set("")
+        self.marca_var.set("")
+        self.modelo_var.set("")
+        self.serie_var.set("")
+        self.data_inicio_var.set(datetime.today().strftime('%d/%m/%Y'))
+        self.data_fim_var.set("")
+        self.valor_mensal_var.set("")
+        self.moeda_var.set("BRL")
+        self.vencimento_dia_var.set("10")
+        self.condicoes_pagamento_text.delete('1.0', 'end')
+        self.imagem_compressor_var.set("")
 
