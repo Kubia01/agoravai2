@@ -185,23 +185,49 @@ class LocacaoModule(BaseModule):
         itens_card = tk.Frame(form_card, bg='white')
         itens_card.pack(fill='both', expand=False, padx=12, pady=6)
         tk.Label(itens_card, text="Itens da Tabela (Página 5)", font=('Arial', 11, 'bold'), bg='white').pack(anchor='w')
+        # Linha de adição de item (digitável)
+        add_item_frame = tk.Frame(itens_card, bg='white')
+        add_item_frame.pack(fill='x', pady=(4, 8))
+        tk.Label(add_item_frame, text="Quantidade:", bg='white').pack(side='left', padx=(0,6))
+        self.item_qtd_var = tk.StringVar(value="1")
+        tk.Entry(add_item_frame, textvariable=self.item_qtd_var, width=6).pack(side='left', padx=(0,12))
+        tk.Label(add_item_frame, text="Descrição:", bg='white').pack(side='left', padx=(0,6))
+        self.item_desc_var = tk.StringVar()
+        tk.Entry(add_item_frame, textvariable=self.item_desc_var, width=40).pack(side='left', fill='x', expand=True, padx=(0,12))
+        tk.Label(add_item_frame, text="Valor mensal:", bg='white').pack(side='left', padx=(0,6))
+        self.item_valor_var = tk.StringVar(value="0,00")
+        tk.Entry(add_item_frame, textvariable=self.item_valor_var, width=12).pack(side='left', padx=(0,12))
+        tk.Label(add_item_frame, text="Período:", bg='white').pack(side='left', padx=(0,6))
+        self.item_periodo_var = tk.StringVar(value="5 anos")
+        tk.Entry(add_item_frame, textvariable=self.item_periodo_var, width=12).pack(side='left', padx=(0,12))
+        ttk.Button(add_item_frame, text="Adicionar", command=self._add_item_from_fields).pack(side='left')
+
+        # Lista de itens
         itens_frame = tk.Frame(itens_card, bg='white')
         itens_frame.pack(fill='both', expand=True)
-        self.itens_tree = ttk.Treeview(itens_frame, columns=("item","quantidade","descricao","valor_unitario","periodo"), show='headings', height=5)
-        for col, text in [("item","Item"),("quantidade","Qtd."),("descricao","Descrição"),("valor_unitario","Valor Unitário"),("periodo","Período")]:
+        self.itens_tree = ttk.Treeview(itens_frame, columns=("quantidade","descricao","valor_unitario","periodo"), show='headings', height=5)
+        for col, text in [("quantidade","Quantidade"),("descricao","Descrição"),("valor_unitario","Valor mensal"),("periodo","Período")]:
             self.itens_tree.heading(col, text=text)
-            self.itens_tree.column(col, width=140 if col=="descricao" else 100)
+            self.itens_tree.column(col, width=220 if col=="descricao" else 120)
         self.itens_tree.pack(side='left', fill='both', expand=True)
         it_scroll = ttk.Scrollbar(itens_frame, orient='vertical', command=self.itens_tree.yview)
         self.itens_tree.configure(yscrollcommand=it_scroll.set)
         it_scroll.pack(side='right', fill='y')
+
+        # Valor total abaixo da tabela
+        self.total_valor_var = tk.StringVar(value="R$ 0,00")
+        total_frame = tk.Frame(itens_card, bg='white')
+        total_frame.pack(fill='x', pady=(6,0))
+        tk.Label(total_frame, text="Valor total:", font=('Arial', 10, 'bold'), bg='white').pack(side='left')
+        tk.Label(total_frame, textvariable=self.total_valor_var, font=('Arial', 10), bg='white').pack(side='left', padx=(6,0))
+
+        # Botões de ação
         item_btns = tk.Frame(itens_card, bg='white')
         item_btns.pack(fill='x', pady=(6,0))
-        ttk.Button(item_btns, text="Adicionar", command=self._add_item).pack(side='left')
-        ttk.Button(item_btns, text="Editar", command=self._edit_item).pack(side='left', padx=6)
-        ttk.Button(item_btns, text="Remover", command=self._remove_item).pack(side='left')
+        ttk.Button(item_btns, text="Editar", command=self._edit_item).pack(side='left')
+        ttk.Button(item_btns, text="Remover", command=self._remove_item).pack(side='left', padx=(6,0))
         # Dica
-        tk.Label(itens_card, text="Dica: Use o botão Adicionar para incluir itens, depois selecione um item para Editar/Remover.", bg='white', fg='#64748b', font=('Arial', 9, 'italic')).pack(anchor='w', pady=(4,0))
+        tk.Label(itens_card, text="Dica: Preencha acima e clique Adicionar. Selecione um item na lista para Editar/Remover.", bg='white', fg='#64748b', font=('Arial', 9, 'italic')).pack(anchor='w', pady=(4,0))
 
         # Ações
         actions = tk.Frame(form_card, bg='white')
@@ -723,18 +749,67 @@ class LocacaoModule(BaseModule):
         except Exception:
             pass
 
+    def _format_currency(self, value):
+        try:
+            if value is None:
+                return "R$ 0,00"
+            if isinstance(value, str):
+                value = value.replace('R$', '').replace('.', '').replace(',', '.').strip()
+            val = float(value)
+            return f"R$ {val:,.2f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+        except Exception:
+            return "R$ 0,00"
+
     # ===== Itens (Página 5) =====
     def _refresh_itens_tree(self):
         try:
             for iid in self.itens_tree.get_children():
                 self.itens_tree.delete(iid)
+            total = 0.0
             for it in self.itens:
-                self.itens_tree.insert('', 'end', values=(it.get('item',''), it.get('quantidade',''), it.get('descricao',''), it.get('valor_unitario',''), it.get('periodo','')))
+                qtd = it.get('quantidade','')
+                desc = it.get('descricao','')
+                val = it.get('valor_unitario','')
+                per = it.get('periodo','')
+                self.itens_tree.insert('', 'end', values=(qtd, desc, val, per))
+                try:
+                    qtdf = float(str(qtd).replace(',', '.'))
+                except Exception:
+                    qtdf = 0.0
+                try:
+                    valf = float(str(val).replace('R$','').replace('.','').replace(',','.'))
+                except Exception:
+                    valf = 0.0
+                total += qtdf * valf
+            try:
+                self.total_valor_var.set(self._format_currency(total))
+            except Exception:
+                pass
         except Exception:
             pass
 
     def _add_item(self):
         self._open_item_dialog()
+
+    def _add_item_from_fields(self):
+        it = {
+            'quantidade': (self.item_qtd_var.get() or '').strip(),
+            'descricao': (self.item_desc_var.get() or '').strip(),
+            'valor_unitario': (self.item_valor_var.get() or '').strip(),
+            'periodo': (self.item_periodo_var.get() or '').strip(),
+        }
+        if not it['descricao']:
+            return
+        self.itens.append(it)
+        self._refresh_itens_tree()
+        # limpar campos mínimamente
+        try:
+            self.item_qtd_var.set('1')
+            self.item_desc_var.set('')
+            self.item_valor_var.set('0,00')
+            self.item_periodo_var.set('5 anos')
+        except Exception:
+            pass
 
     def _edit_item(self):
         sel = self.itens_tree.selection()
@@ -758,14 +833,14 @@ class LocacaoModule(BaseModule):
         dlg = tk.Toplevel(self.frame)
         dlg.title('Item da Locação')
         dlg.grab_set()
-        vals = {'item':'', 'quantidade':'', 'descricao':'', 'valor_unitario':'', 'periodo':''}
+        vals = {'quantidade':'', 'descricao':'', 'valor_unitario':'', 'periodo':''}
         if index is not None and 0 <= index < len(self.itens):
             vals.update(self.itens[index])
         # Campos
         f = tk.Frame(dlg)
         f.pack(padx=10, pady=10)
         entries = {}
-        for i, (label, key) in enumerate([("Item","item"),("Quantidade","quantidade"),("Descrição","descricao"),("Valor Unitário","valor_unitario"),("Período","periodo")]):
+        for i, (label, key) in enumerate([("Quantidade","quantidade"),("Descrição","descricao"),("Valor Unitário","valor_unitario"),("Período","periodo")]):
             tk.Label(f, text=label).grid(row=i, column=0, sticky='e', padx=5, pady=4)
             e = tk.Entry(f)
             e.insert(0, str(vals.get(key, '') if vals.get(key) is not None else ''))
