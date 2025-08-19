@@ -24,6 +24,9 @@ def clean_text(text):
     
     # Substituir caracteres especiais problemáticos
     replacements = {
+        # Underscore (causa problemas com fonte helvetica)
+        '_': ' ',
+        
         # Bullets e símbolos especiais
         '•': '- ',
         '●': '- ',

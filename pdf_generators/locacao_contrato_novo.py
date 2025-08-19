@@ -29,6 +29,17 @@ def clean_text(text):
     }
     
     text = str(text)
+    
+    # Remove caracteres problemáticos para PDF
+    text = text.replace('_', ' ')  # Substitui underscore por espaço
+    text = text.replace('–', '-')  # Substitui en-dash por hífen
+    text = text.replace('—', '-')  # Substitui em-dash por hífen
+    text = text.replace('"', '"')  # Substitui aspas curvas por aspas simples
+    text = text.replace('"', '"')
+    text = text.replace(''', "'")  # Substitui aspas simples curvas por aspas simples
+    text = text.replace(''', "'")
+    
+    # Aplica as substituições de acentos
     for old, new in replacements.items():
         text = text.replace(old, new)
     
@@ -76,6 +87,9 @@ class LocacaoPDF(FPDF):
         self.filial = obter_filial(dados.get('filial_id', 2)) or {}
         self.cliente, self.contatos = get_cliente_data(dados.get('cliente_id')) if dados.get('cliente_id') else (None, [])
         self.set_auto_page_break(auto=True, margin=20)
+        
+        # Configurar encoding para suportar mais caracteres
+        self.set_doc_option('core_fonts_encoding', 'latin-1')
 
     def header(self):
         """Cabeçalho das páginas (exceto capa)"""

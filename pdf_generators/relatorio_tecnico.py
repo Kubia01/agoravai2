@@ -21,6 +21,7 @@ def clean_text(text, aggressive=False):
     
     # Remover ou substituir caracteres problemáticos
     replacements = {
+        '_': ' ',  # Underscore (causa problemas com fonte helvetica)
         '"': '"',  # Smart quotes
         '"': '"',
         '’': "'",
