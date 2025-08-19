@@ -1,4 +1,416 @@
 import os
+import unicodedata
+from datetime import datetime
+
+# Dependências de PDF
+from assets.filiais.filiais_config import obter_filial
+
+try:
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from PyPDF2 import PdfReader, PdfWriter
+    ADVANCED_PDF_AVAILABLE = True
+except Exception:
+    ADVANCED_PDF_AVAILABLE = False
+
+try:
+    from fpdf import FPDF
+    FPDF_AVAILABLE = True
+except Exception:
+    FPDF_AVAILABLE = False
+
+
+def _clean_text(text: object) -> str:
+    if text is None:
+        return ""
+    return str(text).replace("\t", "    ")
+
+
+def _slugify(value: object) -> str:
+    if not value:
+        return ""
+    value = unicodedata.normalize('NFKD', str(value))
+    value = ''.join(c for c in value if not unicodedata.combining(c))
+    value = value.lower().replace(' ', '-')
+    allowed = "abcdefghijklmnopqrstuvwxyz0123456789-_"
+    return ''.join(c for c in value if c in allowed)
+
+
+def _string_width(text: str, font_name: str, font_size: int) -> float:
+    try:
+        return pdfmetrics.stringWidth(text, font_name, font_size)
+    except Exception:
+        # Fallback aproximado caso fonte não registrada
+        return len(text) * font_size * 0.5
+
+
+def _wrap_lines(text: str, font_name: str, font_size: int, max_width: float) -> list:
+    lines = []
+    for raw_line in (text or "").splitlines() or [""]:
+        words = raw_line.split(' ')
+        current = []
+        while words:
+            current.append(words.pop(0))
+            trial = ' '.join(current)
+            if _string_width(trial, font_name, font_size) > max_width:
+                if len(current) > 1:
+                    last = current.pop()
+                    lines.append(' '.join(current))
+                    current = [last]
+                else:
+                    # palavra sozinha maior que a largura, força quebra
+                    lines.append(trial)
+                    current = []
+        if current:
+            lines.append(' '.join(current))
+    return lines
+
+
+def _resolve_template_path() -> str:
+    """Encontra o arquivo de modelo 'exemplo-locação.pdf' (ou variantes) no projeto."""
+    project_dir = os.getcwd()
+    candidates = [
+        "exemplo-locação.pdf",
+        "exemplo_locacao.pdf",
+        "exemplo-locacao.pdf",
+        "exemplolocacao.pdf",
+        "exemplolocação.pdf",
+        "modelo_locacao.pdf",
+        "contrato_exemplo.pdf",
+        "exemplo_contrato.pdf",
+    ]
+    for name in candidates:
+        path = os.path.join(project_dir, name)
+        if os.path.exists(path):
+            return path
+    # Busca por nomes semelhantes
+    for fname in os.listdir(project_dir):
+        if not fname.lower().endswith('.pdf'):
+            continue
+        norm = _slugify(fname)
+        if "exemplo" in norm and ("loca" in norm or "contrato" in norm):
+            return os.path.join(project_dir, fname)
+    raise FileNotFoundError("Arquivo de modelo 'exemplo-locação.pdf' não encontrado no diretório do projeto.")
+
+
+def _resolve_imagem_compressor(dados: dict) -> str:
+    """Escolhe a melhor imagem do compressor baseado em marca/modelo, com fallbacks."""
+    explicit = dados.get('imagem_compressor')
+    if explicit and os.path.exists(explicit):
+        return explicit
+
+    brand = _slugify(dados.get('marca'))
+    model = _slugify(dados.get('modelo'))
+    names = []
+    if brand and model:
+        names += [f"compressor-{brand}-{model}", f"{brand}-{model}"]
+    if brand:
+        names += [f"compressor-{brand}", brand]
+    if model:
+        names += [f"compressor-{model}", model]
+
+    search_dirs = [
+        os.path.join(os.getcwd(), 'assets', 'compressors'),
+        os.path.join(os.getcwd(), 'assets', 'logos'),
+        os.path.join(os.getcwd(), 'assets', 'images'),
+    ]
+    exts = ['.png', '.jpg', '.jpeg']
+    for d in search_dirs:
+        try:
+            if not os.path.isdir(d):
+                continue
+            files = set(os.listdir(d))
+            # match exato
+            for base in names:
+                for ext in exts:
+                    candidate = os.path.join(d, base + ext)
+                    if os.path.exists(candidate):
+                        return candidate
+            # match parcial
+            for f in files:
+                lower = f.lower()
+                if not any(lower.endswith(ext) for ext in exts):
+                    continue
+                if (brand and brand in lower) or (model and model in lower):
+                    return os.path.join(d, f)
+        except Exception:
+            pass
+
+    filial = obter_filial(dados.get('filial_id') or 2) or {}
+    fallback = filial.get('logo_path')
+    if fallback and os.path.exists(fallback):
+        return fallback
+    return ""
+
+
+def _draw_multiline(c: canvas.Canvas, text: str, x: float, y: float, font: str, size: int, max_width: float, leading: float = 14):
+    text = _clean_text(text)
+    lines = _wrap_lines(text, font, size, max_width)
+    c.setFont(font, size)
+    ty = y
+    for line in lines:
+        c.drawString(x, ty, line)
+        ty -= leading
+
+
+def _fit_and_draw_image(c: canvas.Canvas, image_path: str, x: float, y: float, w: float, h: float):
+    try:
+        img = ImageReader(image_path)
+        iw, ih = img.getSize()
+        if iw <= 0 or ih <= 0:
+            return
+        ratio = min(w / iw, h / ih)
+        dw, dh = iw * ratio, ih * ratio
+        # centraliza dentro da área destino
+        dx = x + (w - dw) / 2
+        dy = y + (h - dh) / 2
+        c.drawImage(img, dx, dy, width=dw, height=dh, preserveAspectRatio=True, mask='auto')
+    except Exception:
+        pass
+
+
+# Coordenadas padrão (ajustáveis) para campos dinâmicos no template
+COORDS = {
+    2: {
+        # Linha de saudação
+        'saudacao': {
+            'x': 70,
+            'y': 700,
+            'font': 'Helvetica',
+            'size': 11
+        }
+    },
+    4: {
+        # Área para a imagem principal do compressor
+        'image': {
+            'x': 60,
+            'y': 420,
+            'w': 470,
+            'h': 300
+        }
+    },
+    6: {
+        # Parágrafo de condições de pagamento
+        'condicoes': {
+            'x': 70,
+            'y': 700,
+            'font': 'Helvetica',
+            'size': 11,
+            'max_width': 470,
+            'leading': 14
+        }
+    },
+    7: {
+        # Bloco com Filial / Locatária / Nº Proposta
+        'termos': {
+            'x': 70,
+            'y': 700,
+            'font': 'Helvetica',
+            'size': 11,
+            'leading': 14
+        },
+        # Imagem pequena adicional
+        'image_small': {
+            'x': 60,
+            'y': 420,
+            'w': 200,
+            'h': 130
+        }
+    }
+}
+
+
+def _overlay_on_template(template_pdf: str, output_pdf: str, dados: dict):
+    reader = PdfReader(template_pdf)
+    writer = PdfWriter()
+
+    # Tenta registrar fontes comuns (opcional)
+    try:
+        pdfmetrics.registerFont(TTFont('Arial', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
+    except Exception:
+        pass
+
+    for index in range(len(reader.pages)):
+        page = reader.pages[index]
+        page_no = index + 1
+
+        from tempfile import NamedTemporaryFile
+        with NamedTemporaryFile(delete=False, suffix='.pdf') as temp_pdf:
+            c = canvas.Canvas(temp_pdf.name, pagesize=A4)
+
+            # Página 2: Saudação
+            if page_no == 2 and 'saudacao' in COORDS.get(2, {}):
+                cfg = COORDS[2]['saudacao']
+                tipo = (dados.get('equipamento_tipo') or 'compressor').strip()
+                equip = tipo
+                if dados.get('marca') or dados.get('modelo'):
+                    equip = f"{tipo} {dados.get('marca') or ''} {dados.get('modelo') or ''}".strip()
+                saudacao = f"Prezados Senhores, referente à locação de {equip}."
+                c.setFont(cfg['font'], cfg['size'])
+                c.drawString(cfg['x'], cfg['y'], _clean_text(saudacao))
+
+            # Página 4: Imagem principal
+            if page_no == 4 and 'image' in COORDS.get(4, {}):
+                cfg = COORDS[4]['image']
+                img_path = _resolve_imagem_compressor(dados)
+                if img_path:
+                    _fit_and_draw_image(c, img_path, cfg['x'], cfg['y'], cfg['w'], cfg['h'])
+
+            # Página 6: Condições de pagamento
+            if page_no == 6 and 'condicoes' in COORDS.get(6, {}):
+                cfg = COORDS[6]['condicoes']
+                condicoes = dados.get('condicoes_pagamento')
+                if not condicoes:
+                    condicoes = "A vencimento de cada mensalidade, vai depender da proposta que vai ser feita com o cliente."
+                _draw_multiline(
+                    c,
+                    condicoes,
+                    cfg['x'], cfg['y'],
+                    cfg['font'], cfg['size'],
+                    cfg['max_width'], cfg['leading']
+                )
+
+            # Página 7: Termos / Imagem pequena
+            if page_no == 7:
+                filial = obter_filial(dados.get('filial_id') or 2) or {}
+                filial_nome = filial.get('nome', '')
+                locataria = dados.get('cliente_nome', '')
+                proposta = dados.get('numero', '')
+
+                if 'termos' in COORDS.get(7, {}):
+                    cfg = COORDS[7]['termos']
+                    termos = [
+                        f"Filial: {filial_nome}",
+                        f"Locatária: {locataria}",
+                        f"Nº da Proposta: {proposta}",
+                    ]
+                    c.setFont(cfg['font'], cfg['size'])
+                    ty = cfg['y']
+                    for line in termos:
+                        c.drawString(cfg['x'], ty, _clean_text(line))
+                        ty -= cfg['leading']
+
+                if 'image_small' in COORDS.get(7, {}):
+                    cfg = COORDS[7]['image_small']
+                    img_path = _resolve_imagem_compressor(dados)
+                    if img_path:
+                        _fit_and_draw_image(c, img_path, cfg['x'], cfg['y'], cfg['w'], cfg['h'])
+
+            c.save()
+
+            overlay_reader = PdfReader(temp_pdf.name)
+            page.merge_page(overlay_reader.pages[0])
+
+        writer.add_page(page)
+
+    with open(output_pdf, 'wb') as f:
+        writer.write(f)
+
+
+def gerar_pdf_locacao(dados: dict, output_path: str):
+    """Gera o PDF de locação idêntico ao modelo 'exemplo-locação.pdf',
+    sobrepondo somente os campos dinâmicos solicitados.
+
+    Campos dinâmicos implementados:
+      - Página 2: Saudação conforme equipamento/marca/modelo
+      - Página 4: Imagem do compressor (por marca)
+      - Página 6: Condições de pagamento (texto parametrizável)
+      - Página 7: Filial, Locatária e Nº da Proposta + imagem por marca
+    """
+    # Garante diretório de saída
+    out_dir = os.path.dirname(output_path)
+    if out_dir and out_dir != '.':
+        os.makedirs(out_dir, exist_ok=True)
+
+    if ADVANCED_PDF_AVAILABLE:
+        template = _resolve_template_path()
+        _overlay_on_template(template, output_path, dados)
+        return
+
+    # Fallback quando libs avançadas não estão disponíveis
+    if FPDF_AVAILABLE:
+        _generate_basic_fallback(dados, output_path)
+        return
+
+    _generate_text_fallback(dados, output_path)
+
+
+def _generate_basic_fallback(dados: dict, output_path: str):
+    """Fallback com FPDF (não idêntico ao modelo, usado apenas se necessário)."""
+    filial = obter_filial(dados.get('filial_id') or 2) or {}
+
+    class PDF(FPDF):
+        def header(self):
+            pass
+
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Arial', '', 8)
+            self.cell(0, 5, f"Página {self.page_no()}", 0, 0, 'C')
+
+    pdf = PDF(orientation='P', unit='mm', format='A4')
+    pdf.set_auto_page_break(auto=True, margin=20)
+
+    # Capa simples
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(0, 10, 'CONTRATO DE LOCAÇÃO (FALLBACK)', 0, 1, 'C')
+    pdf.ln(5)
+    pdf.set_font('Arial', '', 12)
+    pdf.multi_cell(0, 6, _clean_text(f"Proposta: {dados.get('numero','')}\nCliente: {dados.get('cliente_nome','')}"))
+
+    # Página 2 - Saudação
+    pdf.add_page()
+    tipo = (dados.get('equipamento_tipo') or 'compressor').strip()
+    equip = tipo
+    if dados.get('marca') or dados.get('modelo'):
+        equip = f"{tipo} {dados.get('marca') or ''} {dados.get('modelo') or ''}".strip()
+    saudacao = f"Prezados Senhores, referente à locação de {equip}."
+    pdf.set_font('Arial', '', 12)
+    pdf.multi_cell(0, 6, _clean_text(saudacao))
+
+    # Página 4 - Imagem
+    pdf.add_page()
+    img = _resolve_imagem_compressor(dados)
+    if img and os.path.exists(img):
+        try:
+            pdf.image(img, x=25, y=30, w=160)
+        except Exception:
+            pass
+
+    # Página 6 - Condições
+    pdf.add_page()
+    condicoes = dados.get('condicoes_pagamento') or "A vencimento de cada mensalidade, vai depender da proposta que vai ser feita com o cliente."
+    pdf.set_font('Arial', '', 12)
+    pdf.multi_cell(0, 6, _clean_text(condicoes))
+
+    # Página 7 - Termos
+    pdf.add_page()
+    pdf.set_font('Arial', '', 12)
+    pdf.multi_cell(0, 6, _clean_text(
+        f"Filial: {filial.get('nome','')}\nLocatária: {dados.get('cliente_nome','')}\nNº da Proposta: {dados.get('numero','')}"
+    ))
+
+    pdf.output(output_path)
+
+
+def _generate_text_fallback(dados: dict, output_path: str):
+    content = f"""
+Locação (fallback texto)
+Proposta: {dados.get('numero','')}
+Cliente: {dados.get('cliente_nome','')}
+
+Saudação: Prezados Senhores, referente à locação de {(dados.get('equipamento_tipo') or 'compressor')} {dados.get('marca','')} {dados.get('modelo','')}.
+
+Condições de pagamento: {dados.get('condicoes_pagamento', 'A vencimento de cada mensalidade, vai depender da proposta que vai ser feita com o cliente.')} 
+"""
+    with open(output_path.replace('.pdf', '.txt'), 'w', encoding='utf-8') as f:
+        f.write(content)
+
+import os
 from datetime import datetime
 from assets.filiais.filiais_config import obter_filial
 import unicodedata
