@@ -4,7 +4,6 @@ import sqlite3
 import os
 from datetime import datetime
 import json
-import json
 
 from .base_module import BaseModule
 from database import DB_NAME
@@ -61,13 +60,7 @@ class LocacaoModule(BaseModule):
         self.prezados_var = tk.StringVar()
         self.equip_titulo_var = tk.StringVar()
         self.use_default_apresentacao_var = tk.BooleanVar(value=True)
-        self.apresentacao_text = scrolledtext.ScrolledText(form, height=8, width=40, font=('Arial', 10))
-        self.itens = []
-        # Novos campos
-        self.prezados_var = tk.StringVar()
-        self.equip_titulo_var = tk.StringVar()
-        self.use_default_apresentacao_var = tk.BooleanVar(value=True)
-        self.apresentacao_text = scrolledtext.ScrolledText(form, height=8, width=40, font=('Arial', 10))
+        self.apresentacao_text = None
         self.itens = []
 
         # Helper para grid
@@ -136,22 +129,13 @@ class LocacaoModule(BaseModule):
             state = 'disabled' if self.use_default_apresentacao_var.get() else 'normal'
             self.apresentacao_text.configure(state=state)
         tk.Checkbutton(ap_frame, text="Usar texto padrão", variable=self.use_default_apresentacao_var, bg='white', command=_toggle_apresentacao).pack(anchor='w')
+        # criar scrolledtext com parent ap_frame (não com form)
+        self.apresentacao_text = scrolledtext.ScrolledText(ap_frame, height=8, width=40, font=('Arial', 10))
         self.apresentacao_text.pack(fill='both', expand=True)
         _toggle_apresentacao()
         add_row("Apresentação (Pág. 2):", ap_frame)
         # Título do Equipamento (Pág. 4)
         add_row("Título do Equipamento (Pág. 4):", tk.Entry(form, textvariable=self.equip_titulo_var, font=('Arial', 10)))
-        # Linha dos 'Prezados'
-        add_row("Linha dos 'Prezados':", tk.Entry(form, textvariable=self.prezados_var, font=('Arial', 10)))
-        # Texto Apresentação (Pág. 2)
-        ap_frame = tk.Frame(form, bg='white')
-        def _toggle_apresentacao():
-            state = 'disabled' if self.use_default_apresentacao_var.get() else 'normal'
-            self.apresentacao_text.configure(state=state)
-        tk.Checkbutton(ap_frame, text="Usar texto padrão", variable=self.use_default_apresentacao_var, bg='white', command=_toggle_apresentacao).pack(anchor='w')
-        self.apresentacao_text.pack(fill='both', expand=True)
-        _toggle_apresentacao()
-        add_row("Apresentação (Pág. 2):", ap_frame)
 
         # Imagem do compressor
         img_frame = tk.Frame(form, bg='white')
