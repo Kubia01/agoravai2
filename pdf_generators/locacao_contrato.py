@@ -408,8 +408,11 @@ def gerar_pdf_locacao(dados: dict, output_path: str):
     """Gera o PDF de locação idêntico ao modelo 'exemplo-locação.pdf',
     sobrepondo somente os campos dinâmicos solicitados.
 
+    Importante: para manter o formato idêntico, este gerador exige ReportLab e PyPDF2
+    e o arquivo de modelo presente. Não realiza fallback automático silencioso.
+
     Campos dinâmicos implementados:
-      - Página 2: Saudação conforme equipamento/marca/modelo
+      - Página 2: PROPOSTA (título, REF, NÚMERO, DATA), Bloco A/C e De, Saudação
       - Página 4: Imagem do compressor (por marca)
       - Página 6: Condições de pagamento (texto parametrizável)
       - Página 7: Filial, Locatária e Nº da Proposta + imagem por marca
@@ -419,17 +422,17 @@ def gerar_pdf_locacao(dados: dict, output_path: str):
     if out_dir and out_dir != '.':
         os.makedirs(out_dir, exist_ok=True)
 
-    if ADVANCED_PDF_AVAILABLE:
-        template = _resolve_template_path()
-        _overlay_on_template(template, output_path, dados)
-        return
+    if not ADVANCED_PDF_AVAILABLE:
+        raise RuntimeError(
+            "Dependências de PDF não disponíveis (reportlab/PyPDF2). Instale conforme requirements.txt para gerar idêntico ao modelo."
+        )
 
-    # Fallback quando libs avançadas não estão disponíveis
-    if FPDF_AVAILABLE:
-        _generate_basic_fallback(dados, output_path)
-        return
-
-    _generate_text_fallback(dados, output_path)
+    template = _resolve_template_path()
+    # Verifica número de páginas para assegurar 13 como o modelo informado
+    reader = PdfReader(template)
+    if len(reader.pages) < 13:
+        raise ValueError("O template localizado não possui 13 páginas. Verifique se 'exemplo-locação.pdf' é o arquivo correto.")
+    _overlay_on_template(template, output_path, dados)
 
 
 def _generate_basic_fallback(dados: dict, output_path: str):
