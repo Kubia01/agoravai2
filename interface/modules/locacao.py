@@ -79,7 +79,7 @@ class LocacaoModule(BaseModule):
         self.valor_mensal_var = tk.StringVar()
         self.moeda_var = tk.StringVar(value="BRL")
         self.vencimento_dia_var = tk.StringVar(value="10")
-        self.condicoes_pagamento_text = scrolledtext.ScrolledText(form, height=3, width=40, font=('Arial', 10))
+        self.condicoes_pagamento_text = scrolledtext.ScrolledText(form, height=2, width=40, font=('Arial', 10))
         self.imagem_compressor_var = tk.StringVar()
         # Novos campos dinâmicos
         self.prezados_var = tk.StringVar()
@@ -132,8 +132,7 @@ class LocacaoModule(BaseModule):
         add_row("Marca do Equipamento:", tk.Entry(form, textvariable=self.marca_var, font=('Arial', 10)))
         add_row("Modelo do Equipamento (Título do Equipamento):", tk.Entry(form, textvariable=self.modelo_var, font=('Arial', 10)))
         add_row("Número de Série:", tk.Entry(form, textvariable=self.serie_var, font=('Arial', 10)))
-        add_row("Data de Início:", tk.Entry(form, textvariable=self.data_inicio_var, font=('Arial', 10)))
-        add_row("Data de Fim:", tk.Entry(form, textvariable=self.data_fim_var, font=('Arial', 10)))
+        # Datas por item (removidas do topo)
 
         valor_frame = tk.Frame(form, bg='white')
         ttk.Combobox(valor_frame, textvariable=self.moeda_var, values=["BRL", "USD", "EUR"], width=6, state="readonly").pack(side="left")
@@ -202,16 +201,19 @@ class LocacaoModule(BaseModule):
         tk.Label(add_item_frame, text="Valor mensal:", bg='white').grid(row=1, column=0, sticky='w', padx=(0,6), pady=2)
         self.item_valor_var = tk.StringVar(value="0,00")
         tk.Entry(add_item_frame, textvariable=self.item_valor_var, width=12).grid(row=1, column=1, sticky='w', padx=(0,12), pady=2)
-        tk.Label(add_item_frame, text="Período:", bg='white').grid(row=1, column=2, sticky='w', padx=(0,6), pady=2)
-        self.item_periodo_var = tk.StringVar(value="5 anos")
-        tk.Entry(add_item_frame, textvariable=self.item_periodo_var, width=16).grid(row=1, column=3, sticky='w', padx=(0,12), pady=2)
-        ttk.Button(add_item_frame, text="Adicionar", command=self._add_item_from_fields).grid(row=1, column=4, sticky='w', pady=2)
+        tk.Label(add_item_frame, text="Início:", bg='white').grid(row=1, column=2, sticky='w', padx=(0,6), pady=2)
+        self.item_data_inicio_var = tk.StringVar(value=self.data_inicio_var.get())
+        tk.Entry(add_item_frame, textvariable=self.item_data_inicio_var, width=12).grid(row=1, column=3, sticky='w', padx=(0,12), pady=2)
+        tk.Label(add_item_frame, text="Fim:", bg='white').grid(row=1, column=4, sticky='w', padx=(0,6), pady=2)
+        self.item_data_fim_var = tk.StringVar(value=self.data_fim_var.get())
+        tk.Entry(add_item_frame, textvariable=self.item_data_fim_var, width=12).grid(row=1, column=5, sticky='w', padx=(0,12), pady=2)
+        ttk.Button(add_item_frame, text="Adicionar", command=self._add_item_from_fields).grid(row=1, column=6, sticky='w', pady=2)
 
         # Lista de itens
         itens_frame = tk.Frame(itens_card, bg='white')
         itens_frame.pack(fill='both', expand=True)
-        self.itens_tree = ttk.Treeview(itens_frame, columns=("quantidade","descricao","valor_unitario","periodo"), show='headings', height=5)
-        for col, text in [("quantidade","Quantidade"),("descricao","Descrição"),("valor_unitario","Valor mensal"),("periodo","Período")]:
+        self.itens_tree = ttk.Treeview(itens_frame, columns=("quantidade","descricao","valor_unitario","inicio","fim","periodo"), show='headings', height=5)
+        for col, text in [("quantidade","Quantidade"),("descricao","Descrição"),("valor_unitario","Valor mensal"),("inicio","Início"),("fim","Fim"),("periodo","Período")]:
             self.itens_tree.heading(col, text=text)
             self.itens_tree.column(col, width=220 if col=="descricao" else 120)
         self.itens_tree.pack(side='left', fill='both', expand=True)
@@ -408,8 +410,8 @@ class LocacaoModule(BaseModule):
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
             """, (
                 dados['numero'], dados['cliente_id'], dados['filial_id'], dados['responsavel_id'],
-                dados['data_inicio'], dados['data_fim'], dados['marca'], dados['modelo'], dados['serie'],
-                dados['valor_mensal'], dados['moeda'], dados['vencimento_dia'], dados['condicoes_pagamento'],
+                dados.get('data_inicio') or None, dados.get('data_fim') or None, dados['marca'], dados['modelo'], dados['serie'],
+                None, dados['moeda'], dados['vencimento_dia'], dados['condicoes_pagamento'],
                 dados['imagem_compressor'], dados.get('apresentacao_texto') or '', dados.get('prezados_linha') or '', dados.get('equipamento_titulo') or '', json.dumps(dados.get('itens') or [], ensure_ascii=False)
             ))
             conn.commit()
@@ -452,9 +454,9 @@ class LocacaoModule(BaseModule):
             'marca': (self.marca_var.get() or '').strip(),
             'modelo': (self.modelo_var.get() or '').strip(),
             'serie': (self.serie_var.get() or '').strip(),
-            'data_inicio': (self.data_inicio_var.get() or '').strip(),
-            'data_fim': (self.data_fim_var.get() or '').strip(),
-            'valor_mensal': (self.valor_mensal_var.get() or '').strip(),
+            'data_inicio': '',
+            'data_fim': '',
+            'valor_mensal': '',
             'moeda': (self.moeda_var.get() or 'BRL').strip(),
             'vencimento_dia': (self.vencimento_dia_var.get() or '').strip(),
             'condicoes_pagamento': condicoes_pg,
@@ -503,8 +505,8 @@ class LocacaoModule(BaseModule):
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     dados['numero'], dados['cliente_id'], dados['filial_id'], dados['responsavel_id'],
-                    dados['data_inicio'], dados['data_fim'], dados['marca'], dados['modelo'], dados['serie'],
-                    dados['valor_mensal'], dados['moeda'], dados['vencimento_dia'], dados['condicoes_pagamento'],
+                    None, None, dados['marca'], dados['modelo'], dados['serie'],
+                    None, dados['moeda'], dados['vencimento_dia'], dados['condicoes_pagamento'],
                     dados['imagem_compressor'], output_path
                 ))
             conn.commit()
@@ -766,6 +768,26 @@ class LocacaoModule(BaseModule):
         except Exception:
             return "R$ 0,00"
 
+    def _inferir_periodo(self, di: str, df: str) -> str:
+        """Calcula período aproximado em meses entre datas dd/mm/aaaa."""
+        try:
+            if not di or not df:
+                return ''
+            from datetime import datetime
+            d1 = datetime.strptime(di, '%d/%m/%Y')
+            d2 = datetime.strptime(df, '%d/%m/%Y')
+            if d2 < d1:
+                return ''
+            months = (d2.year - d1.year) * 12 + (d2.month - d1.month)
+            # arredondar se passou metade do mês
+            if d2.day >= d1.day:
+                months += 1
+            if months <= 0:
+                months = 1
+            return f"{months} meses"
+        except Exception:
+            return ''
+
     # ===== Itens (Página 5) =====
     def _refresh_itens_tree(self):
         try:
@@ -776,8 +798,14 @@ class LocacaoModule(BaseModule):
                 qtd = it.get('quantidade','')
                 desc = it.get('descricao','')
                 val = it.get('valor_unitario','')
-                per = it.get('periodo','')
-                self.itens_tree.insert('', 'end', values=(qtd, desc, val, per))
+                di = it.get('inicio','')
+                df = it.get('fim','')
+                # calcular período em meses se possível
+                per = it.get('periodo')
+                if not per:
+                    per = self._inferir_periodo(di, df)
+                    it['periodo'] = per
+                self.itens_tree.insert('', 'end', values=(qtd, desc, val, di, df, per))
                 try:
                     qtdf = float(str(qtd).replace(',', '.'))
                 except Exception:
@@ -802,7 +830,9 @@ class LocacaoModule(BaseModule):
             'quantidade': (self.item_qtd_var.get() or '').strip(),
             'descricao': (self.item_desc_var.get() or '').strip(),
             'valor_unitario': (self.item_valor_var.get() or '').strip(),
-            'periodo': (self.item_periodo_var.get() or '').strip(),
+            'inicio': (self.item_data_inicio_var.get() or '').strip(),
+            'fim': (self.item_data_fim_var.get() or '').strip(),
+            'periodo': '',
         }
         if not it['descricao']:
             return
