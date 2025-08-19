@@ -20,6 +20,13 @@ def clean_text(text):
     if text is None:
         return ""
     
+    # Converter para string e remover espaços extras
+    text = str(text).strip()
+    
+    # Se o texto estiver vazio após strip, retornar string vazia
+    if not text:
+        return ""
+    
     # Substitui caracteres acentuados
     replacements = {
         'ã': 'a', 'à': 'a', 'á': 'a', 'â': 'a', 'ç': 'c', 'é': 'e', 'ê': 'e',
@@ -27,8 +34,6 @@ def clean_text(text):
         'Ã': 'A', 'À': 'A', 'Á': 'A', 'Â': 'A', 'Ç': 'C', 'É': 'E', 'Ê': 'E',
         'Í': 'I', 'Ó': 'O', 'Ô': 'O', 'Õ': 'O', 'Ú': 'U', 'Ü': 'U'
     }
-    
-    text = str(text)
     
     # Remove caracteres problemáticos para PDF
     text = text.replace('_', ' ')  # Substitui underscore por espaço
@@ -39,11 +44,47 @@ def clean_text(text):
     text = text.replace(''', "'")  # Substitui aspas simples curvas por aspas simples
     text = text.replace(''', "'")
     
+    # Remove caracteres não ASCII que podem causar problemas
+    text = ''.join(char for char in text if ord(char) < 128 or char in replacements)
+    
     # Aplica as substituições de acentos
     for old, new in replacements.items():
         text = text.replace(old, new)
     
+    # Remove espaços múltiplos e trim
+    text = ' '.join(text.split())
+    
+    # Garantir que o texto não comece com underscore ou caracteres problemáticos
+    if text and text[0] in ['_', '-', '.', ',', ';', ':', '!', '?', '"', "'", '(', ')', '[', ']', '{', '}']:
+        text = text[1:].lstrip()
+    
+    # Se após a limpeza o texto estiver vazio, retornar um espaço
+    if not text:
+        return " "
+    
     return text
+
+
+def safe_text_for_pdf(text):
+    """Função adicional de segurança para textos que vão para o PDF"""
+    if text is None:
+        return " "
+    
+    # Aplicar clean_text primeiro
+    cleaned = clean_text(text)
+    
+    # Verificações adicionais de segurança
+    if not cleaned or cleaned.strip() == '':
+        return " "
+    
+    # Garantir que não há underscores no início ou fim
+    cleaned = cleaned.strip('_')
+    
+    # Se ficou vazio após remover underscores, retornar espaço
+    if not cleaned:
+        return " "
+    
+    return cleaned
 
 
 def format_currency(value):
@@ -95,7 +136,7 @@ class LocacaoPDF(FPDF):
         """Cabeçalho das páginas (exceto capa)"""
         if self.page_no() > 1:
             self.set_font('Arial', 'B', 10)
-            self.cell(0, 10, clean_text(self.filial.get('nome', '')), 0, 1, 'L')
+            self.cell(0, 10, safe_text_for_pdf(self.filial.get('nome', '')), 0, 1, 'L')
             self.ln(5)
 
     def footer(self):
@@ -107,17 +148,19 @@ class LocacaoPDF(FPDF):
             # Endereço e telefones
             endereco = self.filial.get('endereco', '')
             telefones = self.filial.get('telefones', '')
-            self.cell(0, 5, clean_text(f"{endereco} - {telefones}"), 0, 1, 'C')
+            self.cell(0, 5, safe_text_for_pdf(f"{endereco} - {telefones}"), 0, 1, 'C')
             
             # Email
             email = self.filial.get('email', '')
-            self.cell(0, 5, clean_text(email), 0, 1, 'C')
+            self.cell(0, 5, safe_text_for_pdf(email), 0, 1, 'C')
             
             # Número da página
             self.cell(0, 5, f"Pagina {self.page_no()}", 0, 0, 'C')
 
     def write_multiline(self, text, max_chars=85):
         """Escreve texto com quebra de linha"""
+        # Aplicar safe_text_for_pdf no texto antes de processar
+        text = safe_text_for_pdf(text)
         paragraphs = text.strip().split('\n')
         for paragraph in paragraphs:
             if paragraph.strip():
@@ -129,10 +172,10 @@ class LocacaoPDF(FPDF):
                         current_line = test_line
                     else:
                         if current_line:
-                            self.cell(0, 5, clean_text(current_line), 0, 1, 'L')
+                            self.cell(0, 5, current_line, 0, 1, 'L')
                         current_line = word
                 if current_line:
-                    self.cell(0, 5, clean_text(current_line), 0, 1, 'L')
+                    self.cell(0, 5, current_line, 0, 1, 'L')
                 self.ln(2)
 
     def page_1_capa(self):
@@ -199,9 +242,14 @@ class LocacaoPDF(FPDF):
         cliente_nome = self.dados.get('cliente_nome', 'GRUPO DELGA')
         if self.cliente:
             cliente_nome = self.cliente[1] or self.cliente[0]  # nome_fantasia ou nome
+        
+        # Garantir que o nome do cliente não tenha underscores
+        cliente_nome = safe_text_for_pdf(cliente_nome)
+        if not cliente_nome or cliente_nome.strip() == '' or cliente_nome.strip() == ' ':
+            cliente_nome = 'CLIENTE'
             
         self.set_xy(10, y_pos + 8)
-        self.cell(80, 6, clean_text(cliente_nome), 0, 0, 'L')
+        self.cell(80, 6, cliente_nome, 0, 0, 'L')
         self.set_xy(110, y_pos + 8)
         self.cell(80, 6, 'WORLD COMP DO BRASIL', 0, 1, 'L')
         
@@ -209,7 +257,7 @@ class LocacaoPDF(FPDF):
         contato = self.dados.get('contato', 'Srta')
         self.set_xy(10, y_pos + 16)
         self.set_font('Arial', '', 10)
-        self.cell(80, 6, clean_text(contato), 0, 0, 'L')
+        self.cell(80, 6, safe_text_for_pdf(contato), 0, 0, 'L')
         self.set_xy(110, y_pos + 16)
         self.cell(80, 6, 'Rogerio Cerqueira | Valdir Bernardes', 0, 1, 'L')
         
@@ -224,14 +272,14 @@ class LocacaoPDF(FPDF):
         if self.cliente and len(self.cliente) > 7 and self.cliente[7]:
             telefone = self.cliente[7]
         self.set_xy(10, y_pos + 32)
-        self.cell(80, 6, clean_text(telefone), 0, 0, 'L')
+        self.cell(80, 6, safe_text_for_pdf(telefone), 0, 0, 'L')
         self.set_xy(110, y_pos + 32)
         self.cell(80, 6, 'valdir@worldcompressores.com.br', 0, 1, 'L')
         
         # Email do cliente se existir
         if self.cliente and len(self.cliente) > 8 and self.cliente[8]:
             self.set_xy(10, y_pos + 40)
-            self.cell(80, 6, clean_text(self.cliente[8]), 0, 1, 'L')
+            self.cell(80, 6, safe_text_for_pdf(self.cliente[8]), 0, 1, 'L')
             
         self.set_y(y_pos + 55)
 
@@ -332,9 +380,9 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, f'Marca: {clean_text(marca)}', 0, 1, 'L')
-        self.cell(0, 6, f'Modelo: {clean_text(modelo)}', 0, 1, 'L')
-        self.cell(0, 6, f'Numero de Serie: {clean_text(serie)}', 0, 1, 'L')
+        self.cell(0, 6, f'Marca: {safe_text_for_pdf(marca)}', 0, 1, 'L')
+        self.cell(0, 6, f'Modelo: {safe_text_for_pdf(modelo)}', 0, 1, 'L')
+        self.cell(0, 6, f'Numero de Serie: {safe_text_for_pdf(serie)}', 0, 1, 'L')
         self.cell(0, 6, 'Tipo: Compressor de parafuso lubrificado', 0, 1, 'L')
         self.cell(0, 6, 'Capacidade: Conforme especificacao do modelo', 0, 1, 'L')
         self.cell(0, 6, 'Pressao de trabalho: 7 a 13 bar', 0, 1, 'L')
@@ -394,7 +442,7 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         
         condicoes = self.dados.get('condicoes_pagamento', 'Pagamento mensal conforme vencimento')
         self.set_font('Arial', '', 10)
-        self.write_multiline(condicoes)
+        self.write_multiline(safe_text_for_pdf(condicoes))
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
@@ -735,8 +783,8 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         email = self.filial.get('email', 'rogerio@worldcompressores.com.br')
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, f'Telefone: {telefones}', 0, 1, 'L')
-        self.cell(0, 6, f'Email: {email}', 0, 1, 'L')
+        self.cell(0, 6, f'Telefone: {safe_text_for_pdf(telefones)}', 0, 1, 'L')
+        self.cell(0, 6, f'Email: {safe_text_for_pdf(email)}', 0, 1, 'L')
         self.ln(15)
         
         self.set_font('Arial', '', 10)
@@ -780,9 +828,14 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         if self.cliente:
             cliente_nome = self.cliente[1] or self.cliente[0]
         
+        # Garantir que o nome do cliente não tenha underscores
+        cliente_nome = safe_text_for_pdf(cliente_nome)
+        if not cliente_nome or cliente_nome.strip() == '' or cliente_nome.strip() == ' ':
+            cliente_nome = 'CLIENTE'
+        
         self.set_font('Arial', '', 10)
         self.cell(0, 6, '___________________________________________', 0, 1, 'L')
-        self.cell(0, 6, clean_text(cliente_nome), 0, 1, 'L')
+        self.cell(0, 6, cliente_nome, 0, 1, 'L')
         if self.cliente and len(self.cliente) > 6 and self.cliente[6]:
             self.cell(0, 6, f'CNPJ: {self.cliente[6]}', 0, 1, 'L')
         self.cell(0, 6, 'Representante Legal', 0, 1, 'L')
