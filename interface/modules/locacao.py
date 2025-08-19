@@ -4,6 +4,7 @@ import sqlite3
 import os
 from datetime import datetime
 import json
+import json
 
 from .base_module import BaseModule
 from database import DB_NAME
@@ -56,6 +57,12 @@ class LocacaoModule(BaseModule):
         self.vencimento_dia_var = tk.StringVar(value="10")
         self.condicoes_pagamento_text = scrolledtext.ScrolledText(form, height=5, width=40, font=('Arial', 10))
         self.imagem_compressor_var = tk.StringVar()
+        # Novos campos dinâmicos
+        self.prezados_var = tk.StringVar()
+        self.equip_titulo_var = tk.StringVar()
+        self.use_default_apresentacao_var = tk.BooleanVar(value=True)
+        self.apresentacao_text = scrolledtext.ScrolledText(form, height=8, width=40, font=('Arial', 10))
+        self.itens = []
         # Novos campos
         self.prezados_var = tk.StringVar()
         self.equip_titulo_var = tk.StringVar()
@@ -121,6 +128,19 @@ class LocacaoModule(BaseModule):
         tk.Label(form, text="Condições de Pagamento:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="nw", pady=5)
         self.condicoes_pagamento_text.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
         row += 1
+        # Linha dos 'Prezados' (Página 2)
+        add_row("Linha dos 'Prezados':", tk.Entry(form, textvariable=self.prezados_var, font=('Arial', 10)))
+        # Texto de Apresentação (Página 2)
+        ap_frame = tk.Frame(form, bg='white')
+        def _toggle_apresentacao():
+            state = 'disabled' if self.use_default_apresentacao_var.get() else 'normal'
+            self.apresentacao_text.configure(state=state)
+        tk.Checkbutton(ap_frame, text="Usar texto padrão", variable=self.use_default_apresentacao_var, bg='white', command=_toggle_apresentacao).pack(anchor='w')
+        self.apresentacao_text.pack(fill='both', expand=True)
+        _toggle_apresentacao()
+        add_row("Apresentação (Pág. 2):", ap_frame)
+        # Título do Equipamento (Página 4)
+        add_row("Título do Equipamento (Pág. 4):", tk.Entry(form, textvariable=self.equip_titulo_var, font=('Arial', 10)))
         # Linha dos 'Prezados'
         add_row("Linha dos 'Prezados':", tk.Entry(form, textvariable=self.prezados_var, font=('Arial', 10)))
         # Texto Apresentação
@@ -140,6 +160,26 @@ class LocacaoModule(BaseModule):
         tk.Entry(img_frame, textvariable=self.imagem_compressor_var, font=('Arial', 10)).pack(side="left", fill="x", expand=True)
         tk.Button(img_frame, text="Selecionar Imagem", bg='#3b82f6', fg='white', relief='flat', command=self._selecionar_imagem).pack(side="left", padx=(8, 0))
         add_row("Imagem do Compressor:", img_frame)
+
+        # Editor de Itens (Página 5)
+        itens_card = tk.Frame(form_card, bg='white')
+        itens_card.pack(fill='both', expand=False, padx=12, pady=6)
+        tk.Label(itens_card, text="Itens da Tabela (Página 5)", font=('Arial', 11, 'bold'), bg='white').pack(anchor='w')
+        itens_frame = tk.Frame(itens_card, bg='white')
+        itens_frame.pack(fill='both', expand=True)
+        self.itens_tree = ttk.Treeview(itens_frame, columns=("item","quantidade","descricao","valor_unitario","periodo"), show='headings', height=5)
+        for col, text in [("item","Item"),("quantidade","Qtd."),("descricao","Descrição"),("valor_unitario","Valor Unitário"),("periodo","Período")]:
+            self.itens_tree.heading(col, text=text)
+            self.itens_tree.column(col, width=140 if col=="descricao" else 100)
+        self.itens_tree.pack(side='left', fill='both', expand=True)
+        it_scroll = ttk.Scrollbar(itens_frame, orient='vertical', command=self.itens_tree.yview)
+        self.itens_tree.configure(yscrollcommand=it_scroll.set)
+        it_scroll.pack(side='right', fill='y')
+        item_btns = tk.Frame(itens_card, bg='white')
+        item_btns.pack(fill='x', pady=(6,0))
+        ttk.Button(item_btns, text="Adicionar", command=self._add_item).pack(side='left')
+        ttk.Button(item_btns, text="Editar", command=self._edit_item).pack(side='left', padx=6)
+        ttk.Button(item_btns, text="Remover", command=self._remove_item).pack(side='left')
 
         # Editor de Itens (Pág. 5)
         itens_card = tk.Frame(form_card, bg='white')
