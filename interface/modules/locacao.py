@@ -134,10 +134,10 @@ class LocacaoModule(BaseModule):
         add_row("Número de Série:", tk.Entry(form, textvariable=self.serie_var, font=('Arial', 10)))
         # Datas por item (removidas do topo)
 
-        valor_frame = tk.Frame(form, bg='white')
-        ttk.Combobox(valor_frame, textvariable=self.moeda_var, values=["BRL", "USD", "EUR"], width=6, state="readonly").pack(side="left")
-        tk.Entry(valor_frame, textvariable=self.valor_mensal_var, font=('Arial', 10)).pack(side="left", fill="x", expand=True, padx=(8, 0))
-        add_row("Valor Mensal:", valor_frame)
+        # Moeda (mantém, sem campo de valor mensal no topo)
+        moeda_frame = tk.Frame(form, bg='white')
+        ttk.Combobox(moeda_frame, textvariable=self.moeda_var, values=["BRL", "USD", "EUR"], width=6, state="readonly").pack(side="left")
+        add_row("Moeda:", moeda_frame)
 
         add_row("Dia de Vencimento:", tk.Entry(form, textvariable=self.vencimento_dia_var, font=('Arial', 10), width=10))
 
@@ -406,8 +406,8 @@ class LocacaoModule(BaseModule):
                     numero_proposta, cliente_id, filial_id, responsavel_id,
                     data_inicio, data_fim, marca, modelo, numero_serie,
                     valor_mensal, moeda, vencimento_dia, condicoes_pagamento,
-                    imagem_compressor, apresentacao_texto, prezados_linha, equipamento_titulo, itens_json, caminho_pdf
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                    imagem_compressor, apresentacao_texto, prezados_linha, equipamento_titulo, itens_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 dados['numero'], dados['cliente_id'], dados['filial_id'], dados['responsavel_id'],
                 dados.get('data_inicio') or None, dados.get('data_fim') or None, dados['marca'], dados['modelo'], dados['serie'],
@@ -501,13 +501,13 @@ class LocacaoModule(BaseModule):
                         numero_proposta, cliente_id, filial_id, responsavel_id,
                         data_inicio, data_fim, marca, modelo, numero_serie,
                         valor_mensal, moeda, vencimento_dia, condicoes_pagamento,
-                        imagem_compressor, caminho_pdf
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        imagem_compressor, apresentacao_texto, prezados_linha, equipamento_titulo, itens_json, caminho_pdf
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     dados['numero'], dados['cliente_id'], dados['filial_id'], dados['responsavel_id'],
                     None, None, dados['marca'], dados['modelo'], dados['serie'],
                     None, dados['moeda'], dados['vencimento_dia'], dados['condicoes_pagamento'],
-                    dados['imagem_compressor'], output_path
+                    dados['imagem_compressor'], dados.get('apresentacao_texto') or '', dados.get('prezados_linha') or '', dados.get('equipamento_titulo') or '', json.dumps(dados.get('itens') or [], ensure_ascii=False), output_path
                 ))
             conn.commit()
             self.show_success(f"PDF gerado com sucesso!\nLocal: {output_path}")
@@ -814,7 +814,12 @@ class LocacaoModule(BaseModule):
                     valf = float(str(val).replace('R$','').replace('.','').replace(',','.'))
                 except Exception:
                     valf = 0.0
-                total += qtdf * valf
+                # calcular total considerando período em meses
+                try:
+                    meses = int(str(per).split()[0]) if per else 1
+                except Exception:
+                    meses = 1
+                total += qtdf * valf * meses
             try:
                 self.total_valor_var.set(self._format_currency(total))
             except Exception:
