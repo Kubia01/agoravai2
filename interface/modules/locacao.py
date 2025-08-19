@@ -139,11 +139,11 @@ class LocacaoModule(BaseModule):
         self.apresentacao_text.pack(fill='both', expand=True)
         _toggle_apresentacao()
         add_row("Apresentação (Pág. 2):", ap_frame)
-        # Título do Equipamento (Página 4)
+        # Título do Equipamento (Pág. 4)
         add_row("Título do Equipamento (Pág. 4):", tk.Entry(form, textvariable=self.equip_titulo_var, font=('Arial', 10)))
         # Linha dos 'Prezados'
         add_row("Linha dos 'Prezados':", tk.Entry(form, textvariable=self.prezados_var, font=('Arial', 10)))
-        # Texto Apresentação
+        # Texto Apresentação (Pág. 2)
         ap_frame = tk.Frame(form, bg='white')
         def _toggle_apresentacao():
             state = 'disabled' if self.use_default_apresentacao_var.get() else 'normal'
@@ -152,8 +152,6 @@ class LocacaoModule(BaseModule):
         self.apresentacao_text.pack(fill='both', expand=True)
         _toggle_apresentacao()
         add_row("Apresentação (Pág. 2):", ap_frame)
-        # Título do Equipamento (Pág. 4)
-        add_row("Título do Equipamento (Pág. 4):", tk.Entry(form, textvariable=self.equip_titulo_var, font=('Arial', 10)))
 
         # Imagem do compressor
         img_frame = tk.Frame(form, bg='white')
@@ -162,26 +160,6 @@ class LocacaoModule(BaseModule):
         add_row("Imagem do Compressor:", img_frame)
 
         # Editor de Itens (Página 5)
-        itens_card = tk.Frame(form_card, bg='white')
-        itens_card.pack(fill='both', expand=False, padx=12, pady=6)
-        tk.Label(itens_card, text="Itens da Tabela (Página 5)", font=('Arial', 11, 'bold'), bg='white').pack(anchor='w')
-        itens_frame = tk.Frame(itens_card, bg='white')
-        itens_frame.pack(fill='both', expand=True)
-        self.itens_tree = ttk.Treeview(itens_frame, columns=("item","quantidade","descricao","valor_unitario","periodo"), show='headings', height=5)
-        for col, text in [("item","Item"),("quantidade","Qtd."),("descricao","Descrição"),("valor_unitario","Valor Unitário"),("periodo","Período")]:
-            self.itens_tree.heading(col, text=text)
-            self.itens_tree.column(col, width=140 if col=="descricao" else 100)
-        self.itens_tree.pack(side='left', fill='both', expand=True)
-        it_scroll = ttk.Scrollbar(itens_frame, orient='vertical', command=self.itens_tree.yview)
-        self.itens_tree.configure(yscrollcommand=it_scroll.set)
-        it_scroll.pack(side='right', fill='y')
-        item_btns = tk.Frame(itens_card, bg='white')
-        item_btns.pack(fill='x', pady=(6,0))
-        ttk.Button(item_btns, text="Adicionar", command=self._add_item).pack(side='left')
-        ttk.Button(item_btns, text="Editar", command=self._edit_item).pack(side='left', padx=6)
-        ttk.Button(item_btns, text="Remover", command=self._remove_item).pack(side='left')
-
-        # Editor de Itens (Pág. 5)
         itens_card = tk.Frame(form_card, bg='white')
         itens_card.pack(fill='both', expand=False, padx=12, pady=6)
         tk.Label(itens_card, text="Itens da Tabela (Página 5)", font=('Arial', 11, 'bold'), bg='white').pack(anchor='w')
