@@ -250,9 +250,10 @@ def _overlay_on_template(template_pdf: str, output_pdf: str, dados: dict):
     reader = PdfReader(template_pdf)
     writer = PdfWriter()
 
-    # Tenta registrar fontes comuns (opcional)
+    # Registrar fontes com suporte a acentuação (DejaVu)
     try:
-        pdfmetrics.registerFont(TTFont('Arial', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
+        pdfmetrics.registerFont(TTFont('DejaVuSans', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
+        pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'))
     except Exception:
         pass
 
@@ -261,8 +262,9 @@ def _overlay_on_template(template_pdf: str, output_pdf: str, dados: dict):
         page_no = index + 1
 
         from tempfile import NamedTemporaryFile
-        with NamedTemporaryFile(delete=False, suffix='.pdf') as temp_pdf:
-            c = canvas.Canvas(temp_pdf.name, pagesize=A4)
+        try:
+            with NamedTemporaryFile(delete=False, suffix='.pdf') as temp_pdf:
+                c = canvas.Canvas(temp_pdf.name, pagesize=A4)
 
             # Cabeçalho/Rodapé (todas as páginas exceto capa)
             if page_no >= 2:
@@ -393,12 +395,16 @@ def _overlay_on_template(template_pdf: str, output_pdf: str, dados: dict):
                     if img_path:
                         _fit_and_draw_image(c, img_path, cfg['x'], cfg['y'], cfg['w'], cfg['h'])
 
-            c.save()
+                c.save()
 
-            overlay_reader = PdfReader(temp_pdf.name)
-            page.merge_page(overlay_reader.pages[0])
+                overlay_reader = PdfReader(temp_pdf.name)
+                page.merge_page(overlay_reader.pages[0])
 
-        writer.add_page(page)
+            writer.add_page(page)
+        except Exception as e:
+            # Se ocorrer qualquer erro ao sobrepor, incluir a página original para não interromper o processo
+            print(f"Aviso: falha ao sobrepor na página {page_no}: {e}")
+            writer.add_page(page)
 
     with open(output_pdf, 'wb') as f:
         writer.write(f)
