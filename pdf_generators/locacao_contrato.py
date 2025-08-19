@@ -42,6 +42,77 @@ def _docx_to_pdf(docx_path: str, pdf_path: str):
     return False
 
 
+def _slugify(value: str) -> str:
+    """Converte um texto para um slug simples para busca de arquivos/imagens."""
+    if not value:
+        return ""
+    value = unicodedata.normalize('NFKD', str(value))
+    value = ''.join(c for c in value if not unicodedata.combining(c))
+    value = value.lower().replace(' ', '-')
+    allowed = "abcdefghijklmnopqrstuvwxyz0123456789-_"
+    return ''.join(c for c in value if c in allowed)
+
+
+def _resolve_imagem_compressor(dados: dict) -> str:
+    """Resolve a melhor imagem do compressor com base nos dados fornecidos.
+
+    Ordem de resolução:
+      1) `dados['imagem_compressor']` se existir e for acessível
+      2) Buscar por imagens por marca/modelo em pastas conhecidas
+      3) Fallback para logo da filial
+    """
+    explicit = dados.get('imagem_compressor')
+    if explicit and os.path.exists(explicit):
+        return explicit
+
+    candidates_dirs = [
+        os.path.join(os.getcwd(), 'assets', 'compressors'),
+        os.path.join(os.getcwd(), 'assets', 'logos'),
+        os.path.join(os.getcwd(), 'assets', 'images'),
+    ]
+    exts = ['.jpg', '.jpeg', '.png']
+    brand_slug = _slugify(dados.get('marca'))
+    model_slug = _slugify(dados.get('modelo'))
+    names_to_try = []
+    if brand_slug and model_slug:
+        names_to_try += [f"compressor-{brand_slug}-{model_slug}", f"{brand_slug}-{model_slug}"]
+    if brand_slug:
+        names_to_try += [f"compressor-{brand_slug}", brand_slug]
+    if model_slug:
+        names_to_try += [f"compressor-{model_slug}", model_slug]
+
+    for d in candidates_dirs:
+        try:
+            if not os.path.isdir(d):
+                continue
+            files = os.listdir(d)
+            for base in names_to_try:
+                for ext in exts:
+                    path = os.path.join(d, base + ext)
+                    if os.path.exists(path):
+                        return path
+            for fname in files:
+                lower = fname.lower()
+                if not any(lower.endswith(ext) for ext in exts):
+                    continue
+                if brand_slug and brand_slug in lower:
+                    return os.path.join(d, fname)
+                if model_slug and model_slug in lower:
+                    return os.path.join(d, fname)
+        except Exception:
+            pass
+
+    try:
+        filial = obter_filial(dados.get('filial_id') or 2) or {}
+        fallback = filial.get('logo_path')
+        if fallback and os.path.exists(fallback):
+            return fallback
+    except Exception:
+        pass
+
+    return ""
+
+
 def _overlay_dynamic_fields(template_pdf: str, output_pdf: str, dados: dict):
     reader = PdfReader(template_pdf)
     writer = PdfWriter()
@@ -59,9 +130,10 @@ def _overlay_dynamic_fields(template_pdf: str, output_pdf: str, dados: dict):
 
             # Página 2: Atualizar a saudação "Prezados ..." conforme o que será locado
             if page_index == 1:
-                equip = 'compressor'
+                tipo = (dados.get('equipamento_tipo') or 'compressor').strip()
+                equip = tipo
                 if dados.get('marca') or dados.get('modelo'):
-                    equip = f"compressor {dados.get('marca') or ''} {dados.get('modelo') or ''}".strip()
+                    equip = f"{tipo} {dados.get('marca') or ''} {dados.get('modelo') or ''}".strip()
                 saudacao = f"Prezados Senhores, referente à locação de {equip}."
                 # Coordenadas aproximadas; ajuste fino pode ser necessário para "idêntico"
                 c.setFont("Helvetica", 11)
@@ -69,12 +141,7 @@ def _overlay_dynamic_fields(template_pdf: str, output_pdf: str, dados: dict):
 
             # Página 4: Desenho/Imagem do compressor de acordo com a logo/marca
             if page_index == 3:
-                img_path = dados.get('imagem_compressor')
-                if not img_path or not os.path.exists(img_path):
-                    filial = obter_filial(dados.get('filial_id') or 2) or {}
-                    fallback = filial.get('logo_path')
-                    if fallback and os.path.exists(fallback):
-                        img_path = fallback
+                img_path = _resolve_imagem_compressor(dados)
                 if img_path and os.path.exists(img_path):
                     try:
                         c.drawImage(ImageReader(img_path), 60, 420, width=470, height=300, preserveAspectRatio=True, mask='auto')
@@ -85,8 +152,7 @@ def _overlay_dynamic_fields(template_pdf: str, output_pdf: str, dados: dict):
             if page_index == 5:
                 condicoes = dados.get('condicoes_pagamento')
                 if not condicoes:
-                    dia = dados.get('vencimento_dia') or '10'
-                    condicoes = f"A vencimento de cada mensalidade, todo dia {dia}, conforme proposta acordada com o cliente."
+                    condicoes = "A vencimento de cada mensalidade, vai depender da proposta que vai ser feita com o cliente."
                 c.setFont("Helvetica", 11)
                 text_obj = c.beginText(70, 700)
                 for line in _clean(condicoes).splitlines() or [condicoes]:
@@ -111,11 +177,7 @@ def _overlay_dynamic_fields(template_pdf: str, output_pdf: str, dados: dict):
                 c.drawText(text_obj)
 
                 # imagem por marca também aqui
-                img_path = dados.get('imagem_compressor')
-                if not img_path or not os.path.exists(img_path):
-                    fallback = filial.get('logo_path')
-                    if fallback and os.path.exists(fallback):
-                        img_path = fallback
+                img_path = _resolve_imagem_compressor(dados)
                 if img_path and os.path.exists(img_path):
                     try:
                         c.drawImage(ImageReader(img_path), 60, 420, width=200, height=130, preserveAspectRatio=True, mask='auto')
@@ -174,7 +236,7 @@ def _generate_basic_pdf(dados: dict, output_path: str):
             return ""
         s = str(text).replace('\t', '    ')
         replacements = {
-            '–': '-', '—': '-', ''': "'", ''': "'", '"': '"', '"': '"',
+            '–': '-', '—': '-', '’': "'", '‘': "'", '"': '"', '“': '"',
             '…': '...', '®': '(R)', '©': '(C)', '™': '(TM)', 'º': 'o', 'ª': 'a',
             '•': '-', '·': '-', '‣': '-', '⁃': '-', '◦': '-', '▪': '-', '▫': '-',
         }
@@ -221,9 +283,10 @@ def _generate_basic_pdf(dados: dict, output_path: str):
     pdf.ln(5)
     
     # Saudação dinâmica
-    equip = 'compressor'
+    tipo = (dados.get('equipamento_tipo') or 'compressor').strip()
+    equip = tipo
     if dados.get('marca') or dados.get('modelo'):
-        equip = f"compressor {dados.get('marca') or ''} {dados.get('modelo') or ''}".strip()
+        equip = f"{tipo} {dados.get('marca') or ''} {dados.get('modelo') or ''}".strip()
     saudacao = f"Prezados Senhores, referente à locação de {equip}."
     pdf.set_font('Arial', '', 12)
     pdf.cell(0, 8, _clean(saudacao), 0, 1, 'L')
@@ -272,11 +335,7 @@ def _generate_basic_pdf(dados: dict, output_path: str):
     pdf.cell(0, 10, 'IMAGEM DO EQUIPAMENTO', 0, 1, 'L')
     pdf.ln(5)
     
-    img_path = dados.get('imagem_compressor')
-    if not img_path or not os.path.exists(img_path):
-        fallback = filial.get('logo_path')
-        if fallback and os.path.exists(fallback):
-            img_path = fallback
+    img_path = _resolve_imagem_compressor(dados)
     
     if img_path and os.path.exists(img_path):
         try:
@@ -320,8 +379,7 @@ def _generate_basic_pdf(dados: dict, output_path: str):
     
     condicoes = dados.get('condicoes_pagamento')
     if not condicoes:
-        dia = dados.get('vencimento_dia') or '10'
-        condicoes = f"A vencimento de cada mensalidade, todo dia {dia}, conforme proposta acordada com o cliente."
+        condicoes = "A vencimento de cada mensalidade, vai depender da proposta que vai ser feita com o cliente."
     
     pdf.set_font('Arial', '', 11)
     pdf.cell(0, 7, _clean(condicoes), 0, 1, 'L')
@@ -380,11 +438,12 @@ def _generate_basic_pdf(dados: dict, output_path: str):
     pdf.cell(0, 7, "As demais cláusulas e responsabilidades permanecem conforme as normas de locação da empresa.", 0, 1, 'L')
 
     # Imagem na página 7 também
-    if img_path and os.path.exists(img_path):
+    img_path_pg7 = _resolve_imagem_compressor(dados)
+    if img_path_pg7 and os.path.exists(img_path_pg7):
         try:
             y = pdf.get_y() + 5
-            if y < 250:  # Só adiciona se houver espaço
-                pdf.image(img_path, x=25, y=y, w=70)
+            if y < 250:
+                pdf.image(img_path_pg7, x=25, y=y, w=70)
         except Exception:
             pass
 
@@ -530,7 +589,7 @@ Período: {dados.get('data_inicio', '')} a {dados.get('data_fim', '')}
 
 CONDIÇÕES DE PAGAMENTO
 ---------------------
-{dados.get('condicoes_pagamento', 'A vencimento de cada mensalidade, conforme proposta acordada com o cliente.')}
+{dados.get('condicoes_pagamento', 'A vencimento de cada mensalidade, vai depender da proposta que vai ser feita com o cliente.')}
 
 TERMOS E CONDIÇÕES GERAIS
 ------------------------
@@ -599,7 +658,7 @@ def _generate_complete_pdf(dados: dict, output_path: str):
             return ""
         s = str(text).replace('\t', '    ')
         replacements = {
-            '–': '-', '—': '-', ''': "'", ''': "'", '"': '"', '"': '"',
+            '–': '-', '—': '-', '’': "'", '‘': "'", '"': '"', '“': '"',
             '…': '...', '®': '(R)', '©': '(C)', '™': '(TM)', 'º': 'o', 'ª': 'a',
             '•': '-', '·': '-', '‣': '-', '⁃': '-', '◦': '-', '▪': '-', '▫': '-',
         }
@@ -646,9 +705,10 @@ def _generate_complete_pdf(dados: dict, output_path: str):
     pdf.ln(5)
     
     # Saudação dinâmica conforme equipamento
-    equip = 'compressor'
+    tipo = (dados.get('equipamento_tipo') or 'compressor').strip()
+    equip = tipo
     if dados.get('marca') or dados.get('modelo'):
-        equip = f"compressor {dados.get('marca') or ''} {dados.get('modelo') or ''}".strip()
+        equip = f"{tipo} {dados.get('marca') or ''} {dados.get('modelo') or ''}".strip()
     saudacao = f"Prezados Senhores, referente à locação de {equip}."
     pdf.set_font('Arial', '', 12)
     pdf.cell(0, 8, _clean(saudacao), 0, 1, 'L')
@@ -697,11 +757,7 @@ def _generate_complete_pdf(dados: dict, output_path: str):
     pdf.cell(0, 10, 'IMAGEM DO EQUIPAMENTO', 0, 1, 'L')
     pdf.ln(5)
     
-    img_path = dados.get('imagem_compressor')
-    if not img_path or not os.path.exists(img_path):
-        fallback = filial.get('logo_path')
-        if fallback and os.path.exists(fallback):
-            img_path = fallback
+    img_path = _resolve_imagem_compressor(dados)
     
     if img_path and os.path.exists(img_path):
         try:
@@ -745,8 +801,7 @@ def _generate_complete_pdf(dados: dict, output_path: str):
     
     condicoes = dados.get('condicoes_pagamento')
     if not condicoes:
-        dia = dados.get('vencimento_dia') or '10'
-        condicoes = f"A vencimento de cada mensalidade, todo dia {dia}, conforme proposta acordada com o cliente."
+        condicoes = "A vencimento de cada mensalidade, vai depender da proposta que vai ser feita com o cliente."
     
     pdf.set_font('Arial', '', 11)
     pdf.cell(0, 7, _clean(condicoes), 0, 1, 'L')
@@ -805,11 +860,12 @@ def _generate_complete_pdf(dados: dict, output_path: str):
     pdf.cell(0, 7, "As demais cláusulas e responsabilidades permanecem conforme as normas de locação da empresa.", 0, 1, 'L')
 
     # Imagem na página 7 também (DINÂMICA)
-    if img_path and os.path.exists(img_path):
+    img_path_pg7 = _resolve_imagem_compressor(dados)
+    if img_path_pg7 and os.path.exists(img_path_pg7):
         try:
             y = pdf.get_y() + 5
             if y < 250:  # Só adiciona se houver espaço
-                pdf.image(img_path, x=25, y=y, w=70)
+                pdf.image(img_path_pg7, x=25, y=y, w=70)
         except Exception:
             pass
 
