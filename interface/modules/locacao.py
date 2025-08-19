@@ -54,7 +54,7 @@ class LocacaoModule(BaseModule):
         self.valor_mensal_var = tk.StringVar()
         self.moeda_var = tk.StringVar(value="BRL")
         self.vencimento_dia_var = tk.StringVar(value="10")
-        self.condicoes_pagamento_text = scrolledtext.ScrolledText(form, height=5, width=40, font=('Arial', 10))
+        self.condicoes_pagamento_text = scrolledtext.ScrolledText(form, height=3, width=40, font=('Arial', 10))
         self.imagem_compressor_var = tk.StringVar()
         # Novos campos dinâmicos
         self.prezados_var = tk.StringVar()
@@ -105,7 +105,7 @@ class LocacaoModule(BaseModule):
         add_row("Contato:", contato_frame)
 
         add_row("Marca do Equipamento:", tk.Entry(form, textvariable=self.marca_var, font=('Arial', 10)))
-        add_row("Modelo do Equipamento:", tk.Entry(form, textvariable=self.modelo_var, font=('Arial', 10)))
+        add_row("Modelo do Equipamento (Título do Equipamento):", tk.Entry(form, textvariable=self.modelo_var, font=('Arial', 10)))
         add_row("Número de Série:", tk.Entry(form, textvariable=self.serie_var, font=('Arial', 10)))
         add_row("Data de Início:", tk.Entry(form, textvariable=self.data_inicio_var, font=('Arial', 10)))
         add_row("Data de Fim:", tk.Entry(form, textvariable=self.data_fim_var, font=('Arial', 10)))
@@ -121,21 +121,34 @@ class LocacaoModule(BaseModule):
         tk.Label(form, text="Condições de Pagamento:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="nw", pady=5)
         self.condicoes_pagamento_text.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
         row += 1
-        # Linha dos 'Prezados' (Página 2)
-        add_row("Linha dos 'Prezados':", tk.Entry(form, textvariable=self.prezados_var, font=('Arial', 10)))
-        # Texto de Apresentação (Página 2)
+        # Texto de apresentação (Página 2)
         ap_frame = tk.Frame(form, bg='white')
         def _toggle_apresentacao():
-            state = 'disabled' if self.use_default_apresentacao_var.get() else 'normal'
+            state = 'normal' if self.use_default_apresentacao_var.get() else 'disabled'
             self.apresentacao_text.configure(state=state)
-        tk.Checkbutton(ap_frame, text="Usar texto padrão", variable=self.use_default_apresentacao_var, bg='white', command=_toggle_apresentacao).pack(anchor='w')
-        # criar scrolledtext com parent ap_frame (não com form)
-        self.apresentacao_text = scrolledtext.ScrolledText(ap_frame, height=8, width=40, font=('Arial', 10))
+            if state == 'disabled':
+                # preencher texto padrão
+                try:
+                    self.apresentacao_text.configure(state='normal')
+                    self.apresentacao_text.delete('1.0','end')
+                    default_txt = (
+                        "Prezados Senhores:\n\n"
+                        "Agradecemos por nos conceder a oportunidade de apresentarmos nossa proposta para fornecimento de LOCACAO DE COMPRESSOR DE AR.\n\n"
+                        "A World Comp Compressores e especializada em manutencao de compressores de parafuso das principais marcas do mercado, como Atlas Copco, Ingersoll Rand, Chicago. Atuamos tambem com revisao de equipamentos e unidades compressoras, venda de pecas, bem como venda e locacao de compressores de parafuso isentos de oleo e lubrificados.\n\n"
+                        "Com profissionais altamente qualificados e atendimento especializado, colocamo-nos a disposicao para analisar, corrigir e prestar os devidos esclarecimentos, sempre buscando atender as especificacoes e necessidades dos nossos clientes."
+                    )
+                    self.apresentacao_text.insert('1.0', default_txt)
+                finally:
+                    self.apresentacao_text.configure(state='disabled')
+        tk.Checkbutton(ap_frame, text="Trocar Texto", variable=self.use_default_apresentacao_var, bg='white', command=_toggle_apresentacao).pack(anchor='w')
+        self.apresentacao_text = scrolledtext.ScrolledText(ap_frame, height=10, width=40, font=('Arial', 10))
         self.apresentacao_text.pack(fill='both', expand=True)
+        # inicializar em modo padrão (não trocar)
+        self.use_default_apresentacao_var.set(False)
         _toggle_apresentacao()
-        add_row("Apresentação (Pág. 2):", ap_frame)
-        # Título do Equipamento (Pág. 4)
-        add_row("Título do Equipamento (Pág. 4):", tk.Entry(form, textvariable=self.equip_titulo_var, font=('Arial', 10)))
+        add_row("Texto de apresentação:", ap_frame)
+        # Título do Equipamento (Pág. 4) - espelha o Modelo
+        self.equip_titulo_var = self.modelo_var
 
         # Imagem do compressor
         img_frame = tk.Frame(form, bg='white')
