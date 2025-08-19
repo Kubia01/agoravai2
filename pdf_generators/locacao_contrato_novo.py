@@ -84,6 +84,10 @@ def safe_text_for_pdf(text):
     if not cleaned:
         return " "
     
+    # Verificação final: se ainda tem underscore no início, remover
+    if cleaned and cleaned[0] == '_':
+        cleaned = cleaned[1:].lstrip()
+    
     return cleaned
 
 
@@ -131,12 +135,30 @@ class LocacaoPDF(FPDF):
         
         # Configurar encoding para suportar mais caracteres
         self.set_doc_option('core_fonts_encoding', 'latin-1')
+    
+    def safe_cell(self, w, h, txt='', border=0, ln=0, align='', fill=False, link=''):
+        """Versão segura do cell que trata textos problemáticos"""
+        safe_txt = safe_text_for_pdf(txt)
+        try:
+            super().cell(w, h, safe_txt, border, ln, align, fill, link)
+        except Exception as e:
+            # Fallback: usar texto vazio
+            super().cell(w, h, " ", border, ln, align, fill, link)
+    
+    def safe_write(self, h, txt='', link=''):
+        """Versão segura do write que trata textos problemáticos"""
+        safe_txt = safe_text_for_pdf(txt)
+        try:
+            super().write(h, safe_txt, link)
+        except Exception as e:
+            # Fallback: usar texto vazio
+            super().write(h, " ", link)
 
     def header(self):
         """Cabeçalho das páginas (exceto capa)"""
         if self.page_no() > 1:
             self.set_font('Arial', 'B', 10)
-            self.cell(0, 10, safe_text_for_pdf(self.filial.get('nome', '')), 0, 1, 'L')
+            self.safe_cell(0, 10, self.filial.get('nome', ''), 0, 1, 'L')
             self.ln(5)
 
     def footer(self):
@@ -148,14 +170,14 @@ class LocacaoPDF(FPDF):
             # Endereço e telefones
             endereco = self.filial.get('endereco', '')
             telefones = self.filial.get('telefones', '')
-            self.cell(0, 5, safe_text_for_pdf(f"{endereco} - {telefones}"), 0, 1, 'C')
+            self.safe_cell(0, 5, f"{endereco} - {telefones}", 0, 1, 'C')
             
             # Email
             email = self.filial.get('email', '')
-            self.cell(0, 5, safe_text_for_pdf(email), 0, 1, 'C')
+            self.safe_cell(0, 5, email, 0, 1, 'C')
             
             # Número da página
-            self.cell(0, 5, f"Pagina {self.page_no()}", 0, 0, 'C')
+            self.safe_cell(0, 5, f"Pagina {self.page_no()}", 0, 0, 'C')
 
     def write_multiline(self, text, max_chars=85):
         """Escreve texto com quebra de linha"""
@@ -172,10 +194,10 @@ class LocacaoPDF(FPDF):
                         current_line = test_line
                     else:
                         if current_line:
-                            self.cell(0, 5, current_line, 0, 1, 'L')
+                            self.safe_cell(0, 5, current_line, 0, 1, 'L')
                         current_line = word
                 if current_line:
-                    self.cell(0, 5, current_line, 0, 1, 'L')
+                    self.safe_cell(0, 5, current_line, 0, 1, 'L')
                 self.ln(2)
 
     def page_1_capa(self):
@@ -193,20 +215,20 @@ class LocacaoPDF(FPDF):
         # Título
         self.ln(60)
         self.set_font('Arial', 'B', 20)
-        self.cell(0, 15, 'PROPOSTA DE LOCACAO', 0, 1, 'C')
-        self.cell(0, 10, 'DE COMPRESSOR DE AR', 0, 1, 'C')
+        self.safe_cell(0, 15, 'PROPOSTA DE LOCACAO', 0, 1, 'C')
+        self.safe_cell(0, 10, 'DE COMPRESSOR DE AR', 0, 1, 'C')
         
         # Número da proposta
         self.ln(20)
         self.set_font('Arial', 'B', 14)
         numero = self.dados.get('numero', '')
-        self.cell(0, 10, f'Proposta No {numero}', 0, 1, 'C')
+        self.safe_cell(0, 10, f'Proposta No {numero}', 0, 1, 'C')
         
         # Data
         self.ln(10)
         self.set_font('Arial', '', 12)
         data_hoje = datetime.now().strftime("%d/%m/%Y")
-        self.cell(0, 8, f'Data: {data_hoje}', 0, 1, 'C')
+        self.safe_cell(0, 8, f'Data: {data_hoje}', 0, 1, 'C')
 
     def page_2_proposta_comercial(self):
         """Página 2 - Proposta Comercial"""
@@ -214,16 +236,16 @@ class LocacaoPDF(FPDF):
         
         # Cabeçalho da proposta
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, 'PROPOSTA COMERCIAL', 0, 1, 'L')
+        self.safe_cell(0, 10, 'PROPOSTA COMERCIAL', 0, 1, 'L')
         self.ln(5)
         
         # Referência, número e data
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, 'REF:  CONTRATO DE LOCACAO', 0, 1, 'L')
+        self.safe_cell(0, 6, 'REF:  CONTRATO DE LOCACAO', 0, 1, 'L')
         numero = self.dados.get('numero', '')
-        self.cell(0, 6, f'NUMERO: {numero}', 0, 1, 'L')
+        self.safe_cell(0, 6, f'NUMERO: {numero}', 0, 1, 'L')
         data_hoje = datetime.now().strftime("%d/%m/%Y")
-        self.cell(0, 6, f'DATA: {data_hoje}', 0, 1, 'L')
+        self.safe_cell(0, 6, f'DATA: {data_hoje}', 0, 1, 'L')
         self.ln(15)
 
         # Seção A/C e De (duas colunas)
@@ -232,11 +254,11 @@ class LocacaoPDF(FPDF):
         # Coluna esquerda - A/C
         self.set_xy(10, y_pos)
         self.set_font('Arial', 'B', 10)
-        self.cell(80, 6, 'A/C:', 0, 0, 'L')
+        self.safe_cell(80, 6, 'A/C:', 0, 0, 'L')
         
         # Coluna direita - De
         self.set_xy(110, y_pos)
-        self.cell(80, 6, 'De:', 0, 1, 'L')
+        self.safe_cell(80, 6, 'De:', 0, 1, 'L')
         
         # Nome do cliente e empresa
         cliente_nome = self.dados.get('cliente_nome', 'GRUPO DELGA')
@@ -249,43 +271,43 @@ class LocacaoPDF(FPDF):
             cliente_nome = 'CLIENTE'
             
         self.set_xy(10, y_pos + 8)
-        self.cell(80, 6, cliente_nome, 0, 0, 'L')
+        self.safe_cell(80, 6, cliente_nome, 0, 0, 'L')
         self.set_xy(110, y_pos + 8)
-        self.cell(80, 6, 'WORLD COMP DO BRASIL', 0, 1, 'L')
+        self.safe_cell(80, 6, 'WORLD COMP DO BRASIL', 0, 1, 'L')
         
         # Contato
         contato = self.dados.get('contato', 'Srta')
         self.set_xy(10, y_pos + 16)
         self.set_font('Arial', '', 10)
-        self.cell(80, 6, safe_text_for_pdf(contato), 0, 0, 'L')
+        self.safe_cell(80, 6, safe_text_for_pdf(contato), 0, 0, 'L')
         self.set_xy(110, y_pos + 16)
-        self.cell(80, 6, 'Rogerio Cerqueira | Valdir Bernardes', 0, 1, 'L')
+        self.safe_cell(80, 6, 'Rogerio Cerqueira | Valdir Bernardes', 0, 1, 'L')
         
         # Departamento e email
         self.set_xy(10, y_pos + 24)
-        self.cell(80, 6, 'Compras', 0, 0, 'L')
+        self.safe_cell(80, 6, 'Compras', 0, 0, 'L')
         self.set_xy(110, y_pos + 24)
-        self.cell(80, 6, 'rogerio@worldcompressores.com.br', 0, 1, 'L')
+        self.safe_cell(80, 6, 'rogerio@worldcompressores.com.br', 0, 1, 'L')
         
         # Telefone
         telefone = '11 97283-8255'
         if self.cliente and len(self.cliente) > 7 and self.cliente[7]:
             telefone = self.cliente[7]
         self.set_xy(10, y_pos + 32)
-        self.cell(80, 6, safe_text_for_pdf(telefone), 0, 0, 'L')
+        self.safe_cell(80, 6, safe_text_for_pdf(telefone), 0, 0, 'L')
         self.set_xy(110, y_pos + 32)
-        self.cell(80, 6, 'valdir@worldcompressores.com.br', 0, 1, 'L')
+        self.safe_cell(80, 6, 'valdir@worldcompressores.com.br', 0, 1, 'L')
         
         # Email do cliente se existir
         if self.cliente and len(self.cliente) > 8 and self.cliente[8]:
             self.set_xy(10, y_pos + 40)
-            self.cell(80, 6, safe_text_for_pdf(self.cliente[8]), 0, 1, 'L')
+            self.safe_cell(80, 6, safe_text_for_pdf(self.cliente[8]), 0, 1, 'L')
             
         self.set_y(y_pos + 55)
 
         # Saudação
         self.set_font('Arial', '', 11)
-        self.cell(0, 8, 'Prezados Senhores:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'Prezados Senhores:', 0, 1, 'L')
         self.ln(10)
 
         # Texto da apresentação
@@ -301,9 +323,9 @@ Com profissionais altamente qualificados e atendimento especializado, colocamo-n
         # Assinatura
         self.ln(15)
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, 'Atenciosamente,', 0, 1, 'L')
+        self.safe_cell(0, 6, 'Atenciosamente,', 0, 1, 'L')
         self.set_font('Arial', 'B', 10)
-        self.cell(0, 6, 'WORLD COMP DO BRASIL COMPRESSORES EIRELI', 0, 1, 'L')
+        self.safe_cell(0, 6, 'WORLD COMP DO BRASIL COMPRESSORES EIRELI', 0, 1, 'L')
 
     def generate_all_pages(self):
         """Gera todas as 13 páginas"""
@@ -313,7 +335,7 @@ Com profissionais altamente qualificados e atendimento especializado, colocamo-n
         # Página 3 - Sobre a World Comp
         self.add_page()
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 10, 'SOBRE A WORLD COMP', 0, 1, 'L')
+        self.safe_cell(0, 10, 'SOBRE A WORLD COMP', 0, 1, 'L')
         self.ln(5)
         
         texto3 = """A World Comp Compressores e uma empresa com mais de uma decada de atuacao no mercado nacional, especializada na manutencao de compressores de ar do tipo parafuso. Seu atendimento abrange todo o territorio brasileiro, oferecendo solucoes tecnicas e comerciais voltadas a maximizacao do desempenho e da confiabilidade dos sistemas de ar comprimido utilizados por seus clientes."""
@@ -323,7 +345,7 @@ Com profissionais altamente qualificados e atendimento especializado, colocamo-n
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 10, 'NOSSOS SERVICOS', 0, 1, 'L')
+        self.safe_cell(0, 10, 'NOSSOS SERVICOS', 0, 1, 'L')
         self.ln(5)
         
         texto_servicos = """A empresa oferece um portfolio completo de servicos, que contempla a manutencao preventiva e corretiva de compressores e unidades compressoras, a venda de pecas de reposicao para diversas marcas, a locacao de compressores de parafuso — incluindo modelos lubrificados e isentos de oleo —, alem da recuperacao de unidades compressoras e trocadores de calor.
@@ -335,7 +357,7 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 10, 'QUALIDADE DOS SERVICOS & MELHORIA CONTINUA', 0, 1, 'L')
+        self.safe_cell(0, 10, 'QUALIDADE DOS SERVICOS & MELHORIA CONTINUA', 0, 1, 'L')
         self.ln(5)
         
         texto_qualidade = """A empresa investe continuamente na capacitacao de sua equipe, na modernizacao de processos e no aprimoramento da estrutura de atendimento, assegurando alto padrao de qualidade, agilidade e eficacia nos servicos. Mantem ainda uma politica ativa de melhoria continua, com avaliacoes periodicas que visam atualizar tecnologias, aperfecoar metodos e garantir excelencia tecnica."""
@@ -345,10 +367,10 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 10, 'CONTE CONOSCO PARA UMA PARCERIA!', 0, 1, 'L')
+        self.safe_cell(0, 10, 'CONTE CONOSCO PARA UMA PARCERIA!', 0, 1, 'L')
         self.ln(5)
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, 'Nossa missao e ser sua melhor parceria com sinonimo de qualidade, garantia e o melhor custo beneficio.', 0, 1, 'L')
+        self.safe_cell(0, 6, 'Nossa missao e ser sua melhor parceria com sinonimo de qualidade, garantia e o melhor custo beneficio.', 0, 1, 'L')
 
         # Páginas 4-13: Implementação completa do contrato de locação
         self.page_4_especificacoes_tecnicas()
@@ -367,7 +389,7 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.add_page()
         
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, 'ESPECIFICACOES TECNICAS DO EQUIPAMENTO', 0, 1, 'L')
+        self.safe_cell(0, 10, 'ESPECIFICACOES TECNICAS DO EQUIPAMENTO', 0, 1, 'L')
         self.ln(10)
         
         # Dados do equipamento
@@ -376,32 +398,32 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         serie = self.dados.get('serie', '12345')
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'DADOS DO COMPRESSOR:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'DADOS DO COMPRESSOR:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, f'Marca: {safe_text_for_pdf(marca)}', 0, 1, 'L')
-        self.cell(0, 6, f'Modelo: {safe_text_for_pdf(modelo)}', 0, 1, 'L')
-        self.cell(0, 6, f'Numero de Serie: {safe_text_for_pdf(serie)}', 0, 1, 'L')
-        self.cell(0, 6, 'Tipo: Compressor de parafuso lubrificado', 0, 1, 'L')
-        self.cell(0, 6, 'Capacidade: Conforme especificacao do modelo', 0, 1, 'L')
-        self.cell(0, 6, 'Pressao de trabalho: 7 a 13 bar', 0, 1, 'L')
-        self.cell(0, 6, 'Tensao: 220V/380V/440V (conforme disponibilidade)', 0, 1, 'L')
+        self.safe_cell(0, 6, f'Marca: {safe_text_for_pdf(marca)}', 0, 1, 'L')
+        self.safe_cell(0, 6, f'Modelo: {safe_text_for_pdf(modelo)}', 0, 1, 'L')
+        self.safe_cell(0, 6, f'Numero de Serie: {safe_text_for_pdf(serie)}', 0, 1, 'L')
+        self.safe_cell(0, 6, 'Tipo: Compressor de parafuso lubrificado', 0, 1, 'L')
+        self.safe_cell(0, 6, 'Capacidade: Conforme especificacao do modelo', 0, 1, 'L')
+        self.safe_cell(0, 6, 'Pressao de trabalho: 7 a 13 bar', 0, 1, 'L')
+        self.safe_cell(0, 6, 'Tensao: 220V/380V/440V (conforme disponibilidade)', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'ITENS INCLUSOS NA LOCACAO:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'ITENS INCLUSOS NA LOCACAO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '• Compressor de ar completo', 0, 1, 'L')
-        self.cell(0, 6, '• Manual de operacao', 0, 1, 'L')
-        self.cell(0, 6, '• Certificado de calibracao (quando aplicavel)', 0, 1, 'L')
-        self.cell(0, 6, '• Suporte tecnico durante o periodo de locacao', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Compressor de ar completo', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Manual de operacao', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Certificado de calibracao (quando aplicavel)', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Suporte tecnico durante o periodo de locacao', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'CONDICOES DE ENTREGA:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'CONDICOES DE ENTREGA:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -413,7 +435,7 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.add_page()
         
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, 'CONDICOES COMERCIAIS', 0, 1, 'L')
+        self.safe_cell(0, 10, 'CONDICOES COMERCIAIS', 0, 1, 'L')
         self.ln(10)
         
         # Valores
@@ -422,22 +444,22 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         vencimento = self.dados.get('vencimento_dia', '10')
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'VALORES DA LOCACAO:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'VALORES DA LOCACAO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
         if valor_mensal and valor_mensal != '0':
-            self.cell(0, 6, f'Valor mensal da locacao: {format_currency(valor_mensal)}', 0, 1, 'L')
+            self.safe_cell(0, 6, f'Valor mensal da locacao: {format_currency(valor_mensal)}', 0, 1, 'L')
         else:
-            self.cell(0, 6, 'Valor mensal da locacao: Conforme cotacao em anexo', 0, 1, 'L')
+            self.safe_cell(0, 6, 'Valor mensal da locacao: Conforme cotacao em anexo', 0, 1, 'L')
         
-        self.cell(0, 6, f'Moeda: {moeda}', 0, 1, 'L')
-        self.cell(0, 6, f'Vencimento: Todo dia {vencimento} de cada mes', 0, 1, 'L')
-        self.cell(0, 6, 'Forma de pagamento: Boleto bancario', 0, 1, 'L')
+        self.safe_cell(0, 6, f'Moeda: {moeda}', 0, 1, 'L')
+        self.safe_cell(0, 6, f'Vencimento: Todo dia {vencimento} de cada mes', 0, 1, 'L')
+        self.safe_cell(0, 6, 'Forma de pagamento: Boleto bancario', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'CONDICOES DE PAGAMENTO:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'CONDICOES DE PAGAMENTO:', 0, 1, 'L')
         self.ln(5)
         
         condicoes = self.dados.get('condicoes_pagamento', 'Pagamento mensal conforme vencimento')
@@ -446,25 +468,25 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'OBSERVACOES IMPORTANTES:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'OBSERVACOES IMPORTANTES:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '• Valores nao incluem frete e instalacao', 0, 1, 'L')
-        self.cell(0, 6, '• Multa por atraso de pagamento: 2% sobre o valor em atraso', 0, 1, 'L')
-        self.cell(0, 6, '• Juros de mora: 1% ao mes sobre o valor em atraso', 0, 1, 'L')
-        self.cell(0, 6, '• Reajuste anual conforme IGPM ou indice oficial', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Valores nao incluem frete e instalacao', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Multa por atraso de pagamento: 2% sobre o valor em atraso', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Juros de mora: 1% ao mes sobre o valor em atraso', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Reajuste anual conforme IGPM ou indice oficial', 0, 1, 'L')
 
     def page_6_termos_locacao(self):
         """Página 6 - Termos e Condições da Locação"""
         self.add_page()
         
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, 'TERMOS E CONDICOES DA LOCACAO', 0, 1, 'L')
+        self.safe_cell(0, 10, 'TERMOS E CONDICOES DA LOCACAO', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, '1. PRAZO DE LOCACAO:', 0, 1, 'L')
+        self.safe_cell(0, 8, '1. PRAZO DE LOCACAO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -475,7 +497,7 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, '2. USO DO EQUIPAMENTO:', 0, 1, 'L')
+        self.safe_cell(0, 8, '2. USO DO EQUIPAMENTO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -484,7 +506,7 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, '3. LOCAL DE INSTALACAO:', 0, 1, 'L')
+        self.safe_cell(0, 8, '3. LOCAL DE INSTALACAO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -493,7 +515,7 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, '4. SEGURO:', 0, 1, 'L')
+        self.safe_cell(0, 8, '4. SEGURO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -505,55 +527,55 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.add_page()
         
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, 'RESPONSABILIDADES DAS PARTES', 0, 1, 'L')
+        self.safe_cell(0, 10, 'RESPONSABILIDADES DAS PARTES', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'RESPONSABILIDADES DA LOCADORA (WORLD COMP):', 0, 1, 'L')
+        self.safe_cell(0, 8, 'RESPONSABILIDADES DA LOCADORA (WORLD COMP):', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '• Fornecer o equipamento em perfeitas condicoes de funcionamento', 0, 1, 'L')
-        self.cell(0, 6, '• Realizar manutencao preventiva conforme cronograma do fabricante', 0, 1, 'L')
-        self.cell(0, 6, '• Providenciar reparos em caso de defeitos no equipamento', 0, 1, 'L')
-        self.cell(0, 6, '• Fornecer suporte tecnico durante horario comercial', 0, 1, 'L')
-        self.cell(0, 6, '• Substituir o equipamento em caso de defeito irreparavel', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Fornecer o equipamento em perfeitas condicoes de funcionamento', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Realizar manutencao preventiva conforme cronograma do fabricante', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Providenciar reparos em caso de defeitos no equipamento', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Fornecer suporte tecnico durante horario comercial', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Substituir o equipamento em caso de defeito irreparavel', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'RESPONSABILIDADES DO LOCATARIO:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'RESPONSABILIDADES DO LOCATARIO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '• Efetuar pagamentos nas datas acordadas', 0, 1, 'L')
-        self.cell(0, 6, '• Operar o equipamento conforme manual de instrucoes', 0, 1, 'L')
-        self.cell(0, 6, '• Manter o equipamento em local adequado e seguro', 0, 1, 'L')
-        self.cell(0, 6, '• Realizar verificacoes diarias basicas (nivel de oleo, pressao)', 0, 1, 'L')
-        self.cell(0, 6, '• Comunicar imediatamente qualquer problema ou defeito', 0, 1, 'L')
-        self.cell(0, 6, '• Permitir acesso para manutencao e vistoria', 0, 1, 'L')
-        self.cell(0, 6, '• Devolver o equipamento nas mesmas condicoes recebidas', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Efetuar pagamentos nas datas acordadas', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Operar o equipamento conforme manual de instrucoes', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Manter o equipamento em local adequado e seguro', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Realizar verificacoes diarias basicas (nivel de oleo, pressao)', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Comunicar imediatamente qualquer problema ou defeito', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Permitir acesso para manutencao e vistoria', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Devolver o equipamento nas mesmas condicoes recebidas', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'CUSTOS POR CONTA DO LOCATARIO:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'CUSTOS POR CONTA DO LOCATARIO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '• Energia eletrica consumida pelo equipamento', 0, 1, 'L')
-        self.cell(0, 6, '• Oleo lubrificante e filtros (reposicao entre manutencoes)', 0, 1, 'L')
-        self.cell(0, 6, '• Danos causados por mau uso ou operacao inadequada', 0, 1, 'L')
-        self.cell(0, 6, '• Frete para devolucao ao final do contrato', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Energia eletrica consumida pelo equipamento', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Oleo lubrificante e filtros (reposicao entre manutencoes)', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Danos causados por mau uso ou operacao inadequada', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Frete para devolucao ao final do contrato', 0, 1, 'L')
 
     def page_8_garantias(self):
         """Página 8 - Garantias e Assistência Técnica"""
         self.add_page()
         
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, 'GARANTIAS E ASSISTENCIA TECNICA', 0, 1, 'L')
+        self.safe_cell(0, 10, 'GARANTIAS E ASSISTENCIA TECNICA', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'GARANTIA DE FUNCIONAMENTO:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'GARANTIA DE FUNCIONAMENTO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -562,18 +584,18 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'ASSISTENCIA TECNICA:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'ASSISTENCIA TECNICA:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '• Atendimento telefonico: Segunda a sexta, 8h as 18h', 0, 1, 'L')
-        self.cell(0, 6, '• Atendimento emergencial: Conforme disponibilidade', 0, 1, 'L')
-        self.cell(0, 6, '• Tempo de resposta: Ate 24h para chamados urgentes', 0, 1, 'L')
-        self.cell(0, 6, '• Manutencao preventiva: Conforme cronograma do fabricante', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Atendimento telefonico: Segunda a sexta, 8h as 18h', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Atendimento emergencial: Conforme disponibilidade', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Tempo de resposta: Ate 24h para chamados urgentes', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Manutencao preventiva: Conforme cronograma do fabricante', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'LIMITACOES DA GARANTIA:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'LIMITACOES DA GARANTIA:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -582,25 +604,25 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'PROCEDIMENTOS PARA ACIONAMENTO:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'PROCEDIMENTOS PARA ACIONAMENTO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '1. Comunicar o problema via telefone ou email', 0, 1, 'L')
-        self.cell(0, 6, '2. Fornecer informacoes detalhadas sobre o defeito', 0, 1, 'L')
-        self.cell(0, 6, '3. Aguardar orientacoes da equipe tecnica', 0, 1, 'L')
-        self.cell(0, 6, '4. Permitir acesso ao equipamento para diagnostico', 0, 1, 'L')
+        self.safe_cell(0, 6, '1. Comunicar o problema via telefone ou email', 0, 1, 'L')
+        self.safe_cell(0, 6, '2. Fornecer informacoes detalhadas sobre o defeito', 0, 1, 'L')
+        self.safe_cell(0, 6, '3. Aguardar orientacoes da equipe tecnica', 0, 1, 'L')
+        self.safe_cell(0, 6, '4. Permitir acesso ao equipamento para diagnostico', 0, 1, 'L')
 
     def page_9_instalacao_manutencao(self):
         """Página 9 - Instalação e Manutenção"""
         self.add_page()
         
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, 'INSTALACAO E MANUTENCAO', 0, 1, 'L')
+        self.safe_cell(0, 10, 'INSTALACAO E MANUTENCAO', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'INSTALACAO DO EQUIPAMENTO:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'INSTALACAO DO EQUIPAMENTO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -609,31 +631,31 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'REQUISITOS DO LOCAL:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'REQUISITOS DO LOCAL:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '• Area minima: Conforme especificacao tecnica do modelo', 0, 1, 'L')
-        self.cell(0, 6, '• Ventilacao adequada para dissipacao de calor', 0, 1, 'L')
-        self.cell(0, 6, '• Alimentacao eletrica conforme potencia do equipamento', 0, 1, 'L')
-        self.cell(0, 6, '• Piso nivelado e com capacidade de suporte adequada', 0, 1, 'L')
-        self.cell(0, 6, '• Drenagem para condensado', 0, 1, 'L')
-        self.cell(0, 6, '• Protecao contra intemperies', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Area minima: Conforme especificacao tecnica do modelo', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Ventilacao adequada para dissipacao de calor', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Alimentacao eletrica conforme potencia do equipamento', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Piso nivelado e com capacidade de suporte adequada', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Drenagem para condensado', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Protecao contra intemperies', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'PROGRAMA DE MANUTENCAO:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'PROGRAMA DE MANUTENCAO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '• Manutencao preventiva: Conforme horas de operacao', 0, 1, 'L')
-        self.cell(0, 6, '• Troca de oleo: A cada 2000 horas ou conforme especificacao', 0, 1, 'L')
-        self.cell(0, 6, '• Substituicao de filtros: Conforme cronograma', 0, 1, 'L')
-        self.cell(0, 6, '• Inspecoes periodicas: Conforme plano de manutencao', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Manutencao preventiva: Conforme horas de operacao', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Troca de oleo: A cada 2000 horas ou conforme especificacao', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Substituicao de filtros: Conforme cronograma', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Inspecoes periodicas: Conforme plano de manutencao', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'MANUTENCAO CORRETIVA:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'MANUTENCAO CORRETIVA:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -645,11 +667,11 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.add_page()
         
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, 'CLAUSULAS GERAIS', 0, 1, 'L')
+        self.safe_cell(0, 10, 'CLAUSULAS GERAIS', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, '1. INADIMPLENCIA:', 0, 1, 'L')
+        self.safe_cell(0, 8, '1. INADIMPLENCIA:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -658,7 +680,7 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, '2. FORCA MAIOR:', 0, 1, 'L')
+        self.safe_cell(0, 8, '2. FORCA MAIOR:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -667,7 +689,7 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, '3. TRANSFERENCIA:', 0, 1, 'L')
+        self.safe_cell(0, 8, '3. TRANSFERENCIA:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -676,7 +698,7 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, '4. MODIFICACOES:', 0, 1, 'L')
+        self.safe_cell(0, 8, '4. MODIFICACOES:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -685,7 +707,7 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, '5. FORO:', 0, 1, 'L')
+        self.safe_cell(0, 8, '5. FORO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -697,11 +719,11 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.add_page()
         
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, 'RESCISAO E DEVOLUCAO', 0, 1, 'L')
+        self.safe_cell(0, 10, 'RESCISAO E DEVOLUCAO', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'RESCISAO ANTECIPADA:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'RESCISAO ANTECIPADA:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -710,29 +732,29 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'DEVOLUCAO DO EQUIPAMENTO:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'DEVOLUCAO DO EQUIPAMENTO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '• O equipamento devera ser devolvido nas mesmas condicoes', 0, 1, 'L')
-        self.cell(0, 6, '• Limpeza e inspecao serao realizadas na devolucao', 0, 1, 'L')
-        self.cell(0, 6, '• Eventuais danos serao cobrados do locatario', 0, 1, 'L')
-        self.cell(0, 6, '• Frete de devolucao por conta do locatario', 0, 1, 'L')
+        self.safe_cell(0, 6, '• O equipamento devera ser devolvido nas mesmas condicoes', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Limpeza e inspecao serao realizadas na devolucao', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Eventuais danos serao cobrados do locatario', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Frete de devolucao por conta do locatario', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'MOTIVOS PARA RESCISAO IMEDIATA:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'MOTIVOS PARA RESCISAO IMEDIATA:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '• Inadimplencia superior a 15 dias', 0, 1, 'L')
-        self.cell(0, 6, '• Uso inadequado ou danos intencionais', 0, 1, 'L')
-        self.cell(0, 6, '• Transferencia nao autorizada do equipamento', 0, 1, 'L')
-        self.cell(0, 6, '• Descumprimento grave das clausulas contratuais', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Inadimplencia superior a 15 dias', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Uso inadequado ou danos intencionais', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Transferencia nao autorizada do equipamento', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Descumprimento grave das clausulas contratuais', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'PROCEDIMENTOS DE DEVOLUCAO:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'PROCEDIMENTOS DE DEVOLUCAO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -744,30 +766,30 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.add_page()
         
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, 'DISPOSICOES FINAIS', 0, 1, 'L')
+        self.safe_cell(0, 10, 'DISPOSICOES FINAIS', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'VALIDADE DA PROPOSTA:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'VALIDADE DA PROPOSTA:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, 'Esta proposta tem validade de 30 dias a partir da data de emissao.', 0, 1, 'L')
+        self.safe_cell(0, 6, 'Esta proposta tem validade de 30 dias a partir da data de emissao.', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'DOCUMENTOS NECESSARIOS:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'DOCUMENTOS NECESSARIOS:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '• Contrato social da empresa', 0, 1, 'L')
-        self.cell(0, 6, '• Cartao CNPJ atualizado', 0, 1, 'L')
-        self.cell(0, 6, '• Comprovante de endereco', 0, 1, 'L')
-        self.cell(0, 6, '• Referencias comerciais', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Contrato social da empresa', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Cartao CNPJ atualizado', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Comprovante de endereco', 0, 1, 'L')
+        self.safe_cell(0, 6, '• Referencias comerciais', 0, 1, 'L')
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'CONDICOES DE APROVACAO:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'CONDICOES DE APROVACAO:', 0, 1, 'L')
         self.ln(5)
         
         self.set_font('Arial', '', 10)
@@ -776,52 +798,52 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
         self.ln(10)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'CONTATOS PARA DUVIDAS:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'CONTATOS PARA DUVIDAS:', 0, 1, 'L')
         self.ln(5)
         
         telefones = self.filial.get('telefones', '(11) 4543-6896')
         email = self.filial.get('email', 'rogerio@worldcompressores.com.br')
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, f'Telefone: {safe_text_for_pdf(telefones)}', 0, 1, 'L')
-        self.cell(0, 6, f'Email: {safe_text_for_pdf(email)}', 0, 1, 'L')
+        self.safe_cell(0, 6, f'Telefone: {safe_text_for_pdf(telefones)}', 0, 1, 'L')
+        self.safe_cell(0, 6, f'Email: {safe_text_for_pdf(email)}', 0, 1, 'L')
         self.ln(15)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, 'Agradecemos a oportunidade e aguardamos sua aprovacao.', 0, 1, 'L')
+        self.safe_cell(0, 6, 'Agradecemos a oportunidade e aguardamos sua aprovacao.', 0, 1, 'L')
         self.ln(5)
         self.set_font('Arial', 'B', 10)
-        self.cell(0, 6, 'Atenciosamente,', 0, 1, 'L')
-        self.cell(0, 6, 'WORLD COMP DO BRASIL COMPRESSORES LTDA', 0, 1, 'L')
+        self.safe_cell(0, 6, 'Atenciosamente,', 0, 1, 'L')
+        self.safe_cell(0, 6, 'WORLD COMP DO BRASIL COMPRESSORES LTDA', 0, 1, 'L')
 
     def page_13_assinaturas(self):
         """Página 13 - Assinaturas e Aceite"""
         self.add_page()
         
         self.set_font('Arial', 'B', 14)
-        self.cell(0, 10, 'ACEITE E ASSINATURAS', 0, 1, 'C')
+        self.safe_cell(0, 10, 'ACEITE E ASSINATURAS', 0, 1, 'C')
         self.ln(20)
         
         # Data e local
         self.set_font('Arial', '', 10)
         data_hoje = datetime.now().strftime("%d/%m/%Y")
-        self.cell(0, 6, f'Sao Bernardo do Campo, {data_hoje}', 0, 1, 'L')
+        self.safe_cell(0, 6, f'Sao Bernardo do Campo, {data_hoje}', 0, 1, 'L')
         self.ln(20)
         
         # Espaço para assinaturas
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'LOCADORA:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'LOCADORA:', 0, 1, 'L')
         self.ln(20)
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '___________________________________________', 0, 1, 'L')
-        self.cell(0, 6, 'WORLD COMP DO BRASIL COMPRESSORES LTDA', 0, 1, 'L')
-        self.cell(0, 6, 'CNPJ: 22.790.603/0001-77', 0, 1, 'L')
-        self.cell(0, 6, 'Representante Legal', 0, 1, 'L')
+        self.safe_cell(0, 6, '___________________________________________', 0, 1, 'L')
+        self.safe_cell(0, 6, 'WORLD COMP DO BRASIL COMPRESSORES LTDA', 0, 1, 'L')
+        self.safe_cell(0, 6, 'CNPJ: 22.790.603/0001-77', 0, 1, 'L')
+        self.safe_cell(0, 6, 'Representante Legal', 0, 1, 'L')
         self.ln(30)
         
         self.set_font('Arial', 'B', 12)
-        self.cell(0, 8, 'LOCATARIO:', 0, 1, 'L')
+        self.safe_cell(0, 8, 'LOCATARIO:', 0, 1, 'L')
         self.ln(20)
         
         cliente_nome = 'CLIENTE'
@@ -834,25 +856,25 @@ A World Comp tambem disponibiliza contratos de manutencao personalizados, adapta
             cliente_nome = 'CLIENTE'
         
         self.set_font('Arial', '', 10)
-        self.cell(0, 6, '___________________________________________', 0, 1, 'L')
-        self.cell(0, 6, cliente_nome, 0, 1, 'L')
+        self.safe_cell(0, 6, '___________________________________________', 0, 1, 'L')
+        self.safe_cell(0, 6, cliente_nome, 0, 1, 'L')
         if self.cliente and len(self.cliente) > 6 and self.cliente[6]:
-            self.cell(0, 6, f'CNPJ: {self.cliente[6]}', 0, 1, 'L')
-        self.cell(0, 6, 'Representante Legal', 0, 1, 'L')
+            self.safe_cell(0, 6, f'CNPJ: {self.cliente[6]}', 0, 1, 'L')
+        self.safe_cell(0, 6, 'Representante Legal', 0, 1, 'L')
         self.ln(20)
         
         # Testemunhas
         self.set_font('Arial', 'B', 10)
-        self.cell(0, 6, 'TESTEMUNHAS:', 0, 1, 'L')
+        self.safe_cell(0, 6, 'TESTEMUNHAS:', 0, 1, 'L')
         self.ln(15)
         
         self.set_font('Arial', '', 10)
-        self.cell(100, 6, 'Nome: _______________________________', 0, 0, 'L')
-        self.cell(100, 6, 'Nome: _______________________________', 0, 1, 'L')
-        self.cell(100, 6, 'CPF: ________________________________', 0, 0, 'L')
-        self.cell(100, 6, 'CPF: ________________________________', 0, 1, 'L')
-        self.cell(100, 6, 'Assinatura: _________________________', 0, 0, 'L')
-        self.cell(100, 6, 'Assinatura: _________________________', 0, 1, 'L')
+        self.safe_cell(100, 6, 'Nome: _______________________________', 0, 0, 'L')
+        self.safe_cell(100, 6, 'Nome: _______________________________', 0, 1, 'L')
+        self.safe_cell(100, 6, 'CPF: ________________________________', 0, 0, 'L')
+        self.safe_cell(100, 6, 'CPF: ________________________________', 0, 1, 'L')
+        self.safe_cell(100, 6, 'Assinatura: _________________________', 0, 0, 'L')
+        self.safe_cell(100, 6, 'Assinatura: _________________________', 0, 1, 'L')
 
 
 def gerar_pdf_locacao(dados, output_path):
