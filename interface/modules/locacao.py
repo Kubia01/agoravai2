@@ -483,7 +483,7 @@ class LocacaoModule(BaseModule):
         try:
             output_dir = os.path.join('data', 'locacoes')
             os.makedirs(output_dir, exist_ok=True)
-            output_path = os.path.join(output_dir, f"contrato_locacao_{dados['numero'].replace('/', '-')}.pdf")
+            output_path = os.path.join(output_dir, f"contrato-locacao-{dados['numero'].replace('/', '-')}.pdf")
             
             # Chamar a função importada
             gerar_pdf_locacao(dados, output_path)
@@ -699,7 +699,7 @@ class LocacaoModule(BaseModule):
             }
             output_dir = os.path.join('data', 'locacoes')
             os.makedirs(output_dir, exist_ok=True)
-            output_path = os.path.join(output_dir, f"contrato_locacao_{numero.replace('/', '-')}.pdf")
+            output_path = os.path.join(output_dir, f"contrato-locacao-{numero.replace('/', '-')}.pdf")
             
             # Chamar a função importada
             gerar_pdf_locacao(dados, output_path)
