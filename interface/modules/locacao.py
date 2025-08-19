@@ -407,7 +407,7 @@ class LocacaoModule(BaseModule):
                     data_inicio, data_fim, marca, modelo, numero_serie,
                     valor_mensal, moeda, vencimento_dia, condicoes_pagamento,
                     imagem_compressor, apresentacao_texto, prezados_linha, equipamento_titulo, itens_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 dados['numero'], dados['cliente_id'], dados['filial_id'], dados['responsavel_id'],
                 dados.get('data_inicio') or None, dados.get('data_fim') or None, dados['marca'], dados['modelo'], dados['serie'],
