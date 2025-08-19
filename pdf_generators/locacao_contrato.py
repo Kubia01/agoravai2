@@ -179,20 +179,20 @@ COORDS = {
         'saudacao': {
             'x': 70,
             'y': 700,
-            'font': 'Helvetica',
+            'font': 'DejaVuSans',
             'size': 11
         },
         # Bloco PROPOSTA COMERCIAL + REF/NÚMERO/DATA
         'pc_title': {
             'x': 70,
             'y': 760,
-            'font': 'Helvetica-Bold',
+            'font': 'DejaVuSans-Bold',
             'size': 16
         },
         'pc_labels': {
             'x': 70,
             'y': 740,
-            'font': 'Helvetica',
+            'font': 'DejaVuSans',
             'size': 12,
             'leading': 16
         },
@@ -201,7 +201,7 @@ COORDS = {
             'ac_x': 70,
             'de_x': 360,
             'y': 710,
-            'font': 'Helvetica',
+            'font': 'DejaVuSans',
             'size': 10,
             'leading': 14
         }
@@ -220,7 +220,7 @@ COORDS = {
         'condicoes': {
             'x': 70,
             'y': 700,
-            'font': 'Helvetica',
+            'font': 'DejaVuSans',
             'size': 11,
             'max_width': 470,
             'leading': 14
@@ -231,7 +231,7 @@ COORDS = {
         'termos': {
             'x': 70,
             'y': 700,
-            'font': 'Helvetica',
+            'font': 'DejaVuSans',
             'size': 11,
             'leading': 14
         },
@@ -250,10 +250,12 @@ def _overlay_on_template(template_pdf: str, output_pdf: str, dados: dict):
     reader = PdfReader(template_pdf)
     writer = PdfWriter()
 
-    # Tenta registrar fontes comuns (opcional)
+    # Tenta registrar fontes DejaVu para suportar acentuação
     try:
-        pdfmetrics.registerFont(TTFont('Arial', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
+        pdfmetrics.registerFont(TTFont('DejaVuSans', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
+        pdfmetrics.registerFont(TTFont('DejaVuSans-Bold', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'))
     except Exception:
+        # Se não disponível, a Helvetica será usada e alguns acentos podem perder fidelidade
         pass
 
     for index in range(len(reader.pages)):
