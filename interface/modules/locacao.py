@@ -461,7 +461,7 @@ class LocacaoModule(BaseModule):
             'vencimento_dia': (self.vencimento_dia_var.get() or '').strip(),
             'condicoes_pagamento': condicoes_pg,
             'imagem_compressor': (self.imagem_compressor_var.get() or '').strip(),
-            'cliente_nome': cliente_nome_display,
+            'cliente_nome': cliente_nome_display.replace('_', ' ') if cliente_nome_display else 'CLIENTE',
             'prezados_linha': (self.prezados_var.get() or '').strip(),
             'apresentacao_texto': '' if self.use_default_apresentacao_var.get() else (self.apresentacao_text.get('1.0','end') or '').strip(),
             'equipamento_titulo': (self.equip_titulo_var.get() or '').strip(),
