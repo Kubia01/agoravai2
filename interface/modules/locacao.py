@@ -181,26 +181,31 @@ class LocacaoModule(BaseModule):
         tk.Button(img_frame, text="Selecionar Imagem", bg='#3b82f6', fg='white', relief='flat', command=self._selecionar_imagem).pack(side="left", padx=(8, 0))
         add_row("Imagem do Compressor:", img_frame)
 
-        # Editor de Itens (Página 5)
-        itens_card = tk.Frame(form_card, bg='white')
-        itens_card.pack(fill='both', expand=False, padx=12, pady=6)
+        # Editor de Itens (Página 5) — dentro do formulário rolável
+        itens_card = tk.Frame(form, bg='white')
+        itens_card.grid(row=row, column=0, columnspan=2, sticky='ew', padx=(0, 0), pady=6)
+        row += 1
         tk.Label(itens_card, text="Itens da Tabela (Página 5)", font=('Arial', 11, 'bold'), bg='white').pack(anchor='w')
-        # Linha de adição de item (digitável)
+        # Linha de adição de item (digitável) em 2 linhas (grid)
         add_item_frame = tk.Frame(itens_card, bg='white')
         add_item_frame.pack(fill='x', pady=(4, 8))
-        tk.Label(add_item_frame, text="Quantidade:", bg='white').pack(side='left', padx=(0,6))
+        add_item_frame.grid_columnconfigure(1, weight=1)
+        add_item_frame.grid_columnconfigure(3, weight=1)
+        # Linha 0
+        tk.Label(add_item_frame, text="Quantidade:", bg='white').grid(row=0, column=0, sticky='w', padx=(0,6), pady=2)
         self.item_qtd_var = tk.StringVar(value="1")
-        tk.Entry(add_item_frame, textvariable=self.item_qtd_var, width=6).pack(side='left', padx=(0,12))
-        tk.Label(add_item_frame, text="Descrição:", bg='white').pack(side='left', padx=(0,6))
+        tk.Entry(add_item_frame, textvariable=self.item_qtd_var, width=8).grid(row=0, column=1, sticky='w', padx=(0,12), pady=2)
+        tk.Label(add_item_frame, text="Descrição:", bg='white').grid(row=0, column=2, sticky='w', padx=(0,6), pady=2)
         self.item_desc_var = tk.StringVar()
-        tk.Entry(add_item_frame, textvariable=self.item_desc_var, width=40).pack(side='left', fill='x', expand=True, padx=(0,12))
-        tk.Label(add_item_frame, text="Valor mensal:", bg='white').pack(side='left', padx=(0,6))
+        tk.Entry(add_item_frame, textvariable=self.item_desc_var).grid(row=0, column=3, sticky='ew', padx=(0,12), pady=2)
+        # Linha 1
+        tk.Label(add_item_frame, text="Valor mensal:", bg='white').grid(row=1, column=0, sticky='w', padx=(0,6), pady=2)
         self.item_valor_var = tk.StringVar(value="0,00")
-        tk.Entry(add_item_frame, textvariable=self.item_valor_var, width=12).pack(side='left', padx=(0,12))
-        tk.Label(add_item_frame, text="Período:", bg='white').pack(side='left', padx=(0,6))
+        tk.Entry(add_item_frame, textvariable=self.item_valor_var, width=12).grid(row=1, column=1, sticky='w', padx=(0,12), pady=2)
+        tk.Label(add_item_frame, text="Período:", bg='white').grid(row=1, column=2, sticky='w', padx=(0,6), pady=2)
         self.item_periodo_var = tk.StringVar(value="5 anos")
-        tk.Entry(add_item_frame, textvariable=self.item_periodo_var, width=12).pack(side='left', padx=(0,12))
-        ttk.Button(add_item_frame, text="Adicionar", command=self._add_item_from_fields).pack(side='left')
+        tk.Entry(add_item_frame, textvariable=self.item_periodo_var, width=16).grid(row=1, column=3, sticky='w', padx=(0,12), pady=2)
+        ttk.Button(add_item_frame, text="Adicionar", command=self._add_item_from_fields).grid(row=1, column=4, sticky='w', pady=2)
 
         # Lista de itens
         itens_frame = tk.Frame(itens_card, bg='white')
@@ -229,9 +234,10 @@ class LocacaoModule(BaseModule):
         # Dica
         tk.Label(itens_card, text="Dica: Preencha acima e clique Adicionar. Selecione um item na lista para Editar/Remover.", bg='white', fg='#64748b', font=('Arial', 9, 'italic')).pack(anchor='w', pady=(4,0))
 
-        # Ações
-        actions = tk.Frame(form_card, bg='white')
-        actions.pack(fill="x", padx=12, pady=(0, 12))
+        # Ações (dentro do formulário rolável)
+        actions = tk.Frame(form, bg='white')
+        actions.grid(row=row, column=0, columnspan=2, sticky="ew", padx=(0, 0), pady=(4, 12))
+        row += 1
         gerar_btn = self.create_button(actions, "Gerar PDF", self._gerar_pdf, bg='#10b981')
         gerar_btn.pack(side="right")
         salvar_btn = self.create_button(actions, "Salvar Locação", self._salvar_locacao, bg='#3b82f6')
