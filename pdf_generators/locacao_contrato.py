@@ -59,6 +59,80 @@ def fetch_cliente(cliente_id):
 def fetch_responsavel(responsavel_id):
     if not responsavel_id:
         return None
+
+
+def fetch_locacao_by_numero(numero: str):
+    if not numero:
+        return None
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT id, numero_proposta, cliente_id, filial_id, responsavel_id, data_inicio, data_fim,
+                   marca, modelo, numero_serie, valor_mensal, moeda, vencimento_dia,
+                   condicoes_pagamento, imagem_compressor
+            FROM locacoes
+            WHERE numero_proposta = ?
+            """,
+            (numero,)
+        )
+        row = c.fetchone()
+        conn.close()
+        return row
+    except Exception:
+        return None
+
+
+def fetch_cotacao_by_numero(numero: str):
+    if not numero:
+        return None
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT id, numero_proposta, cliente_id, responsavel_id, filial_id, condicao_pagamento, data_criacao
+            FROM cotacoes
+            WHERE numero_proposta = ?
+            """,
+            (numero,)
+        )
+        row = c.fetchone()
+        conn.close()
+        return row
+    except Exception:
+        return None
+
+
+def fetch_itens_cotacao(cotacao_id: int):
+    itens = []
+    if not cotacao_id:
+        return itens
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT id, tipo, item_nome, quantidade, descricao, valor_unitario, valor_total_item, tipo_operacao
+            FROM itens_cotacao
+            WHERE cotacao_id = ?
+            ORDER BY id ASC
+            """,
+            (cotacao_id,)
+        )
+        for rid, tipo, nome, qtd, desc, vunit, vtotal, tipo_op in c.fetchall():
+            itens.append({
+                'item': str(rid).zfill(2),
+                'quantidade': qtd,
+                'descricao': nome or desc or '',
+                'valor_unitario': vunit,
+                'periodo': ''
+            })
+        conn.close()
+    except Exception:
+        pass
+    return itens
     try:
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
@@ -135,6 +209,13 @@ class LocacaoPDF(FPDF):
             return
         self.set_font('Arial', 'B', 10)
         self.cell(0, 7, clean_text(self.filial.get('nome', '')), 0, 1, 'L')
+        # Responsavel
+        if self.responsavel:
+            nome, email, telefone, _ = (self.responsavel + (None,))[:4]
+            line = " | ".join([p for p in [clean_text(nome or ''), clean_text(email or ''), clean_text(telefone or '')] if p])
+            if line:
+                self.set_font('Arial', '', 9)
+                self.cell(0, 5, line, 0, 1, 'L')
         # Linha separadora
         self.set_draw_color(150, 150, 150)
         self.set_line_width(0.2)
@@ -430,6 +511,48 @@ class LocacaoPDF(FPDF):
 
 
 def gerar_pdf_locacao(dados: dict, output_path: str):
+    # Enriquecer dados a partir do banco, se possível
+    numero = dados.get('numero')
+    # 1) Locacao
+    lrow = fetch_locacao_by_numero(numero)
+    if lrow:
+        (
+            _id, _num, cliente_id, filial_id, responsavel_id, di, df,
+            marca, modelo, serie, valor_mensal, moeda, venc_dia,
+            cond_pag, img_comp
+        ) = lrow
+        dados.setdefault('cliente_id', cliente_id)
+        dados.setdefault('filial_id', filial_id)
+        dados.setdefault('responsavel_id', responsavel_id)
+        dados.setdefault('data_inicio', di)
+        dados.setdefault('data_fim', df)
+        dados.setdefault('marca', marca)
+        dados.setdefault('modelo', modelo)
+        dados.setdefault('serie', serie)
+        dados.setdefault('valor_mensal', valor_mensal)
+        dados.setdefault('moeda', moeda)
+        dados.setdefault('vencimento_dia', venc_dia)
+        dados.setdefault('condicoes_pagamento', cond_pag)
+        dados.setdefault('imagem_compressor', img_comp)
+    # 2) Cotacao + itens
+    crow = fetch_cotacao_by_numero(numero)
+    if crow:
+        (cid, _num, cli_id, resp_id, fil_id, cond_pag, data_criacao) = crow
+        dados.setdefault('cliente_id', cli_id)
+        dados.setdefault('responsavel_id', resp_id)
+        dados.setdefault('filial_id', fil_id)
+        dados.setdefault('condicoes_pagamento', cond_pag)
+        dados.setdefault('data', data_criacao)
+        if not dados.get('itens'):
+            itens = fetch_itens_cotacao(cid)
+            if itens:
+                # preenche periodo se houver no dado global
+                periodo = dados.get('periodo') or '5 anos'
+                for it in itens:
+                    if not it.get('periodo'):
+                        it['periodo'] = periodo
+                dados['itens'] = itens
+
     out_dir = os.path.dirname(output_path)
     if out_dir and out_dir != '.':
         os.makedirs(out_dir, exist_ok=True)
