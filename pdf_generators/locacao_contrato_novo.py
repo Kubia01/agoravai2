@@ -148,7 +148,7 @@ class LocacaoPDF(FPDF):
         # Linha separadora
         self.set_draw_color(150, 150, 150)
         self.set_line_width(0.2)
-        self.line(10, 20, 200, 20)
+        self.line(10, 20, 190, 20)
         self.ln(2)
 
     def footer(self):
@@ -156,7 +156,7 @@ class LocacaoPDF(FPDF):
             return
         self.set_y(-20)
         self.set_draw_color(150, 150, 150)
-        self.line(10, self.get_y(), 200, self.get_y())
+        self.line(10, self.get_y(), 190, self.get_y())
         self.ln(2)
         self.set_font('Arial', '', 8)
         endereco = self.filial.get('endereco', '')
@@ -172,7 +172,8 @@ class LocacaoPDF(FPDF):
     def write_paragraph(self, text, line_height=5):
         for line in clean_text(text).split('\n'):
             if line.strip():
-                self.multi_cell(0, line_height, clean_text(line))
+                # Usar cell em vez de multi_cell para evitar problemas de espaço
+                self.cell(0, line_height, clean_text(line), 0, 1, 'L')
             else:
                 self.ln(line_height)
 
@@ -215,43 +216,43 @@ class LocacaoPDF(FPDF):
         y = self.get_y()
         self.set_font('Arial', 'B', 10)
         self.set_xy(10, y)
-        self.cell(90, 6, 'A/C:', 0, 0, 'L')
-        self.set_xy(110, y)
-        self.cell(90, 6, 'De:', 0, 1, 'L')
+        self.cell(85, 6, 'A/C:', 0, 0, 'L')
+        self.set_xy(105, y)
+        self.cell(85, 6, 'De:', 0, 1, 'L')
         cliente_nome = self.dados.get('cliente_nome')
         if not cliente_nome and self.cliente:
             cliente_nome = self.cliente[1] or self.cliente[0]
         self.set_font('Arial', '', 10)
         self.set_xy(10, y + 8)
-        self.cell(90, 6, clean_text(cliente_nome or ''), 0, 0, 'L')
-        self.set_xy(110, y + 8)
-        self.cell(90, 6, 'WORLD COMP DO BRASIL', 0, 1, 'L')
+        self.cell(85, 6, clean_text(cliente_nome or ''), 0, 0, 'L')
+        self.set_xy(105, y + 8)
+        self.cell(85, 6, 'WORLD COMP DO BRASIL', 0, 1, 'L')
         contato = self.dados.get('contato') or 'Srta'
         self.set_xy(10, y + 16)
-        self.cell(90, 6, clean_text(contato), 0, 0, 'L')
+        self.cell(85, 6, clean_text(contato), 0, 0, 'L')
         resp_nome = 'Rogerio Cerqueira | Valdir Bernardes'
         if self.responsavel and self.responsavel[0]:
             resp_nome = clean_text(self.responsavel[0])
-        self.set_xy(110, y + 16)
-        self.cell(90, 6, resp_nome, 0, 1, 'L')
+        self.set_xy(105, y + 16)
+        self.cell(85, 6, resp_nome, 0, 1, 'L')
         self.set_xy(10, y + 24)
-        self.cell(90, 6, 'Compras', 0, 0, 'L')
+        self.cell(85, 6, 'Compras', 0, 0, 'L')
         resp_email = 'rogerio@worldcompressores.com.br'
         if self.responsavel and self.responsavel[1]:
             resp_email = clean_text(self.responsavel[1])
-        self.set_xy(110, y + 24)
-        self.cell(90, 6, resp_email, 0, 1, 'L')
+        self.set_xy(105, y + 24)
+        self.cell(85, 6, resp_email, 0, 1, 'L')
         cli_tel = ''
         if self.cliente and self.cliente[7]:
             cli_tel = self.cliente[7]
         self.set_xy(10, y + 32)
-        self.cell(90, 6, clean_text(cli_tel), 0, 0, 'L')
+        self.cell(85, 6, clean_text(cli_tel), 0, 0, 'L')
         resp_email2 = 'valdir@worldcompressores.com.br'
-        self.set_xy(110, y + 32)
-        self.cell(90, 6, resp_email2, 0, 1, 'L')
+        self.set_xy(105, y + 32)
+        self.cell(85, 6, resp_email2, 0, 1, 'L')
         if self.cliente and self.cliente[8]:
             self.set_xy(10, y + 40)
-            self.cell(90, 6, clean_text(self.cliente[8]), 0, 1, 'L')
+            self.cell(85, 6, clean_text(self.cliente[8]), 0, 1, 'L')
         self.set_y(y + 54)
         # Saudação dinâmica
         tipo = (self.dados.get('equipamento_tipo') or 'compressor').strip()
@@ -260,7 +261,7 @@ class LocacaoPDF(FPDF):
         primeira_linha = f"Prezados Senhores: Apresentamos proposta para locacao de {tipo} {marca} {modelo}.".strip()
 
         self.set_font('Arial', '', 11)
-        self.multi_cell(0, 5, clean_text(primeira_linha))
+        self.cell(0, 5, clean_text(primeira_linha), 0, 1, 'L')
         self.ln(2)
         texto = (
             "Agradecemos por nos conceder a oportunidade de apresentarmos nossa proposta para fornecimento de LOCACAO DE COMPRESSOR DE AR.\n\n"
@@ -325,13 +326,13 @@ class LocacaoPDF(FPDF):
         self.set_font('Arial', '', 11)
         tipo = (self.dados.get('equipamento_tipo') or 'COMPRESSOR DE PARAFUSO LUBRIFICADO REFRIGERADO A AR').upper()
 
-        self.multi_cell(0, 6, clean_text(tipo))
+        self.cell(0, 6, clean_text(tipo), 0, 1, 'L')
         self.ln(3)
         # Imagem
         img = resolve_imagem_compressor(self.dados)
         if img and os.path.exists(img):
             try:
-                self.image(img, x=25, y=self.get_y(), w=160)
+                self.image(img, x=25, y=self.get_y(), w=150)
                 self.ln(90)
             except Exception:
                 self.set_font('Arial', 'I', 10)
@@ -343,13 +344,13 @@ class LocacaoPDF(FPDF):
         self.cell(0, 8, 'CONDICOES COMERCIAIS - EQUIPAMENTOS OFERTADOS', 0, 1, 'L')
 
         self.ln(2)
-        # Cabeçalhos
+        # Cabeçalhos - Ajustando larguras para caber na página
         self.set_font('Arial', 'B', 10)
         self.cell(15, 8, 'Item', 1, 0, 'C')
         self.cell(20, 8, 'Qtd.', 1, 0, 'C')
-        self.cell(90, 8, 'Descricao', 1, 0, 'C')
-        self.cell(30, 8, 'Vlr Unit.', 1, 0, 'C')
-        self.cell(35, 8, 'Periodo', 1, 1, 'C')
+        self.cell(85, 8, 'Descricao', 1, 0, 'C')
+        self.cell(25, 8, 'Vlr Unit.', 1, 0, 'C')
+        self.cell(25, 8, 'Periodo', 1, 1, 'C')
         self.set_font('Arial', '', 10)
         itens = self.dados.get('itens') or []
         if not itens:
@@ -367,11 +368,11 @@ class LocacaoPDF(FPDF):
             self.cell(15, 8, clean_text(str(it.get('item', ''))), 1, 0, 'C')
             self.cell(20, 8, clean_text(str(it.get('quantidade', ''))), 1, 0, 'C')
 
-            self.cell(90, 8, clean_text(str(it.get('descricao', ''))), 1, 0, 'L')
+            self.cell(85, 8, clean_text(str(it.get('descricao', ''))), 1, 0, 'L')
 
-            self.cell(30, 8, clean_text(format_currency(it.get('valor_unitario'))), 1, 0, 'R')
+            self.cell(25, 8, clean_text(format_currency(it.get('valor_unitario'))), 1, 0, 'R')
 
-            self.cell(35, 8, clean_text(str(it.get('periodo', ''))), 1, 1, 'C')
+            self.cell(25, 8, clean_text(str(it.get('periodo', ''))), 1, 1, 'C')
         self.ln(4)
         self.set_font('Arial', 'B', 12)
         self.cell(40, 8, 'VALOR MENSAL', 0, 0, 'L')
@@ -417,7 +418,7 @@ class LocacaoPDF(FPDF):
 
         ]
         for b in bullets:
-            self.multi_cell(0, 5, f"- {clean_text(b)}")
+            self.cell(0, 5, f"- {clean_text(b)}", 0, 1, 'L')
 
     def page_7_termos(self):
         self.add_page()
@@ -431,15 +432,15 @@ class LocacaoPDF(FPDF):
 
         proposta = self.dados.get('numero', '')
         self.set_font('Arial', '', 10)
-        self.multi_cell(0, 5, clean_text(f"Filial: {filial_nome}"))
-        self.multi_cell(0, 5, clean_text(f"Locataria: {locataria}"))
-        self.multi_cell(0, 5, clean_text(f"No da Proposta: {proposta}"))
+        self.cell(0, 5, clean_text(f"Filial: {filial_nome}"), 0, 1, 'L')
+        self.cell(0, 5, clean_text(f"Locataria: {locataria}"), 0, 1, 'L')
+        self.cell(0, 5, clean_text(f"No da Proposta: {proposta}"), 0, 1, 'L')
         self.ln(2)
         # Imagem pequena
         img = resolve_imagem_compressor(self.dados)
         if img and os.path.exists(img):
             try:
-                self.image(img, x=25, y=self.get_y(), w=70)
+                self.image(img, x=25, y=self.get_y(), w=60)
                 self.ln(50)
             except Exception:
                 pass
