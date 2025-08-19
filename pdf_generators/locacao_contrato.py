@@ -181,6 +181,29 @@ COORDS = {
             'y': 700,
             'font': 'Helvetica',
             'size': 11
+        },
+        # Bloco PROPOSTA COMERCIAL + REF/NÚMERO/DATA
+        'pc_title': {
+            'x': 70,
+            'y': 760,
+            'font': 'Helvetica-Bold',
+            'size': 16
+        },
+        'pc_labels': {
+            'x': 70,
+            'y': 740,
+            'font': 'Helvetica',
+            'size': 12,
+            'leading': 16
+        },
+        # Bloco A/C e De
+        'ac_de': {
+            'ac_x': 70,
+            'de_x': 360,
+            'y': 710,
+            'font': 'Helvetica',
+            'size': 10,
+            'leading': 14
         }
     },
     4: {
@@ -241,8 +264,79 @@ def _overlay_on_template(template_pdf: str, output_pdf: str, dados: dict):
         with NamedTemporaryFile(delete=False, suffix='.pdf') as temp_pdf:
             c = canvas.Canvas(temp_pdf.name, pagesize=A4)
 
-            # Página 2: Saudação
+            # Cabeçalho/Rodapé (todas as páginas exceto capa)
+            if page_no >= 2:
+                filial = obter_filial(dados.get('filial_id') or 2) or {}
+                # Cabeçalho
+                try:
+                    c.setFont('Helvetica-Bold', 11)
+                    c.drawString(40, 810, _clean_text(filial.get('nome', '')))
+                except Exception:
+                    pass
+                # Rodapé (3 linhas centralizadas)
+                try:
+                    c.setFont('Helvetica', 9)
+                    endereco = filial.get('endereco', '')
+                    cep = filial.get('cep', '')
+                    cnpj = filial.get('cnpj', 'N/A')
+                    email = filial.get('email', '')
+                    fones = filial.get('telefones', '')
+                    c.drawCentredString(297.5, 40, _clean_text(f"{endereco} - CEP: {cep}"))
+                    c.drawCentredString(297.5, 28, _clean_text(f"CNPJ: {cnpj}"))
+                    c.drawCentredString(297.5, 16, _clean_text(f"E-mail: {email} | Fone: {fones}"))
+                except Exception:
+                    pass
+
+            # Página 2: PROPOSTA + Saudação
             if page_no == 2 and 'saudacao' in COORDS.get(2, {}):
+                # PROPOSTA COMERCIAL + REF/NÚMERO/DATA
+                if 'pc_title' in COORDS[2]:
+                    cfg = COORDS[2]['pc_title']
+                    c.setFont(cfg['font'], cfg['size'])
+                    c.drawString(cfg['x'], cfg['y'], 'PROPOSTA COMERCIAL')
+                if 'pc_labels' in COORDS[2]:
+                    cfg = COORDS[2]['pc_labels']
+                    c.setFont(cfg['font'], cfg['size'])
+                    y = cfg['y']
+                    num = _clean_text(dados.get('numero') or '')
+                    data_val = dados.get('data') or datetime.today().strftime('%d/%m/%Y')
+                    c.drawString(cfg['x'], y, 'REF:  CONTRATO DE LOCAÇÃO')
+                    y -= cfg['leading']
+                    c.drawString(cfg['x'], y, f'NÚMERO: {num}')
+                    y -= cfg['leading']
+                    c.drawString(cfg['x'], y, f'DATA: {data_val}')
+
+                # Bloco A/C | De
+                if 'ac_de' in COORDS[2]:
+                    cfg = COORDS[2]['ac_de']
+                    c.setFont(cfg['font'], cfg['size'])
+                    y = cfg['y']
+                    ac_nome = _clean_text(dados.get('cliente_nome') or dados.get('ac_cliente') or '')
+                    de_empresa = obter_filial(dados.get('filial_id') or 2).get('nome', 'WORLD COMP DO BRASIL')
+                    de_nomes = dados.get('de_nomes') or 'Rogério Cerqueira | Valdir Bernardes'
+                    de_emails = dados.get('de_emails') or 'rogerio@worldcompressores.com.br    valdir@worldcompressores.com.br'
+                    de_fones = dados.get('de_telefones') or '11 97283-8255'
+                    ac_email = dados.get('ac_email') or ''
+
+                    # A/C
+                    c.drawString(cfg['ac_x'], y, 'A/C:')
+                    c.drawString(cfg['ac_x'] + 40, y, ac_nome)
+
+                    # De
+                    c.drawString(cfg['de_x'], y, 'De:')
+                    c.drawString(cfg['de_x'] + 30, y, _clean_text(de_empresa))
+                    y -= cfg['leading']
+                    c.drawString(cfg['ac_x'], y, 'Srta')
+                    c.drawString(cfg['de_x'], y, _clean_text(de_nomes))
+                    y -= cfg['leading']
+                    c.drawString(cfg['ac_x'], y, 'Compras')
+                    c.drawString(cfg['de_x'], y, _clean_text(de_emails))
+                    y -= cfg['leading']
+                    if de_fones:
+                        c.drawString(cfg['de_x'], y, _clean_text(de_fones))
+                    if ac_email:
+                        c.drawString(cfg['ac_x'], y, _clean_text(ac_email))
+
                 cfg = COORDS[2]['saudacao']
                 tipo = (dados.get('equipamento_tipo') or 'compressor').strip()
                 equip = tipo
