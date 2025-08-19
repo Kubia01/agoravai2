@@ -188,11 +188,33 @@ def criar_banco():
         vencimento_dia TEXT,
         condicoes_pagamento TEXT,
         imagem_compressor TEXT,
+        apresentacao_texto TEXT,
+        prezados_linha TEXT,
+        equipamento_titulo TEXT,
+        itens_json TEXT,
         caminho_pdf TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (cliente_id) REFERENCES clientes(id),
         FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
     )''')
+
+    # Migrações de colunas em 'locacoes'
+    try:
+        c.execute("ALTER TABLE locacoes ADD COLUMN apresentacao_texto TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE locacoes ADD COLUMN prezados_linha TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE locacoes ADD COLUMN equipamento_titulo TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE locacoes ADD COLUMN itens_json TEXT")
+    except sqlite3.OperationalError:
+        pass
 
     # Tabela Relatórios Técnicos - ATUALIZADA com campos das abas 2 e 3
     c.execute('''CREATE TABLE IF NOT EXISTS relatorios_tecnicos (

@@ -3,6 +3,8 @@ from tkinter import ttk, messagebox, filedialog, scrolledtext
 import sqlite3
 import os
 from datetime import datetime
+import json
+import json
 
 from .base_module import BaseModule
 from database import DB_NAME
@@ -55,6 +57,18 @@ class LocacaoModule(BaseModule):
         self.vencimento_dia_var = tk.StringVar(value="10")
         self.condicoes_pagamento_text = scrolledtext.ScrolledText(form, height=5, width=40, font=('Arial', 10))
         self.imagem_compressor_var = tk.StringVar()
+        # Novos campos dinâmicos
+        self.prezados_var = tk.StringVar()
+        self.equip_titulo_var = tk.StringVar()
+        self.use_default_apresentacao_var = tk.BooleanVar(value=True)
+        self.apresentacao_text = scrolledtext.ScrolledText(form, height=8, width=40, font=('Arial', 10))
+        self.itens = []
+        # Novos campos
+        self.prezados_var = tk.StringVar()
+        self.equip_titulo_var = tk.StringVar()
+        self.use_default_apresentacao_var = tk.BooleanVar(value=True)
+        self.apresentacao_text = scrolledtext.ScrolledText(form, height=8, width=40, font=('Arial', 10))
+        self.itens = []
 
         # Helper para grid
         row = 0
@@ -114,12 +128,78 @@ class LocacaoModule(BaseModule):
         tk.Label(form, text="Condições de Pagamento:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="nw", pady=5)
         self.condicoes_pagamento_text.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
         row += 1
+        # Linha dos 'Prezados' (Página 2)
+        add_row("Linha dos 'Prezados':", tk.Entry(form, textvariable=self.prezados_var, font=('Arial', 10)))
+        # Texto de Apresentação (Página 2)
+        ap_frame = tk.Frame(form, bg='white')
+        def _toggle_apresentacao():
+            state = 'disabled' if self.use_default_apresentacao_var.get() else 'normal'
+            self.apresentacao_text.configure(state=state)
+        tk.Checkbutton(ap_frame, text="Usar texto padrão", variable=self.use_default_apresentacao_var, bg='white', command=_toggle_apresentacao).pack(anchor='w')
+        self.apresentacao_text.pack(fill='both', expand=True)
+        _toggle_apresentacao()
+        add_row("Apresentação (Pág. 2):", ap_frame)
+        # Título do Equipamento (Página 4)
+        add_row("Título do Equipamento (Pág. 4):", tk.Entry(form, textvariable=self.equip_titulo_var, font=('Arial', 10)))
+        # Linha dos 'Prezados'
+        add_row("Linha dos 'Prezados':", tk.Entry(form, textvariable=self.prezados_var, font=('Arial', 10)))
+        # Texto Apresentação
+        ap_frame = tk.Frame(form, bg='white')
+        def _toggle_apresentacao():
+            state = 'disabled' if self.use_default_apresentacao_var.get() else 'normal'
+            self.apresentacao_text.configure(state=state)
+        tk.Checkbutton(ap_frame, text="Usar texto padrão", variable=self.use_default_apresentacao_var, bg='white', command=_toggle_apresentacao).pack(anchor='w')
+        self.apresentacao_text.pack(fill='both', expand=True)
+        _toggle_apresentacao()
+        add_row("Apresentação (Pág. 2):", ap_frame)
+        # Título do Equipamento (Pág. 4)
+        add_row("Título do Equipamento (Pág. 4):", tk.Entry(form, textvariable=self.equip_titulo_var, font=('Arial', 10)))
 
         # Imagem do compressor
         img_frame = tk.Frame(form, bg='white')
         tk.Entry(img_frame, textvariable=self.imagem_compressor_var, font=('Arial', 10)).pack(side="left", fill="x", expand=True)
         tk.Button(img_frame, text="Selecionar Imagem", bg='#3b82f6', fg='white', relief='flat', command=self._selecionar_imagem).pack(side="left", padx=(8, 0))
         add_row("Imagem do Compressor:", img_frame)
+
+        # Editor de Itens (Página 5)
+        itens_card = tk.Frame(form_card, bg='white')
+        itens_card.pack(fill='both', expand=False, padx=12, pady=6)
+        tk.Label(itens_card, text="Itens da Tabela (Página 5)", font=('Arial', 11, 'bold'), bg='white').pack(anchor='w')
+        itens_frame = tk.Frame(itens_card, bg='white')
+        itens_frame.pack(fill='both', expand=True)
+        self.itens_tree = ttk.Treeview(itens_frame, columns=("item","quantidade","descricao","valor_unitario","periodo"), show='headings', height=5)
+        for col, text in [("item","Item"),("quantidade","Qtd."),("descricao","Descrição"),("valor_unitario","Valor Unitário"),("periodo","Período")]:
+            self.itens_tree.heading(col, text=text)
+            self.itens_tree.column(col, width=140 if col=="descricao" else 100)
+        self.itens_tree.pack(side='left', fill='both', expand=True)
+        it_scroll = ttk.Scrollbar(itens_frame, orient='vertical', command=self.itens_tree.yview)
+        self.itens_tree.configure(yscrollcommand=it_scroll.set)
+        it_scroll.pack(side='right', fill='y')
+        item_btns = tk.Frame(itens_card, bg='white')
+        item_btns.pack(fill='x', pady=(6,0))
+        ttk.Button(item_btns, text="Adicionar", command=self._add_item).pack(side='left')
+        ttk.Button(item_btns, text="Editar", command=self._edit_item).pack(side='left', padx=6)
+        ttk.Button(item_btns, text="Remover", command=self._remove_item).pack(side='left')
+
+        # Editor de Itens (Pág. 5)
+        itens_card = tk.Frame(form_card, bg='white')
+        itens_card.pack(fill='both', expand=False, padx=12, pady=6)
+        tk.Label(itens_card, text="Itens da Tabela (Página 5)", font=('Arial', 11, 'bold'), bg='white').pack(anchor='w')
+        itens_frame = tk.Frame(itens_card, bg='white')
+        itens_frame.pack(fill='both', expand=True)
+        self.itens_tree = ttk.Treeview(itens_frame, columns=("item","quantidade","descricao","valor_unitario","periodo"), show='headings', height=5)
+        for col, text in [("item","Item"),("quantidade","Qtd."),("descricao","Descrição"),("valor_unitario","Valor Unitário"),("periodo","Período")]:
+            self.itens_tree.heading(col, text=text)
+            self.itens_tree.column(col, width=140 if col=="descricao" else 100)
+        self.itens_tree.pack(side='left', fill='both', expand=True)
+        it_scroll = ttk.Scrollbar(itens_frame, orient='vertical', command=self.itens_tree.yview)
+        self.itens_tree.configure(yscrollcommand=it_scroll.set)
+        it_scroll.pack(side='right', fill='y')
+        item_btns = tk.Frame(itens_card, bg='white')
+        item_btns.pack(fill='x', pady=(6,0))
+        ttk.Button(item_btns, text="Adicionar", command=self._add_item).pack(side='left')
+        ttk.Button(item_btns, text="Editar", command=self._edit_item).pack(side='left', padx=6)
+        ttk.Button(item_btns, text="Remover", command=self._remove_item).pack(side='left')
 
         # Ações
         actions = tk.Frame(form_card, bg='white')
@@ -290,13 +370,13 @@ class LocacaoModule(BaseModule):
                     numero_proposta, cliente_id, filial_id, responsavel_id,
                     data_inicio, data_fim, marca, modelo, numero_serie,
                     valor_mensal, moeda, vencimento_dia, condicoes_pagamento,
-                    imagem_compressor, caminho_pdf
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+                    imagem_compressor, apresentacao_texto, prezados_linha, equipamento_titulo, itens_json, caminho_pdf
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
             """, (
                 dados['numero'], dados['cliente_id'], dados['filial_id'], dados['responsavel_id'],
                 dados['data_inicio'], dados['data_fim'], dados['marca'], dados['modelo'], dados['serie'],
                 dados['valor_mensal'], dados['moeda'], dados['vencimento_dia'], dados['condicoes_pagamento'],
-                dados['imagem_compressor']
+                dados['imagem_compressor'], dados.get('apresentacao_texto') or '', dados.get('prezados_linha') or '', dados.get('equipamento_titulo') or '', json.dumps(dados.get('itens') or [], ensure_ascii=False)
             ))
             conn.commit()
             self.show_success("Locação salva com sucesso!")
@@ -316,6 +396,19 @@ class LocacaoModule(BaseModule):
         filial_id = int(filial_str.split(' - ')[0]) if ' - ' in filial_str else 2
         cliente_id = getattr(self, 'clientes_dict', {}).get(self.cliente_var.get())
         condicoes_pg = (self.condicoes_pagamento_text.get('1.0', 'end') or '').strip()
+        # Calcular display do cliente
+        cliente_nome_display = self.cliente_var.get().strip()
+        try:
+            if cliente_id:
+                conn = sqlite3.connect(DB_NAME)
+                c = conn.cursor()
+                c.execute("SELECT COALESCE(nome_fantasia, nome) FROM clientes WHERE id = ?", (cliente_id,))
+                row = c.fetchone()
+                if row and row[0]:
+                    cliente_nome_display = row[0]
+                conn.close()
+        except Exception:
+            pass
         return {
             'numero': (self.numero_var.get() or self.gerar_numero_sequencial_locacao()).strip(),
             'filial_id': filial_id,
@@ -332,7 +425,11 @@ class LocacaoModule(BaseModule):
             'vencimento_dia': (self.vencimento_dia_var.get() or '').strip(),
             'condicoes_pagamento': condicoes_pg,
             'imagem_compressor': (self.imagem_compressor_var.get() or '').strip(),
-            'cliente_nome': self.cliente_var.get().strip()
+            'cliente_nome': cliente_nome_display,
+            'prezados_linha': (self.prezados_var.get() or '').strip(),
+            'apresentacao_texto': '' if self.use_default_apresentacao_var.get() else (self.apresentacao_text.get('1.0','end') or '').strip(),
+            'equipamento_titulo': (self.equip_titulo_var.get() or '').strip(),
+            'itens': list(self.itens)
         }
 
     def _gerar_pdf(self):
@@ -439,13 +536,13 @@ class LocacaoModule(BaseModule):
             conn = sqlite3.connect(DB_NAME)
             c = conn.cursor()
             c.execute(
-                "SELECT numero_proposta, cliente_id, filial_id, data_inicio, data_fim, marca, modelo, numero_serie, valor_mensal, moeda, vencimento_dia, condicoes_pagamento, imagem_compressor FROM locacoes WHERE id = ?",
+                "SELECT numero_proposta, cliente_id, filial_id, data_inicio, data_fim, marca, modelo, numero_serie, valor_mensal, moeda, vencimento_dia, condicoes_pagamento, imagem_compressor, apresentacao_texto, prezados_linha, equipamento_titulo, itens_json FROM locacoes WHERE id = ?",
                 (locacao_id,)
             )
             row = c.fetchone()
             if not row:
                 return
-            (numero, cliente_id, filial_id, di, df, marca, modelo, serie, vm, moeda, venc, cond_pg, img) = row
+            (numero, cliente_id, filial_id, di, df, marca, modelo, serie, vm, moeda, venc, cond_pg, img, ap_texto, prez, equip_titulo, itens_json) = row
             # Setar campos
             self.current_locacao_id = locacao_id
             self.numero_var.set(numero or "")
@@ -486,6 +583,25 @@ class LocacaoModule(BaseModule):
             if cond_pg:
                 self.condicoes_pagamento_text.insert('1.0', cond_pg)
             self.imagem_compressor_var.set(img or "")
+            # Novos campos
+            self.prezados_var.set(prez or "")
+            self.equip_titulo_var.set(equip_titulo or "")
+            if ap_texto:
+                self.use_default_apresentacao_var.set(False)
+                self.apresentacao_text.configure(state='normal')
+                self.apresentacao_text.delete('1.0','end')
+                self.apresentacao_text.insert('1.0', ap_texto)
+            else:
+                self.use_default_apresentacao_var.set(True)
+                self.apresentacao_text.configure(state='disabled')
+            # Itens
+            self.itens = []
+            try:
+                if itens_json:
+                    self.itens = json.loads(itens_json)
+            except Exception:
+                self.itens = []
+            self._refresh_itens_tree()
         except Exception as e:
             self.show_error(f"Erro ao carregar locação: {e}")
         finally:
@@ -514,13 +630,13 @@ class LocacaoModule(BaseModule):
             conn = sqlite3.connect(DB_NAME)
             c = conn.cursor()
             c.execute(
-                "SELECT numero_proposta, cliente_id, filial_id, data_inicio, data_fim, marca, modelo, numero_serie, valor_mensal, moeda, vencimento_dia, condicoes_pagamento, imagem_compressor FROM locacoes WHERE id = ?",
+                "SELECT numero_proposta, cliente_id, filial_id, data_inicio, data_fim, marca, modelo, numero_serie, valor_mensal, moeda, vencimento_dia, condicoes_pagamento, imagem_compressor, apresentacao_texto, prezados_linha, equipamento_titulo, itens_json FROM locacoes WHERE id = ?",
                 (locacao_id,)
             )
             row = c.fetchone()
             if not row:
                 return
-            (numero, cliente_id, filial_id, di, df, marca, modelo, serie, vm, moeda, venc, cond_pg, img) = row
+            (numero, cliente_id, filial_id, di, df, marca, modelo, serie, vm, moeda, venc, cond_pg, img, ap_texto, prez, equip_titulo, itens_json) = row
             # Obter nome do cliente
             c.execute("SELECT COALESCE(nome_fantasia, nome) FROM clientes WHERE id = ?", (cliente_id,))
             cliente_nome = (c.fetchone() or [""])[0]
@@ -539,7 +655,11 @@ class LocacaoModule(BaseModule):
                 'condicoes_pagamento': cond_pg,
                 'imagem_compressor': img,
                 'cliente_nome': cliente_nome,
-                'responsavel_id': getattr(self.main_window, 'user_id', None)
+                'responsavel_id': getattr(self.main_window, 'user_id', None),
+                'prezados_linha': prez or '',
+                'apresentacao_texto': ap_texto or '',
+                'equipamento_titulo': equip_titulo or '',
+                'itens': json.loads(itens_json) if itens_json else []
             }
             output_dir = os.path.join('data', 'locacoes')
             os.makedirs(output_dir, exist_ok=True)
@@ -586,3 +706,75 @@ class LocacaoModule(BaseModule):
         self.vencimento_dia_var.set("10")
         self.condicoes_pagamento_text.delete('1.0', 'end')
         self.imagem_compressor_var.set("")
+        self.prezados_var.set("")
+        self.equip_titulo_var.set("")
+        self.use_default_apresentacao_var.set(True)
+        try:
+            self.apresentacao_text.configure(state='disabled')
+            self.apresentacao_text.delete('1.0','end')
+        except Exception:
+            pass
+        self.itens = []
+        try:
+            for iid in self.itens_tree.get_children():
+                self.itens_tree.delete(iid)
+        except Exception:
+            pass
+
+    # ===== Itens (Página 5) =====
+    def _refresh_itens_tree(self):
+        try:
+            for iid in self.itens_tree.get_children():
+                self.itens_tree.delete(iid)
+            for it in self.itens:
+                self.itens_tree.insert('', 'end', values=(it.get('item',''), it.get('quantidade',''), it.get('descricao',''), it.get('valor_unitario',''), it.get('periodo','')))
+        except Exception:
+            pass
+
+    def _add_item(self):
+        self._open_item_dialog()
+
+    def _edit_item(self):
+        sel = self.itens_tree.selection()
+        if not sel:
+            return
+        index = self.itens_tree.index(sel[0])
+        self._open_item_dialog(index)
+
+    def _remove_item(self):
+        sel = self.itens_tree.selection()
+        if not sel:
+            return
+        index = self.itens_tree.index(sel[0])
+        try:
+            self.itens.pop(index)
+            self._refresh_itens_tree()
+        except Exception:
+            pass
+
+    def _open_item_dialog(self, index=None):
+        dlg = tk.Toplevel(self.frame)
+        dlg.title('Item da Locação')
+        dlg.grab_set()
+        vals = {'item':'', 'quantidade':'', 'descricao':'', 'valor_unitario':'', 'periodo':''}
+        if index is not None and 0 <= index < len(self.itens):
+            vals.update(self.itens[index])
+        # Campos
+        f = tk.Frame(dlg)
+        f.pack(padx=10, pady=10)
+        entries = {}
+        for i, (label, key) in enumerate([("Item","item"),("Quantidade","quantidade"),("Descrição","descricao"),("Valor Unitário","valor_unitario"),("Período","periodo")]):
+            tk.Label(f, text=label).grid(row=i, column=0, sticky='e', padx=5, pady=4)
+            e = tk.Entry(f)
+            e.insert(0, str(vals.get(key, '') if vals.get(key) is not None else ''))
+            e.grid(row=i, column=1, sticky='w', padx=5, pady=4)
+            entries[key] = e
+        def _save():
+            item_obj = {k: entries[k].get() for k in entries}
+            if index is None:
+                self.itens.append(item_obj)
+            else:
+                self.itens[index] = item_obj
+            self._refresh_itens_tree()
+            dlg.destroy()
+        tk.Button(dlg, text='Salvar', command=_save).pack(pady=(0,10))
