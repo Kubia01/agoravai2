@@ -37,8 +37,33 @@ class LocacaoModule(BaseModule):
         form_card = tk.Frame(form_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
         form_card.pack(fill="both", expand=True)
 
-        form = tk.Frame(form_card, bg='white')
-        form.pack(fill="both", expand=True, padx=12, pady=12)
+        # Área de formulário com rolagem
+        form_canvas = tk.Canvas(form_card, bg='white', highlightthickness=0)
+        form_scrollbar = ttk.Scrollbar(form_card, orient='vertical', command=form_canvas.yview)
+        form_canvas.configure(yscrollcommand=form_scrollbar.set)
+        form_scrollbar.pack(side='right', fill='y')
+        form_canvas.pack(side='left', fill='both', expand=True)
+
+        form = tk.Frame(form_canvas, bg='white')
+        form_window = form_canvas.create_window((0, 0), window=form, anchor='nw')
+
+        def _on_form_configure(event):
+            form_canvas.configure(scrollregion=form_canvas.bbox('all'))
+            # Ajustar largura do frame ao canvas
+            form_canvas.itemconfigure(form_window, width=form_canvas.winfo_width())
+
+        form.bind('<Configure>', _on_form_configure)
+
+        # Mouse wheel scroll
+        def _on_mousewheel(event):
+            try:
+                delta = -1*(event.delta//120)
+            except Exception:
+                delta = 1 if event.num == 5 else -1
+            form_canvas.yview_scroll(delta, 'units')
+        form_canvas.bind_all('<MouseWheel>', _on_mousewheel)
+        form_canvas.bind_all('<Button-4>', _on_mousewheel)
+        form_canvas.bind_all('<Button-5>', _on_mousewheel)
 
         # Vars
         self.numero_var = tk.StringVar(value="")
@@ -175,6 +200,8 @@ class LocacaoModule(BaseModule):
         ttk.Button(item_btns, text="Adicionar", command=self._add_item).pack(side='left')
         ttk.Button(item_btns, text="Editar", command=self._edit_item).pack(side='left', padx=6)
         ttk.Button(item_btns, text="Remover", command=self._remove_item).pack(side='left')
+        # Dica
+        tk.Label(itens_card, text="Dica: Use o botão Adicionar para incluir itens, depois selecione um item para Editar/Remover.", bg='white', fg='#64748b', font=('Arial', 9, 'italic')).pack(anchor='w', pady=(4,0))
 
         # Ações
         actions = tk.Frame(form_card, bg='white')
