@@ -261,8 +261,8 @@ class LocacaoPDF(FPDF):
         self.set_font('Times', 'B', 16)
         self.cell(0, 10, 'PROPOSTA COMERCIAL', 0, 1, 'L')
         self.set_font('Times', '', 12)
-        self.cell(0, 6, 'REF:  CONTRATO DE LOCACAO', 0, 1, 'L')
-        self.cell(0, 6, f"NUMERO: {clean_text(self.dados.get('numero',''))}", 0, 1, 'L')
+        self.cell(0, 6, 'REF:  CONTRATO DE LOCAÇÃO', 0, 1, 'L')
+        self.cell(0, 6, f"NÚMERO: {clean_text(self.dados.get('numero',''))}", 0, 1, 'L')
         self.cell(0, 6, f"DATA: {clean_text(self.dados.get('data') or datetime.now().strftime('%d/%m/%Y'))}", 0, 1, 'L')
         self.ln(6)
         # A/C | De
@@ -311,14 +311,15 @@ class LocacaoPDF(FPDF):
         tipo = (self.dados.get('equipamento_tipo') or 'compressor').strip()
         marca = self.dados.get('marca') or ''
         modelo = self.dados.get('modelo') or ''
-        primeira_linha = f"Prezados Senhores: Apresentamos proposta para locacao de {tipo} {marca} {modelo}.".strip()
         self.set_font('Times', '', 12)
-        self.write_paragraph(primeira_linha, line_height=6, align='J')
+        self.cell(0, 6, clean_text('Prezados Senhores:'), 0, 1, 'L')
+        linha_oferta = f"Apresentamos proposta para locação de {tipo} {marca} {modelo}.".strip()
+        self.write_paragraph(linha_oferta, line_height=6, align='J')
         self.ln(2)
         texto = (
-            "Agradecemos por nos conceder a oportunidade de apresentarmos nossa proposta para fornecimento de LOCACAO DE COMPRESSOR DE AR.\n\n"
-            "A World Comp Compressores e especializada em manutencao de compressores de parafuso das principais marcas do mercado, como Atlas Copco, Ingersoll Rand, Chicago. Atuamos tambem com revisao de equipamentos e unidades compressoras, venda de pecas, bem como venda e locacao de compressores de parafuso isentos de oleo e lubrificados.\n\n"
-            "Com profissionais altamente qualificados e atendimento especializado, colocamo-nos a disposicao para analisar, corrigir e prestar os devidos esclarecimentos, sempre buscando atender as especificacoes e necessidades dos nossos clientes."
+            "Agradecemos por nos conceder a oportunidade de apresentarmos nossa proposta para fornecimento de LOCAÇÃO DE COMPRESSOR DE AR.\n\n"
+            "A World Comp Compressores é especializada em manutenção de compressores de parafuso das principais marcas do mercado, como Atlas Copco, Ingersoll Rand, Chicago. Atuamos também com revisão de equipamentos e unidades compressoras, venda de peças, bem como venda e locação de compressores de parafuso isentos de óleo e lubrificados.\n\n"
+            "Com profissionais altamente qualificados e atendimento especializado, colocamo-nos à disposição para analisar, corrigir e prestar os devidos esclarecimentos, sempre buscando atender às especificações e necessidades dos nossos clientes."
         )
         self.set_font('Times', '', 12)
         self.write_paragraph(texto, line_height=6, align='J')
@@ -462,7 +463,7 @@ class LocacaoPDF(FPDF):
             'A World Comp nao se responsabiliza por perdas ou danos indiretos decorrentes dos servicos ou dos equipamentos.'
         ]
         for b in bullets:
-            self.write_paragraph(f"- {clean_text(b)}", line_height=6, align='J')
+            self.write_paragraph(f"• {clean_text(b)}", line_height=6, align='J')
 
     def page_7_termos(self):
         self.add_page()
