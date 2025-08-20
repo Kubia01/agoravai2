@@ -24,21 +24,7 @@ except ImportError as e:
 def clean_text(text):
     if text is None:
         return ""
-    s = str(text).replace("\t", "    ")
-    # Normalização simples de caracteres para evitar problemas de fontes
-    replacements = {
-        '–': '-', '—': '-', '’': "'", '‘': "'", '“': '"', '”': '"',
-        '…': '...', '®': '(R)', '©': '(C)', '™': '(TM)', 'º': 'o', 'ª': 'a',
-        'é': 'e', 'ê': 'e', 'è': 'e', 'á': 'a', 'à': 'a', 'ã': 'a', 'â': 'a',
-        'í': 'i', 'ì': 'i', 'î': 'i', 'ó': 'o', 'ò': 'o', 'õ': 'o', 'ô': 'o',
-        'ú': 'u', 'ù': 'u', 'û': 'u', 'ç': 'c',
-        'É': 'E', 'Ê': 'E', 'È': 'E', 'Á': 'A', 'À': 'A', 'Ã': 'A', 'Â': 'A',
-        'Í': 'I', 'Ì': 'I', 'Î': 'I', 'Ó': 'O', 'Ò': 'O', 'Õ': 'O', 'Ô': 'O',
-        'Ú': 'U', 'Ù': 'U', 'Û': 'U', 'Ç': 'C',
-    }
-    for a, b in replacements.items():
-        s = s.replace(a, b)
-    return s
+    return str(text).replace("\t", "    ")
 
 
 def format_currency(value):
@@ -352,14 +338,14 @@ class LocacaoPDF(FPDF):
         )
         self.ln(4)
         self.set_font('Times', 'B', 14)
-        self.cell(0, 8, 'NOSSOS SERVICOS', 0, 1, 'L')
+        self.cell(0, 8, 'NOSSOS SERVIÇOS', 0, 1, 'L')
         self.set_font('Times', '', 12)
         self.write_paragraph(
             'A empresa oferece um portfolio completo de servicos, que contempla a manutencao preventiva e corretiva de compressores e unidades compressoras, a venda de pecas de reposicao para diversas marcas, a locacao de compressores de parafuso — incluindo modelos lubrificados e isentos de oleo —, alem da recuperacao de unidades compressoras e trocadores de calor.\nA World Comp tambem disponibiliza contratos de manutencao personalizados, adaptados as necessidades operacionais especificas de cada cliente. Dentre os principais fabricantes atendidos, destacam-se marcas reconhecidas como Atlas Copco, Ingersoll Rand e Chicago Pneumatic.'
         )
         self.ln(4)
         self.set_font('Times', 'B', 14)
-        self.cell(0, 8, 'QUALIDADE DOS SERVICOS & MELHORIA CONTINUA', 0, 1, 'L')
+        self.cell(0, 8, 'QUALIDADE DOS SERVIÇOS & MELHORIA CONTÍNUA', 0, 1, 'L')
         self.set_font('Times', '', 12)
         self.write_paragraph(
             'A empresa investe continuamente na capacitacao de sua equipe, na modernizacao de processos e no aprimoramento da estrutura de atendimento, assegurando alto padrao de qualidade, agilidade e eficacia nos servicos. Mantem ainda uma politica ativa de melhoria continua, com avaliacoes periodicas que visam atualizar tecnologias, aperfeicoar metodos e garantir excelencia tecnica.'
@@ -368,7 +354,7 @@ class LocacaoPDF(FPDF):
         self.set_font('Times', 'B', 14)
         self.cell(0, 8, 'CONTE CONOSCO PARA UMA PARCERIA!', 0, 1, 'L')
         self.set_font('Times', '', 12)
-        self.cell(0, 6, 'Nossa missao e ser sua melhor parceria com sinonimo de qualidade, garantia e o melhor custo beneficio.', 0, 1, 'L')
+        self.cell(0, 6, 'Nossa missão é ser sua melhor parceria com sinônimo de qualidade, garantia e o melhor custo benefício.', 0, 1, 'L')
 
     def page_4_equipamento(self):
         self.add_page()
@@ -451,7 +437,7 @@ class LocacaoPDF(FPDF):
     def page_6_pagamento(self):
         self.add_page()
         self.set_font('Times', 'B', 16)
-        self.cell(0, 8, 'CONDICOES DE PAGAMENTO', 0, 1, 'L')
+        self.cell(0, 8, 'CONDIÇÕES DE PAGAMENTO', 0, 1, 'L')
         self.ln(2)
         valor = format_currency(self.dados.get('valor_mensal'))
         condicoes = self.dados.get('condicoes_pagamento') or (
@@ -462,7 +448,7 @@ class LocacaoPDF(FPDF):
         self.write_paragraph(condicoes, line_height=6, align='J')
         self.ln(3)
         self.set_font('Times', 'B', 14)
-        self.cell(0, 8, 'CONDICOES COMERCIAIS', 0, 1, 'L')
+        self.cell(0, 8, 'CONDIÇÕES COMERCIAIS', 0, 1, 'L')
         self.set_font('Times', '', 12)
         bullets = [
             'Os equipamentos objetos desta proposta serao fornecidos em caracter de Locacao, cujas regras estao descritas nos Termos e Condicoes Gerais de Locacao.',
@@ -481,7 +467,7 @@ class LocacaoPDF(FPDF):
     def page_7_termos(self):
         self.add_page()
         self.set_font('Times', 'B', 16)
-        self.cell(0, 8, 'TERMOS E CONDICOES GERAIS DE LOCACAO DE EQUIPAMENTO', 0, 1, 'L')
+        self.cell(0, 8, 'TERMOS E CONDIÇÕES GERAIS DE LOCAÇÃO DE EQUIPAMENTO', 0, 1, 'L')
         self.ln(2)
         # Dinâmicos: Filial, Locataria, Nº Proposta
         filial_nome = self.filial.get('nome', '')
