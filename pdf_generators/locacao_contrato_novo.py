@@ -151,12 +151,40 @@ class LocacaoPDF(FPDF):
         self.filial = obter_filial(dados.get('filial_id') or 2) or {}
         self.cliente = fetch_cliente(dados.get('cliente_id'))
         self.responsavel = fetch_responsavel(dados.get('responsavel_id'))
+        # Margens em mm aproximando layout Word
+        self.set_margins(15, 20, 15)
         self.set_auto_page_break(auto=True, margin=20)
+        # Paleta e fontes padrão
+        self.primary_font = ('Times', '', 12)
+        self.primary_font_b = ('Times', 'B', 14)
+
+    # Utilitário: tenta desenhar imagem de fundo se existir
+    def _draw_background(self, page_no):
+        try:
+            # Prioridade: assets/backgrounds/locacao_pg{n}.jpg -> assets/backgrounds/locacao.jpg -> imgfundo.jpg
+            import os
+            base_dir = os.path.join(os.getcwd(), 'assets', 'backgrounds')
+            candidates = []
+            candidates.append(os.path.join(base_dir, f'locacao_pg{page_no}.jpg'))
+            candidates.append(os.path.join(base_dir, f'locacao_pg{page_no}.png'))
+            candidates.append(os.path.join(base_dir, 'locacao.jpg'))
+            candidates.append(os.path.join(base_dir, 'locacao.png'))
+            candidates.append(os.path.join(os.getcwd(), 'imgfundo.jpg'))
+            for bg in candidates:
+                if os.path.exists(bg):
+                    try:
+                        # Página A4: 210x297mm
+                        self.image(bg, x=0, y=0, w=210, h=297)
+                        break
+                    except Exception:
+                        continue
+        except Exception:
+            pass
 
     def header(self):
         if self.page_no() == 1:
             return
-        self.set_font('Arial', 'B', 10)
+        self.set_font('Times', 'B', 11)
         self.cell(0, 7, clean_text(self.filial.get('nome', '')), 0, 1, 'L')
         # Linha separadora
         self.set_draw_color(150, 150, 150)
@@ -171,7 +199,7 @@ class LocacaoPDF(FPDF):
         self.set_draw_color(150, 150, 150)
         self.line(10, self.get_y(), 190, self.get_y())
         self.ln(2)
-        self.set_font('Arial', '', 8)
+        self.set_font('Times', '', 9)
         endereco = self.filial.get('endereco', '')
         cep = self.filial.get('cep', '')
         cnpj = self.filial.get('cnpj', 'N/A')
@@ -179,46 +207,48 @@ class LocacaoPDF(FPDF):
         fones = self.filial.get('telefones', '')
         self.cell(0, 4, clean_text(f"{endereco} - CEP {cep}"), 0, 1, 'C')
         self.cell(0, 4, clean_text(f"CNPJ: {cnpj} | E-mail: {email} | Fone: {fones}"), 0, 1, 'C')
-
         self.cell(0, 4, f"Pagina {self.page_no()}", 0, 0, 'R')
 
-    def write_paragraph(self, text, line_height=5):
-        for line in clean_text(text).split('\n'):
-            if line.strip():
-                # Usar cell em vez de multi_cell para evitar problemas de espaço
-                self.cell(0, line_height, clean_text(line), 0, 1, 'L')
-            else:
-                self.ln(line_height)
+    def write_paragraph(self, text, line_height=5, width=0, align='J'):
+        content = clean_text(text)
+        if not content:
+            return
+        # multi_cell garante quebra de linha natural próxima ao layout Word
+        self.multi_cell(width or 0, line_height, content, 0, align)
 
     # Páginas
     def page_1_capa(self):
         self.add_page()
+        self._draw_background(1)
         # Logo
         logo = self.filial.get('logo_path')
         if logo and os.path.exists(logo):
             try:
-                self.image(logo, x=10, y=10, w=35)
+                self.image(logo, x=15, y=12, w=32)
             except Exception:
                 pass
-        self.ln(30)
-        self.set_font('Arial', 'B', 20)
+        # Titulo centralizado
+        self.set_y(60)
+        self.set_font('Times', 'B', 22)
         self.cell(0, 12, 'PROPOSTA DE LOCACAO', 0, 1, 'C')
+        self.set_font('Times', 'B', 18)
         self.cell(0, 10, 'DE COMPRESSOR DE AR', 0, 1, 'C')
-        self.ln(12)
-        self.set_font('Arial', 'B', 14)
+        self.ln(10)
+        self.set_font('Times', 'B', 14)
         numero = clean_text(self.dados.get('numero', ''))
         self.cell(0, 10, f'Proposta No {numero}', 0, 1, 'C')
-        self.ln(6)
-        self.set_font('Arial', '', 12)
+        self.ln(4)
+        self.set_font('Times', '', 12)
         data_txt = clean_text(self.dados.get('data') or datetime.now().strftime('%d/%m/%Y'))
 
         self.cell(0, 8, f'Data: {data_txt}', 0, 1, 'C')
 
     def page_2_proposta(self):
         self.add_page()
-        self.set_font('Arial', 'B', 14)
+        self._draw_background(2)
+        self.set_font('Times', 'B', 16)
         self.cell(0, 10, 'PROPOSTA COMERCIAL', 0, 1, 'L')
-        self.set_font('Arial', '', 11)
+        self.set_font('Times', '', 12)
         self.cell(0, 6, 'REF:  CONTRATO DE LOCACAO', 0, 1, 'L')
         self.cell(0, 6, f"NUMERO: {clean_text(self.dados.get('numero',''))}", 0, 1, 'L')
 
@@ -227,54 +257,54 @@ class LocacaoPDF(FPDF):
         self.ln(6)
         # A/C | De
         y = self.get_y()
-        self.set_font('Arial', 'B', 10)
-        self.set_xy(10, y)
+        self.set_font('Times', 'B', 11)
+        self.set_xy(15, y)
         self.cell(85, 6, 'A/C:', 0, 0, 'L')
-        self.set_xy(105, y)
+        self.set_xy(110, y)
         self.cell(85, 6, 'De:', 0, 1, 'L')
         cliente_nome = self.dados.get('cliente_nome')
         if not cliente_nome and self.cliente:
             cliente_nome = self.cliente[1] or self.cliente[0]
-        self.set_font('Arial', '', 10)
-        self.set_xy(10, y + 8)
+        self.set_font('Times', '', 11)
+        self.set_xy(15, y + 8)
         self.cell(85, 6, clean_text(cliente_nome or ''), 0, 0, 'L')
-        self.set_xy(105, y + 8)
+        self.set_xy(110, y + 8)
         self.cell(85, 6, 'WORLD COMP DO BRASIL', 0, 1, 'L')
         contato = self.dados.get('contato') or 'Srta'
-        self.set_xy(10, y + 16)
+        self.set_xy(15, y + 16)
         self.cell(85, 6, clean_text(contato), 0, 0, 'L')
         resp_nome = 'Rogerio Cerqueira | Valdir Bernardes'
         if self.responsavel and self.responsavel[0]:
             resp_nome = clean_text(self.responsavel[0])
-        self.set_xy(105, y + 16)
+        self.set_xy(110, y + 16)
         self.cell(85, 6, resp_nome, 0, 1, 'L')
-        self.set_xy(10, y + 24)
+        self.set_xy(15, y + 24)
         self.cell(85, 6, 'Compras', 0, 0, 'L')
         resp_email = 'rogerio@worldcompressores.com.br'
         if self.responsavel and self.responsavel[1]:
             resp_email = clean_text(self.responsavel[1])
-        self.set_xy(105, y + 24)
+        self.set_xy(110, y + 24)
         self.cell(85, 6, resp_email, 0, 1, 'L')
         cli_tel = ''
         if self.cliente and self.cliente[7]:
             cli_tel = self.cliente[7]
-        self.set_xy(10, y + 32)
+        self.set_xy(15, y + 32)
         self.cell(85, 6, clean_text(cli_tel), 0, 0, 'L')
         resp_email2 = 'valdir@worldcompressores.com.br'
-        self.set_xy(105, y + 32)
+        self.set_xy(110, y + 32)
         self.cell(85, 6, resp_email2, 0, 1, 'L')
         if self.cliente and self.cliente[8]:
-            self.set_xy(10, y + 40)
+            self.set_xy(15, y + 40)
             self.cell(85, 6, clean_text(self.cliente[8]), 0, 1, 'L')
-        self.set_y(y + 54)
+        self.set_y(y + 56)
         # Saudação dinâmica
         tipo = (self.dados.get('equipamento_tipo') or 'compressor').strip()
         marca = self.dados.get('marca') or ''
         modelo = self.dados.get('modelo') or ''
         primeira_linha = f"Prezados Senhores: Apresentamos proposta para locacao de {tipo} {marca} {modelo}.".strip()
 
-        self.set_font('Arial', '', 11)
-        self.cell(0, 5, clean_text(primeira_linha), 0, 1, 'L')
+        self.set_font('Times', '', 12)
+        self.cell(0, 6, clean_text(primeira_linha), 0, 1, 'L')
         self.ln(2)
         texto = (
             "Agradecemos por nos conceder a oportunidade de apresentarmos nossa proposta para fornecimento de LOCACAO DE COMPRESSOR DE AR.\n\n"
@@ -284,59 +314,61 @@ class LocacaoPDF(FPDF):
             "Com profissionais altamente qualificados e atendimento especializado, colocamo-nos a disposicao para analisar, corrigir e prestar os devidos esclarecimentos, sempre buscando atender as especificacoes e necessidades dos nossos clientes."
 
         )
-        self.set_font('Arial', '', 10)
-        self.write_paragraph(texto)
-        self.ln(6)
+        self.set_font('Times', '', 12)
+        self.write_paragraph(texto, line_height=6)
+        self.ln(4)
         self.cell(0, 6, 'Atenciosamente,', 0, 1, 'L')
-        self.set_font('Arial', 'B', 10)
+        self.set_font('Times', 'B', 12)
         self.cell(0, 6, 'WORLD COMP DO BRASIL COMPRESSORES EIRELI', 0, 1, 'L')
 
     def page_3_sobre(self):
         self.add_page()
-        self.set_font('Arial', 'B', 12)
+        self._draw_background(3)
+        self.set_font('Times', 'B', 14)
         self.cell(0, 8, 'SOBRE A WORLD COMP', 0, 1, 'L')
         self.ln(2)
-        self.set_font('Arial', '', 10)
+        self.set_font('Times', '', 12)
         self.write_paragraph(
             'A World Comp Compressores e uma empresa com mais de uma decada de atuacao no mercado nacional, especializada na manutencao de compressores de ar do tipo parafuso. Seu atendimento abrange todo o territorio brasileiro, oferecendo solucoes tecnicas e comerciais voltadas a maximizacao do desempenho e da confiabilidade dos sistemas de ar comprimido utilizados por seus clientes.'
 
         )
         self.ln(4)
-        self.set_font('Arial', 'B', 12)
+        self.set_font('Times', 'B', 14)
         self.cell(0, 8, 'NOSSOS SERVICOS', 0, 1, 'L')
-        self.set_font('Arial', '', 10)
+        self.set_font('Times', '', 12)
         self.write_paragraph(
             'A empresa oferece um portfolio completo de servicos, que contempla a manutencao preventiva e corretiva de compressores e unidades compressoras, a venda de pecas de reposicao para diversas marcas, a locacao de compressores de parafuso — incluindo modelos lubrificados e isentos de oleo —, alem da recuperacao de unidades compressoras e trocadores de calor.\nA World Comp tambem disponibiliza contratos de manutencao personalizados, adaptados as necessidades operacionais especificas de cada cliente. Dentre os principais fabricantes atendidos, destacam-se marcas reconhecidas como Atlas Copco, Ingersoll Rand e Chicago Pneumatic.'
 
         )
         self.ln(4)
-        self.set_font('Arial', 'B', 12)
+        self.set_font('Times', 'B', 14)
         self.cell(0, 8, 'QUALIDADE DOS SERVICOS & MELHORIA CONTINUA', 0, 1, 'L')
-        self.set_font('Arial', '', 10)
+        self.set_font('Times', '', 12)
         self.write_paragraph(
             'A empresa investe continuamente na capacitacao de sua equipe, na modernizacao de processos e no aprimoramento da estrutura de atendimento, assegurando alto padrao de qualidade, agilidade e eficacia nos servicos. Mantem ainda uma politica ativa de melhoria continua, com avaliacoes periodicas que visam atualizar tecnologias, aperfeicoar metodos e garantir excelencia tecnica.'
 
         )
         self.ln(4)
-        self.set_font('Arial', 'B', 12)
+        self.set_font('Times', 'B', 14)
         self.cell(0, 8, 'CONTE CONOSCO PARA UMA PARCERIA!', 0, 1, 'L')
-        self.set_font('Arial', '', 10)
+        self.set_font('Times', '', 12)
         self.cell(0, 6, 'Nossa missao e ser sua melhor parceria com sinonimo de qualidade, garantia e o melhor custo beneficio.', 0, 1, 'L')
 
 
     def page_4_equipamento(self):
         self.add_page()
-        self.set_font('Arial', 'B', 14)
+        self._draw_background(4)
+        self.set_font('Times', 'B', 16)
         self.cell(0, 8, 'COBERTURA TOTAL', 0, 1, 'L')
-        self.set_font('Arial', '', 10)
+        self.set_font('Times', '', 12)
         self.write_paragraph(
             'O Contrato de Locacao cobre todos os servicos e manutencoes, isso significa que nao existe custos inesperados com o seu sistema de ar comprimido. O cronograma de manutencoes preventivas e seguido a risca e gerenciado por um time de engenheiros especializados para garantir o mais alto nivel de eficiencia. Alem de voce contar com a cobertura completa para reparos, intervencoes emergenciais e atendimento proativo.'
 
         )
         self.ln(4)
-        self.set_font('Arial', 'B', 12)
+        self.set_font('Times', 'B', 14)
         self.cell(0, 8, 'EQUIPAMENTO A SER OFERTADO:', 0, 1, 'L')
-        self.set_font('Arial', '', 11)
+        self.set_font('Times', '', 12)
         tipo = (self.dados.get('equipamento_tipo') or 'COMPRESSOR DE PARAFUSO LUBRIFICADO REFRIGERADO A AR').upper()
 
         self.cell(0, 6, clean_text(tipo), 0, 1, 'L')
@@ -348,23 +380,24 @@ class LocacaoPDF(FPDF):
                 self.image(img, x=25, y=self.get_y(), w=150)
                 self.ln(90)
             except Exception:
-                self.set_font('Arial', 'I', 10)
+                self.set_font('Times', 'I', 11)
                 self.cell(0, 6, 'Imagem nao disponivel.', 0, 1, 'L')
 
     def page_5_tabela(self):
         self.add_page()
-        self.set_font('Arial', 'B', 14)
+        self._draw_background(5)
+        self.set_font('Times', 'B', 16)
         self.cell(0, 8, 'CONDICOES COMERCIAIS - EQUIPAMENTOS OFERTADOS', 0, 1, 'L')
 
         self.ln(2)
         # Cabeçalhos - Ajustando larguras para caber na página
-        self.set_font('Arial', 'B', 10)
+        self.set_font('Times', 'B', 11)
         self.cell(15, 8, 'Item', 1, 0, 'C')
         self.cell(20, 8, 'Qtd.', 1, 0, 'C')
         self.cell(85, 8, 'Descricao', 1, 0, 'C')
         self.cell(25, 8, 'Vlr Unit.', 1, 0, 'C')
         self.cell(25, 8, 'Periodo', 1, 1, 'C')
-        self.set_font('Arial', '', 10)
+        self.set_font('Times', '', 12)
         itens = self.dados.get('itens') or []
         if not itens:
             # Montar item base a partir dos campos
@@ -396,9 +429,9 @@ class LocacaoPDF(FPDF):
             valf = parse_currency_to_float(it.get('valor_unitario'))
             total_mensal += qtdf * valf
         self.ln(4)
-        self.set_font('Arial', 'B', 12)
+        self.set_font('Times', 'B', 13)
         self.cell(40, 8, 'VALOR MENSAL', 0, 0, 'L')
-        self.set_font('Arial', '', 12)
+        self.set_font('Times', '', 12)
         valor_exibicao = self.dados.get('valor_mensal')
         if not valor_exibicao:
             valor_exibicao = total_mensal
@@ -407,7 +440,8 @@ class LocacaoPDF(FPDF):
 
     def page_6_pagamento(self):
         self.add_page()
-        self.set_font('Arial', 'B', 14)
+        self._draw_background(6)
+        self.set_font('Times', 'B', 16)
         self.cell(0, 8, 'CONDICOES DE PAGAMENTO', 0, 1, 'L')
         self.ln(2)
         valor = format_currency(self.dados.get('valor_mensal'))
@@ -417,12 +451,12 @@ class LocacaoPDF(FPDF):
             f"Pelos servicos objeto desta proposta, apos a entrega do(s) equipamento(s) previsto neste contrato, o CONTRATANTE devera iniciar os respectivos pagamentos mensais referentes a locacao no valor de {valor} (__________ reais) taxa fixa mensal, com vencimento a 30 DDL, Data esta que contara a partir da entrega do equipamento nas dependencias da contratante, (COM FATURAMENTO ATRAVES DE RECIBO DE LOCACAO)."
 
         )
-        self.set_font('Arial', '', 10)
-        self.write_paragraph(condicoes)
+        self.set_font('Times', '', 12)
+        self.write_paragraph(condicoes, line_height=6)
         self.ln(3)
-        self.set_font('Arial', 'B', 12)
+        self.set_font('Times', 'B', 14)
         self.cell(0, 8, 'CONDICOES COMERCIAIS', 0, 1, 'L')
-        self.set_font('Arial', '', 10)
+        self.set_font('Times', '', 12)
         bullets = [
             'Os equipamentos objetos desta proposta serao fornecidos em caracter de Locacao, cujas regras estao descritas nos Termos e Condicoes Gerais de Locacao.',
 
@@ -443,11 +477,12 @@ class LocacaoPDF(FPDF):
 
         ]
         for b in bullets:
-            self.cell(0, 5, f"- {clean_text(b)}", 0, 1, 'L')
+            self.cell(0, 6, f"- {clean_text(b)}", 0, 1, 'L')
 
     def page_7_termos(self):
         self.add_page()
-        self.set_font('Arial', 'B', 14)
+        self._draw_background(7)
+        self.set_font('Times', 'B', 16)
         self.cell(0, 8, 'TERMOS E CONDICOES GERAIS DE LOCACAO DE EQUIPAMENTO', 0, 1, 'L')
 
         self.ln(2)
@@ -456,7 +491,7 @@ class LocacaoPDF(FPDF):
         locataria = self.dados.get('cliente_nome') or (self.cliente[1] if self.cliente else '') or (self.cliente[0] if self.cliente else '')
 
         proposta = self.dados.get('numero', '')
-        self.set_font('Arial', '', 10)
+        self.set_font('Times', '', 12)
         self.cell(0, 5, clean_text(f"Filial: {filial_nome}"), 0, 1, 'L')
         self.cell(0, 5, clean_text(f"Locataria: {locataria}"), 0, 1, 'L')
         self.cell(0, 5, clean_text(f"No da Proposta: {proposta}"), 0, 1, 'L')
@@ -474,7 +509,7 @@ class LocacaoPDF(FPDF):
             'Pelo presente instrumento particular, as partes qualificadas tem entre si justo e acertado os presentes Termos e Condicoes Gerais de Locacao de Equipamento, que se regerao pelas clausulas seguintes.'
 
         )
-        self.write_paragraph(intro)
+        self.write_paragraph(intro, line_height=6)
 
     # Páginas 8 a 13 - conteúdo jurídico resumido conforme diretrizes
     def page_8_a_13_clausulas(self):
@@ -498,10 +533,11 @@ class LocacaoPDF(FPDF):
             'Clausula Oitava – Caso Fortuito ou Forca Maior: As Partes nao responderao por descumprimentos decorrentes de caso fortuito/forca maior.\n\nClausula Nona – Responsabilidade Trabalhista: Cada Parte e responsavel por seus empregados.\n\nClausula Decima – Disposicoes Gerais: Comunicacoes, cessoes, tolerancia, foro de Sao Bernardo do Campo.\n\nAssinaturas e Testemunhas.'
 
         ]
-        for text in textos:
+        for idx, text in enumerate(textos, start=8):
             self.add_page()
-            self.set_font('Arial', '', 10)
-            self.write_paragraph(text)
+            self._draw_background(idx)
+            self.set_font('Times', '', 12)
+            self.write_paragraph(text, line_height=6)
 
 
 def gerar_pdf_locacao(dados: dict, output_path: str):
