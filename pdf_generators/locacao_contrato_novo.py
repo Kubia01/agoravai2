@@ -144,12 +144,22 @@ class LocacaoPDF(FPDF):
         self.set_auto_page_break(auto=True, margin=20)
         # Garantir suporte a Unicode: registrar DejaVuSans como "Times" se disponível
         try:
-            dejavu_regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-            dejavu_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-            if os.path.exists(dejavu_regular):
-                self.add_font('Times', '', dejavu_regular, uni=True)
-            if os.path.exists(dejavu_bold):
-                self.add_font('Times', 'B', dejavu_bold, uni=True)
+            candidates_regular = [
+                os.path.join(os.getcwd(), 'assets', 'fonts', 'DejaVuSans.ttf'),
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                "/usr/local/share/fonts/DejaVuSans.ttf",
+            ]
+            candidates_bold = [
+                os.path.join(os.getcwd(), 'assets', 'fonts', 'DejaVuSans-Bold.ttf'),
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                "/usr/local/share/fonts/DejaVuSans-Bold.ttf",
+            ]
+            reg = next((p for p in candidates_regular if os.path.exists(p)), None)
+            bold = next((p for p in candidates_bold if os.path.exists(p)), None)
+            if reg:
+                self.add_font('Times', '', reg, uni=True)
+            if bold:
+                self.add_font('Times', 'B', bold, uni=True)
         except Exception:
             pass
 
