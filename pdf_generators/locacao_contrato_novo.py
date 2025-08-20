@@ -49,6 +49,19 @@ def format_currency(value):
         return f"R$ {value}"
 
 
+def parse_currency_to_float(value):
+    try:
+        if value is None:
+            return 0.0
+        if isinstance(value, (int, float)):
+            return float(value)
+        s = str(value)
+        s = s.replace('R$', '').replace(' ', '')
+        s = s.replace('.', '').replace(',', '.')
+        return float(s)
+    except Exception:
+        return 0.0
+
 def fetch_cliente(cliente_id):
     if not cliente_id:
         return None
@@ -364,8 +377,11 @@ class LocacaoPDF(FPDF):
                 'valor_unitario': self.dados.get('valor_mensal') or 0,
                 'periodo': self.dados.get('periodo') or '5 anos'
             }]
-        for it in itens:
-            self.cell(15, 8, clean_text(str(it.get('item', ''))), 1, 0, 'C')
+        total_mensal = 0.0
+        for idx, it in enumerate(itens, start=1):
+            # item index
+            item_label = clean_text(str(it.get('item'))) if it.get('item') not in (None, '') else f"{idx:02d}"
+            self.cell(15, 8, item_label, 1, 0, 'C')
             self.cell(20, 8, clean_text(str(it.get('quantidade', ''))), 1, 0, 'C')
 
             self.cell(85, 8, clean_text(str(it.get('descricao', ''))), 1, 0, 'L')
@@ -373,11 +389,20 @@ class LocacaoPDF(FPDF):
             self.cell(25, 8, clean_text(format_currency(it.get('valor_unitario'))), 1, 0, 'R')
 
             self.cell(25, 8, clean_text(str(it.get('periodo', ''))), 1, 1, 'C')
+            try:
+                qtdf = parse_currency_to_float(it.get('quantidade')) or 1.0
+            except Exception:
+                qtdf = 1.0
+            valf = parse_currency_to_float(it.get('valor_unitario'))
+            total_mensal += qtdf * valf
         self.ln(4)
         self.set_font('Arial', 'B', 12)
         self.cell(40, 8, 'VALOR MENSAL', 0, 0, 'L')
         self.set_font('Arial', '', 12)
-        self.cell(0, 8, clean_text(format_currency(self.dados.get('valor_mensal'))), 0, 1, 'L')
+        valor_exibicao = self.dados.get('valor_mensal')
+        if not valor_exibicao:
+            valor_exibicao = total_mensal
+        self.cell(0, 8, clean_text(format_currency(valor_exibicao)), 0, 1, 'L')
 
 
     def page_6_pagamento(self):

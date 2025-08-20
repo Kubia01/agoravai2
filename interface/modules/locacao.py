@@ -471,7 +471,7 @@ class LocacaoModule(BaseModule):
     def _gerar_pdf(self):
         # Importar aqui para evitar erro de import quebrar a carga da UI
         try:
-            from pdf_generators.locacao_contrato import gerar_pdf_locacao
+            from pdf_generators.locacao_contrato_novo import gerar_pdf_locacao
         except Exception as e:
             self.show_error(f"Erro de dependências do gerador de PDF: {e}\nInstale as dependências e tente novamente.")
             return
@@ -480,6 +480,23 @@ class LocacaoModule(BaseModule):
         if not dados['cliente_id']:
             self.show_warning("Selecione um cliente válido para gerar o PDF.")
             return
+        # Calcular valor_mensal a partir dos itens caso nao preenchido
+        try:
+            if (not dados.get('valor_mensal')) and dados.get('itens'):
+                total = 0.0
+                for it in dados['itens']:
+                    try:
+                        qtd = float(str(it.get('quantidade') or '1').replace(',', '.'))
+                    except Exception:
+                        qtd = 1.0
+                    try:
+                        val = float(str(it.get('valor_unitario') or '0').replace('R$','').replace('.','').replace(',','.'))
+                    except Exception:
+                        val = 0.0
+                    total += qtd * val
+                dados['valor_mensal'] = total
+        except Exception:
+            pass
         try:
             output_dir = os.path.join('data', 'locacoes')
             os.makedirs(output_dir, exist_ok=True)
@@ -649,7 +666,7 @@ class LocacaoModule(BaseModule):
     def gerar_pdf_selecionado(self):
         # Importar aqui para evitar erro de import quebrar a carga da UI
         try:
-            from pdf_generators.locacao_contrato import gerar_pdf_locacao
+            from pdf_generators.locacao_contrato_novo import gerar_pdf_locacao
         except Exception as e:
             self.show_error(f"Erro de dependências do gerador de PDF: {e}\nInstale as dependências e tente novamente.")
             return
@@ -697,6 +714,23 @@ class LocacaoModule(BaseModule):
                 'equipamento_titulo': equip_titulo or '',
                 'itens': json.loads(itens_json) if itens_json else []
             }
+            # Calcular valor_mensal dinamicamente se nao houver no banco
+            try:
+                if (not dados.get('valor_mensal')) and dados.get('itens'):
+                    total = 0.0
+                    for it in dados['itens']:
+                        try:
+                            qtd = float(str(it.get('quantidade') or '1').replace(',', '.'))
+                        except Exception:
+                            qtd = 1.0
+                        try:
+                            val = float(str(it.get('valor_unitario') or '0').replace('R$','').replace('.','').replace(',','.'))
+                        except Exception:
+                            val = 0.0
+                        total += qtd * val
+                    dados['valor_mensal'] = total
+            except Exception:
+                pass
             output_dir = os.path.join('data', 'locacoes')
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, f"contrato-locacao-{numero.replace('/', '-')}.pdf")
