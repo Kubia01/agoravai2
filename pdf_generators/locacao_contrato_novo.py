@@ -144,33 +144,51 @@ class LocacaoPDF(FPDF):
         self.set_auto_page_break(auto=True, margin=20)
         # Fonte padrão (Unicode se disponível)
         self._font = 'Times'
-        # Garantir suporte a Unicode: registrar DejaVuSans como "Times" se disponível
+        # Garantir suporte a Unicode: registrar fontes TTF conhecidas (DejaVu / Noto / FreeSans / Liberation)
         try:
-            candidates_regular = [
+            env_reg = os.environ.get('UNICODE_FONT_PATH_REGULAR')
+            env_bold = os.environ.get('UNICODE_FONT_PATH_BOLD')
+            env_italic = os.environ.get('UNICODE_FONT_PATH_ITALIC')
+            candidates_regular = list(filter(None, [
+                env_reg,
                 os.path.join(os.getcwd(), 'assets', 'fonts', 'DejaVuSans.ttf'),
                 "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
                 "/usr/local/share/fonts/DejaVuSans.ttf",
-            ]
-            candidates_bold = [
+                "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+                "/usr/share/fonts/opentype/noto/NotoSans-Regular.ttf",
+                "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            ]))
+            candidates_bold = list(filter(None, [
+                env_bold,
                 os.path.join(os.getcwd(), 'assets', 'fonts', 'DejaVuSans-Bold.ttf'),
                 "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
                 "/usr/local/share/fonts/DejaVuSans-Bold.ttf",
-            ]
-            candidates_italic = [
+                "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+                "/usr/share/fonts/opentype/noto/NotoSans-Bold.ttf",
+                "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+            ]))
+            candidates_italic = list(filter(None, [
+                env_italic,
                 os.path.join(os.getcwd(), 'assets', 'fonts', 'DejaVuSans-Oblique.ttf'),
                 "/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf",
                 "/usr/local/share/fonts/DejaVuSans-Oblique.ttf",
-            ]
+                "/usr/share/fonts/truetype/noto/NotoSans-Italic.ttf",
+                "/usr/share/fonts/opentype/noto/NotoSans-Italic.ttf",
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf",
+            ]))
             reg = next((p for p in candidates_regular if os.path.exists(p)), None)
             bold = next((p for p in candidates_bold if os.path.exists(p)), None)
             italic = next((p for p in candidates_italic if os.path.exists(p)), None)
             if reg:
-                self.add_font('DejaVu', '', reg, uni=True)
-                self._font = 'DejaVu'
+                # Registrar com família 'Unicode' e usar em todo o documento
+                self.add_font('Unicode', '', reg, uni=True)
+                self._font = 'Unicode'
             if bold:
-                self.add_font('DejaVu', 'B', bold, uni=True)
+                self.add_font('Unicode', 'B', bold, uni=True)
             if italic:
-                self.add_font('DejaVu', 'I', italic, uni=True)
+                self.add_font('Unicode', 'I', italic, uni=True)
         except Exception:
             pass
 
