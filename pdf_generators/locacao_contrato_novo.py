@@ -165,12 +165,19 @@ class LocacaoPDF(FPDF):
             import os
             base_dir = os.path.join(os.getcwd(), 'assets', 'backgrounds')
             candidates = []
-            candidates.append(os.path.join(base_dir, f'locacao_pg{page_no}.jpg'))
-            candidates.append(os.path.join(base_dir, f'locacao_pg{page_no}.png'))
+            if page_no == 1:
+                candidates.append(os.path.join(base_dir, f'locacao_pg1.jpg'))
+                candidates.append(os.path.join(base_dir, f'locacao_pg1.png'))
+                candidates.append(os.path.join(base_dir, 'locacao_capa.jpg'))
+                candidates.append(os.path.join(base_dir, 'locacao_capa.png'))
+                candidates.append(os.path.join(base_dir, 'locacao.jpg'))
+                candidates.append(os.path.join(base_dir, 'locacao.png'))
+                candidates.append(os.path.join(os.getcwd(), 'imgfundo.jpg'))
             candidates.append(os.path.join(base_dir, 'locacao.jpg'))
             candidates.append(os.path.join(base_dir, 'locacao.png'))
-            candidates.append(os.path.join(os.getcwd(), 'imgfundo.jpg'))
             for bg in candidates:
+                if page_no != 1:
+                    break
                 if os.path.exists(bg):
                     try:
                         # Página A4: 210x297mm
@@ -182,32 +189,57 @@ class LocacaoPDF(FPDF):
             pass
 
     def header(self):
+        # Fundo somente na primeira página
         if self.page_no() == 1:
-            return
-        self.set_font('Times', 'B', 11)
-        self.cell(0, 7, clean_text(self.filial.get('nome', '')), 0, 1, 'L')
-        # Linha separadora
-        self.set_draw_color(150, 150, 150)
-        self.set_line_width(0.2)
-        self.line(10, 20, 190, 20)
-        self.ln(2)
+            self._draw_background(1)
+        # Faixa azul superior com dados dinâmicos
+        try:
+            self.set_xy(0, 0)
+            self.set_fill_color(15, 74, 133)
+            self.rect(0, 0, 210, 16, 'F')
+            # Texto em branco
+            self.set_text_color(255, 255, 255)
+            self.set_font('Times', 'B', 11)
+            left_text = clean_text(self.filial.get('nome', ''))
+            numero = clean_text(self.dados.get('numero', ''))
+            data_txt = clean_text(self.dados.get('data') or datetime.now().strftime('%d/%m/%Y'))
+            right_text = f"Proposta Nº {numero}  |  Data: {data_txt}"
+            # Esquerda
+            self.set_xy(12, 5)
+            self.cell(0, 6, left_text, 0, 0, 'L')
+            # Direita
+            self.set_xy(0, 5)
+            self.cell(0, 6, right_text, 0, 0, 'R')
+        finally:
+            # Restaurar cor do texto para preto
+            self.set_text_color(0, 0, 0)
+        # Ajustar cursor abaixo do cabeçalho
+        self.set_y(20)
 
     def footer(self):
-        if self.page_no() == 1:
-            return
-        self.set_y(-20)
-        self.set_draw_color(150, 150, 150)
-        self.line(10, self.get_y(), 190, self.get_y())
-        self.ln(2)
-        self.set_font('Times', '', 9)
-        endereco = self.filial.get('endereco', '')
-        cep = self.filial.get('cep', '')
-        cnpj = self.filial.get('cnpj', 'N/A')
-        email = self.filial.get('email', '')
-        fones = self.filial.get('telefones', '')
-        self.cell(0, 4, clean_text(f"{endereco} - CEP {cep}"), 0, 1, 'C')
-        self.cell(0, 4, clean_text(f"CNPJ: {cnpj} | E-mail: {email} | Fone: {fones}"), 0, 1, 'C')
-        self.cell(0, 4, f"Pagina {self.page_no()}", 0, 0, 'R')
+        # Faixa azul inferior com dados dinâmicos (todas as páginas)
+        try:
+            band_height = 14
+            y = self.h - band_height
+            self.set_fill_color(15, 74, 133)
+            self.rect(0, y, 210, band_height, 'F')
+            # Texto branco
+            self.set_text_color(255, 255, 255)
+            self.set_font('Times', '', 9)
+            endereco = self.filial.get('endereco', '')
+            cep = self.filial.get('cep', '')
+            cnpj = self.filial.get('cnpj', 'N/A')
+            email = self.filial.get('email', '')
+            fones = self.filial.get('telefones', '')
+            self.set_xy(0, y + 3)
+            self.cell(0, 4, clean_text(f"{endereco} - CEP {cep}"), 0, 1, 'C')
+            self.set_xy(0, y + 7)
+            self.cell(0, 4, clean_text(f"CNPJ: {cnpj} | E-mail: {email} | Fone: {fones}"), 0, 0, 'C')
+            # Página no canto direito
+            self.set_xy(0, y + 3)
+            self.cell(0, 4, f"Pagina {self.page_no()}", 0, 0, 'R')
+        finally:
+            self.set_text_color(0, 0, 0)
 
     def write_paragraph(self, text, line_height=5, width=0, align='J'):
         content = clean_text(text)
@@ -228,7 +260,7 @@ class LocacaoPDF(FPDF):
             except Exception:
                 pass
         # Titulo centralizado
-        self.set_y(60)
+        self.set_y(58)
         self.set_font('Times', 'B', 22)
         self.cell(0, 12, 'PROPOSTA DE LOCACAO', 0, 1, 'C')
         self.set_font('Times', 'B', 18)
@@ -296,7 +328,7 @@ class LocacaoPDF(FPDF):
         if self.cliente and self.cliente[8]:
             self.set_xy(15, y + 40)
             self.cell(85, 6, clean_text(self.cliente[8]), 0, 1, 'L')
-        self.set_y(y + 56)
+        self.set_y(y + 58)
         # Saudação dinâmica
         tipo = (self.dados.get('equipamento_tipo') or 'compressor').strip()
         marca = self.dados.get('marca') or ''
@@ -315,7 +347,8 @@ class LocacaoPDF(FPDF):
 
         )
         self.set_font('Times', '', 12)
-        self.write_paragraph(texto, line_height=6)
+        # limitar largura para evitar corte e seguir margens
+        self.write_paragraph(texto, line_height=6, width=180, align='J')
         self.ln(4)
         self.cell(0, 6, 'Atenciosamente,', 0, 1, 'L')
         self.set_font('Times', 'B', 12)
@@ -417,7 +450,12 @@ class LocacaoPDF(FPDF):
             self.cell(15, 8, item_label, 1, 0, 'C')
             self.cell(20, 8, clean_text(str(it.get('quantidade', ''))), 1, 0, 'C')
 
-            self.cell(85, 8, clean_text(str(it.get('descricao', ''))), 1, 0, 'L')
+            # Descrição com largura fixa; se muito longa, inserir elipse
+            desc = clean_text(str(it.get('descricao', '')))
+            max_chars = 55
+            if len(desc) > max_chars:
+                desc = desc[:max_chars-1] + '…'
+            self.cell(85, 8, desc, 1, 0, 'L')
 
             self.cell(25, 8, clean_text(format_currency(it.get('valor_unitario'))), 1, 0, 'R')
 
@@ -452,7 +490,7 @@ class LocacaoPDF(FPDF):
 
         )
         self.set_font('Times', '', 12)
-        self.write_paragraph(condicoes, line_height=6)
+        self.write_paragraph(condicoes, line_height=6, width=180, align='J')
         self.ln(3)
         self.set_font('Times', 'B', 14)
         self.cell(0, 8, 'CONDICOES COMERCIAIS', 0, 1, 'L')
@@ -509,7 +547,7 @@ class LocacaoPDF(FPDF):
             'Pelo presente instrumento particular, as partes qualificadas tem entre si justo e acertado os presentes Termos e Condicoes Gerais de Locacao de Equipamento, que se regerao pelas clausulas seguintes.'
 
         )
-        self.write_paragraph(intro, line_height=6)
+        self.write_paragraph(intro, line_height=6, width=180, align='J')
 
     # Páginas 8 a 13 - conteúdo jurídico resumido conforme diretrizes
     def page_8_a_13_clausulas(self):
@@ -537,7 +575,7 @@ class LocacaoPDF(FPDF):
             self.add_page()
             self._draw_background(idx)
             self.set_font('Times', '', 12)
-            self.write_paragraph(text, line_height=6)
+            self.write_paragraph(text, line_height=6, width=180, align='J')
 
 
 def gerar_pdf_locacao(dados: dict, output_path: str):
