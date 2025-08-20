@@ -498,7 +498,7 @@ class LocacaoModule(BaseModule):
         except Exception:
             pass
         try:
-            output_dir = os.path.join('data', 'locacoes')
+            output_dir = os.path.join(os.getcwd(), 'data', 'locacoes')
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, f"contrato-locacao-{dados['numero'].replace('/', '-')}.pdf")
             
@@ -731,7 +731,7 @@ class LocacaoModule(BaseModule):
                     dados['valor_mensal'] = total
             except Exception:
                 pass
-            output_dir = os.path.join('data', 'locacoes')
+            output_dir = os.path.join(os.getcwd(), 'data', 'locacoes')
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, f"contrato-locacao-{numero.replace('/', '-')}.pdf")
             
