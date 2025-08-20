@@ -1,3 +1,5 @@
 fpdf2
 Pillow
 openpyxl
+arabic-reshaper
+python-bidi
