@@ -142,6 +142,16 @@ class LocacaoPDF(FPDF):
         # Margens em mm aproximando layout Word
         self.set_margins(15, 20, 15)
         self.set_auto_page_break(auto=True, margin=20)
+        # Garantir suporte a Unicode: registrar DejaVuSans como "Times" se disponível
+        try:
+            dejavu_regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+            dejavu_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            if os.path.exists(dejavu_regular):
+                self.add_font('Times', '', dejavu_regular, uni=True)
+            if os.path.exists(dejavu_bold):
+                self.add_font('Times', 'B', dejavu_bold, uni=True)
+        except Exception:
+            pass
 
     # Utilitário: tenta desenhar imagem de fundo somente na capa (página 1)
     def _draw_background(self, page_no):
