@@ -473,8 +473,18 @@ class LocacaoModule(BaseModule):
         try:
             from pdf_generators.locacao_contrato_novo import gerar_pdf_locacao
         except Exception as e:
-            self.show_error(f"Erro de dependências do gerador de PDF: {e}\nInstale as dependências e tente novamente.")
-            return
+            # Fallback: carregar módulo pelo caminho absoluto
+            try:
+                import importlib.util, importlib.machinery
+                module_path = os.path.join(os.getcwd(), 'pdf_generators', 'locacao_contrato_novo.py')
+                loader = importlib.machinery.SourceFileLoader('pdf_loc_gen', module_path)
+                spec = importlib.util.spec_from_loader(loader.name, loader)
+                mod = importlib.util.module_from_spec(spec)
+                loader.exec_module(mod)
+                gerar_pdf_locacao = getattr(mod, 'gerar_pdf_locacao')
+            except Exception as e2:
+                self.show_error(f"Erro de dependências do gerador de PDF: {e}\nFallback falhou: {e2}\nInstale as dependências e tente novamente.")
+                return
 
         dados = self._coletar_dados()
         if not dados['cliente_id']:
@@ -668,8 +678,17 @@ class LocacaoModule(BaseModule):
         try:
             from pdf_generators.locacao_contrato_novo import gerar_pdf_locacao
         except Exception as e:
-            self.show_error(f"Erro de dependências do gerador de PDF: {e}\nInstale as dependências e tente novamente.")
-            return
+            try:
+                import importlib.util, importlib.machinery
+                module_path = os.path.join(os.getcwd(), 'pdf_generators', 'locacao_contrato_novo.py')
+                loader = importlib.machinery.SourceFileLoader('pdf_loc_gen', module_path)
+                spec = importlib.util.spec_from_loader(loader.name, loader)
+                mod = importlib.util.module_from_spec(spec)
+                loader.exec_module(mod)
+                gerar_pdf_locacao = getattr(mod, 'gerar_pdf_locacao')
+            except Exception as e2:
+                self.show_error(f"Erro de dependências do gerador de PDF: {e}\nFallback falhou: {e2}\nInstale as dependências e tente novamente.")
+                return
             
         selected = self.locacoes_tree.selection()
         if not selected:
