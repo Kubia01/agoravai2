@@ -199,6 +199,16 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
                 y0 = float(it.get('y0', 0))
                 if not txt.strip():
                     continue
+                # Página 2: pular bloco de apresentação para não duplicar (vamos desenhar dinamicamente)
+                if page_index == 1:
+                    t = txt.strip()
+                    skip_prefixes = (
+                        'Prezados Senhores', 'Agradecemos', 'fornecimento de', 'A World Comp',
+                        'das principais', 'revisão de', 'compressores de', 'Com  profissionais',
+                        'disposição para', 'especificações e'
+                    )
+                    if any(t.startswith(pfx) for pfx in skip_prefixes):
+                        continue
                 canvas.saveState()
                 try:
                     canvas.setFont(font, size)
