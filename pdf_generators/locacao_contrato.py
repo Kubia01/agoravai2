@@ -1,4 +1,5 @@
 import os
+import subprocess
 from datetime import datetime
 from assets.filiais.filiais_config import obter_filial
 from reportlab.pdfgen import canvas
@@ -12,16 +13,51 @@ def _clean(text):
 
 
 def _docx_to_pdf(docx_path: str, pdf_path: str):
-    """Converte DOCX em PDF usando LibreOffice se disponível; caso contrário, falha."""
+    """Converte DOCX em PDF usando LibreOffice (ou soffice no Windows).
 
-    cmd = f"libreoffice --headless --convert-to pdf --outdir {os.path.dirname(pdf_path)} '{docx_path}'"
+    Retorna True em caso de sucesso, False caso contrário.
+    """
+    outdir = os.path.dirname(pdf_path)
+    os.makedirs(outdir, exist_ok=True)
 
-    code = os.system(cmd)
-    # O LibreOffice produzirá um PDF com o mesmo nome base
-    expected = os.path.join(os.path.dirname(pdf_path), os.path.splitext(os.path.basename(docx_path))[0] + ".pdf")
+    # Candidatos de executável (Linux/Mac/Windows)
+    candidates = [
+        'libreoffice',
+        'soffice',
+        r"C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+        r"C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe",
+    ]
+
+    exe_path = None
+    for exe in candidates:
+        if os.path.isabs(exe):
+            if os.path.exists(exe):
+                exe_path = exe
+                break
+        else:
+            from shutil import which
+            found = which(exe)
+            if found:
+                exe_path = found
+                break
+
+    if not exe_path:
+        return False
+
+    try:
+        result = subprocess.run(
+            [exe_path, '--headless', '--convert-to', 'pdf', '--outdir', outdir, docx_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        code = result.returncode
+    except Exception:
+        code = -1
+
+    expected = os.path.join(outdir, os.path.splitext(os.path.basename(docx_path))[0] + ".pdf")
 
     if code == 0 and os.path.exists(expected):
-        # Renomear para o destino desejado
         if expected != pdf_path:
             try:
                 os.replace(expected, pdf_path)
