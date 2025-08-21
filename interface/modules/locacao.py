@@ -471,18 +471,16 @@ class LocacaoModule(BaseModule):
     def _gerar_pdf(self):
         # Importar aqui para evitar erro de import quebrar a carga da UI
         try:
-            # Novo fluxo: usa o gerador completo baseado no script fornecido
-            from pdf_generators.locacao_proposta_full import create_full_proposal_pdf
+            from pdf_generators.locacao_novo import gerar_pdf_locacao
         except Exception as e:
-            # Fallback: carregar módulo pelo caminho absoluto
             try:
                 import importlib.util, importlib.machinery
-                module_path = os.path.join(os.getcwd(), 'pdf_generators', 'locacao_proposta_full.py')
+                module_path = os.path.join(os.getcwd(), 'pdf_generators', 'locacao_novo.py')
                 loader = importlib.machinery.SourceFileLoader('pdf_loc_gen', module_path)
                 spec = importlib.util.spec_from_loader(loader.name, loader)
                 mod = importlib.util.module_from_spec(spec)
                 loader.exec_module(mod)
-                create_full_proposal_pdf = getattr(mod, 'create_full_proposal_pdf')
+                gerar_pdf_locacao = getattr(mod, 'gerar_pdf_locacao')
             except Exception as e2:
                 self.show_error(f"Erro de dependências do gerador de PDF: {e}\nFallback falhou: {e2}\nInstale as dependências e tente novamente.")
                 return
@@ -513,8 +511,8 @@ class LocacaoModule(BaseModule):
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, f"proposta_comercial-{(dados['numero'] or 'sem-numero').replace('/', '-')}.pdf")
 
-            # Chamar a função importada (gera no caminho informado)
-            create_full_proposal_pdf(output_path)
+            # Gerar PDF novo no caminho informado
+            gerar_pdf_locacao(output_path)
 
             # Persistir caminho no banco, criando/atualizando registro
             conn = sqlite3.connect(DB_NAME)
@@ -677,16 +675,16 @@ class LocacaoModule(BaseModule):
     def gerar_pdf_selecionado(self):
         # Importar aqui para evitar erro de import quebrar a carga da UI
         try:
-            from pdf_generators.locacao_proposta_full import create_full_proposal_pdf
+            from pdf_generators.locacao_novo import gerar_pdf_locacao
         except Exception as e:
             try:
                 import importlib.util, importlib.machinery
-                module_path = os.path.join(os.getcwd(), 'pdf_generators', 'locacao_proposta_full.py')
+                module_path = os.path.join(os.getcwd(), 'pdf_generators', 'locacao_novo.py')
                 loader = importlib.machinery.SourceFileLoader('pdf_loc_gen', module_path)
                 spec = importlib.util.spec_from_loader(loader.name, loader)
                 mod = importlib.util.module_from_spec(spec)
                 loader.exec_module(mod)
-                create_full_proposal_pdf = getattr(mod, 'create_full_proposal_pdf')
+                gerar_pdf_locacao = getattr(mod, 'gerar_pdf_locacao')
             except Exception as e2:
                 self.show_error(f"Erro de dependências do gerador de PDF: {e}\nFallback falhou: {e2}\nInstale as dependências e tente novamente.")
                 return
@@ -755,8 +753,8 @@ class LocacaoModule(BaseModule):
             os.makedirs(output_dir, exist_ok=True)
             output_path = os.path.join(output_dir, f"proposta_comercial-{numero.replace('/', '-')}.pdf")
 
-            # Chamar a função importada
-            create_full_proposal_pdf(output_path)
+            # Gerar PDF novo no caminho informado
+            gerar_pdf_locacao(output_path)
             
             c.execute("UPDATE locacoes SET caminho_pdf = ? WHERE id = ?", (output_path, locacao_id))
             conn.commit()
