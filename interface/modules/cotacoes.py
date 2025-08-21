@@ -403,7 +403,9 @@ class CotacoesModule(BaseModule):
 		fields_grid.pack(padx=10, pady=(0, 10), fill="x")
 		
 		# Primeira linha
-		tk.Label(fields_grid, text="Tipo:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=0, padx=5, sticky="w")
+		self.tipo_label = tk.Label(fields_grid, text="Tipo:", font=("Arial", 10, "bold"), bg="white")
+		self.tipo_label.grid(row=0, column=0, padx=5, sticky="w")
+		
 		self.tipo_combo = ttk.Combobox(fields_grid, textvariable=self.item_tipo_var, 
 								  values=["Produto", "Serviço", "Kit"], 
 								  width=10, state="readonly")
@@ -495,17 +497,41 @@ class CotacoesModule(BaseModule):
 		# Sempre manter seção de itens visível
 		if hasattr(self, 'itens_section'):
 			self.itens_section.pack(fill="both", expand=True, pady=(0, 10))
+		
+		# Mostrar/ocultar seção de locação principal
+		if hasattr(self, 'locacao_frame'):
+			if modo == "Locação":
+				self.locacao_frame.pack(fill="x", pady=(0, 10))
+			else:
+				self.locacao_frame.pack_forget()
+		
 		# Mostrar campos de locação por item somente em Locação
 		if hasattr(self, 'locacao_item_frame'):
 			if modo == "Locação":
 				self.locacao_item_frame.grid()
 			else:
 				self.locacao_item_frame.grid_remove()
+		
+		# Ocultar campo tipo quando for locação
+		if hasattr(self, 'tipo_combo'):
+			if modo == "Locação":
+				self.tipo_combo.grid_remove()
+				# Ocultar label do tipo também
+				if hasattr(self, 'tipo_label'):
+					self.tipo_label.grid_remove()
+			else:
+				self.tipo_combo.grid(row=0, column=1, padx=5)
+				if hasattr(self, 'tipo_label'):
+					self.tipo_label.grid(row=0, column=0, padx=5, sticky="w")
+		
 		# Não usar lista de produtos para Locação; permitir digitar o nome
 		if modo == "Locação":
 			self.item_nome_combo['values'] = []
+			# Limpar tipo selecionado
+			self.item_tipo_var.set("")
 		else:
 			self.update_produtos_combo()
+		
 		# Ajustar total
 		self.atualizar_total()
 		
@@ -579,28 +605,30 @@ class CotacoesModule(BaseModule):
 		self.itens_tree.heading("descricao", text="Descrição")
 		self.itens_tree.heading("tipo_operacao", text="Operação")
 		
-		# Larguras
-		self.itens_tree.column("tipo", width=80)
-		self.itens_tree.column("nome", width=160)
-		self.itens_tree.column("qtd", width=50)
-		self.itens_tree.column("valor_unit", width=110)
-		self.itens_tree.column("mao_obra", width=80)
-		self.itens_tree.column("deslocamento", width=80)
-		self.itens_tree.column("estadia", width=80)
-		self.itens_tree.column("meses", width=60)
-		self.itens_tree.column("inicio", width=90)
-		self.itens_tree.column("fim", width=90)
-		self.itens_tree.column("valor_total", width=90)
-		self.itens_tree.column("descricao", width=200)
+		# Larguras ajustadas para evitar dados cortados
+		self.itens_tree.column("tipo", width=100, minwidth=80)
+		self.itens_tree.column("nome", width=200, minwidth=160)
+		self.itens_tree.column("qtd", width=60, minwidth=50)
+		self.itens_tree.column("valor_unit", width=130, minwidth=110)
+		self.itens_tree.column("mao_obra", width=100, minwidth=80)
+		self.itens_tree.column("deslocamento", width=100, minwidth=80)
+		self.itens_tree.column("estadia", width=100, minwidth=80)
+		self.itens_tree.column("meses", width=80, minwidth=60)
+		self.itens_tree.column("inicio", width=120, minwidth=90)
+		self.itens_tree.column("fim", width=120, minwidth=90)
+		self.itens_tree.column("valor_total", width=120, minwidth=90)
+		self.itens_tree.column("descricao", width=250, minwidth=200)
 		self.itens_tree.column("tipo_operacao", width=0, stretch=False)
 		
-		# Scrollbar
-		scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.itens_tree.yview)
-		self.itens_tree.configure(yscrollcommand=scrollbar.set)
+		# Scrollbars vertical e horizontal
+		v_scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.itens_tree.yview)
+		h_scrollbar = ttk.Scrollbar(list_frame, orient="horizontal", command=self.itens_tree.xview)
+		self.itens_tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
 		
-		# Pack
-		self.itens_tree.pack(side="left", fill="both", expand=True)
-		scrollbar.pack(side="right", fill="y")
+		# Pack com scrollbars
+		self.itens_tree.pack(side="top", fill="both", expand=True)
+		v_scrollbar.pack(side="right", fill="y")
+		h_scrollbar.pack(side="bottom", fill="x")
 		
 		# Botões para itens
 		item_buttons = tk.Frame(parent, bg='white')
@@ -737,9 +765,16 @@ class CotacoesModule(BaseModule):
 		modo = self.tipo_cotacao_var.get()
 		
 		# Validações
-		if not tipo or not nome:
-			self.show_warning("Selecione o tipo e informe o nome do item.")
-			return
+		if modo == 'Locação':
+			# Para locação, tipo não é obrigatório, mas nome é
+			if not nome:
+				self.show_warning("Informe o nome do equipamento para locação.")
+				return
+		else:
+			# Para compra, tipo e nome são obrigatórios
+			if not tipo or not nome:
+				self.show_warning("Selecione o tipo e informe o nome do item.")
+				return
 		try:
 			quantidade = float(qtd_str) if qtd_str else 1
 			valor_unitario = clean_number(valor_str)
@@ -774,8 +809,9 @@ class CotacoesModule(BaseModule):
 			valor_total = quantidade * (valor_unitario + mao_obra + deslocamento + estadia)
 		
 		# Adicionar à lista
+		tipo_exibicao = tipo if modo != 'Locação' else "Equipamento"
 		self.itens_tree.insert("", "end", values=(
-			tipo,
+			tipo_exibicao,
 			nome,
 			f"{quantidade:.2f}",
 			format_currency(valor_unitario),
@@ -791,6 +827,9 @@ class CotacoesModule(BaseModule):
 		))
 		
 		# Limpar campos
+		modo = self.tipo_cotacao_var.get()
+		if modo != 'Locação':
+			self.item_tipo_var.set("")
 		self.item_nome_var.set("")
 		self.item_desc_var.set("")
 		self.item_qtd_var.set("1")
@@ -968,7 +1007,7 @@ class CotacoesModule(BaseModule):
 						observacoes = ?, valor_total = ?, status = ?, data_validade = ?,
 						condicao_pagamento = ?, prazo_entrega = ?, filial_id = ?,
 						esboco_servico = ?, relacao_pecas_substituir = ?,
-						tipo_cotacao = ?
+						tipo_cotacao = ?, locacao_nome_equipamento = ?
 					WHERE id = ?
 				""", (numero, self.modelo_var.get(), self.serie_var.get(),
 					 self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
@@ -977,7 +1016,7 @@ class CotacoesModule(BaseModule):
 					 filial_id,
 					 self.esboco_servico_text.get("1.0", tk.END).strip(),
 					 self.relacao_pecas_text.get("1.0", tk.END).strip(),
-					 modo,
+					 modo, self.locacao_equipamento_var.get(),
 					 self.current_cotacao_id))
 				c.execute("DELETE FROM itens_cotacao WHERE cotacao_id = ?", (self.current_cotacao_id,))
 				cotacao_id = self.current_cotacao_id
@@ -987,12 +1026,12 @@ class CotacoesModule(BaseModule):
 									  modelo_compressor, numero_serie_compressor, observacoes,
 									  valor_total, status, data_validade, condicao_pagamento,
 									  prazo_entrega, filial_id, esboco_servico, relacao_pecas_substituir,
-									  tipo_cotacao)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+									  tipo_cotacao, locacao_nome_equipamento)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""", (numero, cliente_id, self.user_id, datetime.now().strftime('%Y-%m-%d'),
 					 self.modelo_var.get(), self.serie_var.get(), self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
 					 self.status_var.get(), data_validade, self.condicao_pagamento_var.get(), self.prazo_entrega_var.get(),
-					 filial_id, self.esboco_servico_text.get("1.0", tk.END).strip(), self.relacao_pecas_text.get("1.0", tk.END).strip(), modo))
+					 filial_id, self.esboco_servico_text.get("1.0", tk.END).strip(), self.relacao_pecas_text.get("1.0", tk.END).strip(), modo, self.locacao_equipamento_var.get()))
 				cotacao_id = c.lastrowid
 				self.current_cotacao_id = cotacao_id
 			# Inserir itens
