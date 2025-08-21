@@ -102,7 +102,7 @@ def _default_apresentacao(_: Dict[str, Any]) -> str:
     )
 
 
-def _draw_wrapped_text(canvas, text: str, x: float, y: float, max_width: float, line_height: float, font: str = 'Helvetica', size: float = 11):
+def _draw_wrapped_text(canvas, text: str, x: float, y: float, max_width: float, line_height: float, font: str = 'Helvetica', size: float = 11, min_y: float | None = None):
     if not text:
         return
     canvas.saveState()
@@ -124,9 +124,31 @@ def _draw_wrapped_text(canvas, text: str, x: float, y: float, max_width: float, 
         lines.append(line)
     ty = y
     for ln in lines:
+        if min_y is not None and (ty < min_y):
+            break
         canvas.drawString(x, ty, ln)
         ty -= line_height
     canvas.restoreState()
+
+
+def _draw_fit_text(canvas, text: str, x: float, y: float, max_width: float, font: str = 'Helvetica-Bold', start_size: float = 12, min_size: float = 8):
+    if not text:
+        return
+    size = start_size
+    while size >= min_size:
+        try:
+            width = pdfmetrics.stringWidth(text, font, size)
+        except Exception:
+            font = 'Helvetica-Bold'
+            width = pdfmetrics.stringWidth(text, font, size)
+        if width <= max_width:
+            break
+        size -= 0.5
+    try:
+        canvas.setFont(font, size)
+    except Exception:
+        canvas.setFont('Helvetica-Bold', size)
+    canvas.drawString(x, y, text)
 
 
 # ========= Gerador =========
@@ -151,48 +173,50 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
         footer_text_y = 18
 
         def _draw_header_footer(canvas, page_num: int):
-            # Header: nome, endereço, logo e faixa azul divisória
+            # Header/rodapé idênticos ao modelo: barras azuis completas e textos dinâmicos da filial
             canvas.saveState()
-            # Nome + Endereço
-            try:
-                canvas.setFont('Helvetica-Bold', 11)
-            except Exception:
-                canvas.setFont('Helvetica', 11)
-            name_y = PAGE_HEIGHT - 28
-            addr_y = name_y - 12
-            logo_y = PAGE_HEIGHT - 30
+            header_hh = 74  # barra superior mais alta
+            footer_hh = 60  # barra inferior mais alta
+            header_y = PAGE_HEIGHT - header_hh
+            # Header: barra azul
+            canvas.setFillColor(colors.HexColor('#005B99'))
+            canvas.rect(0, header_y, PAGE_WIDTH, header_hh, stroke=0, fill=1)
+            # Logo
             if filial['logo_path'] and os.path.exists(filial['logo_path']):
                 try:
-                    logo_w, logo_h = 80, 22
-                    canvas.drawImage(filial['logo_path'], 1.0*cm, logo_y - (logo_h/2), width=logo_w, height=logo_h, preserveAspectRatio=True, mask='auto')
+                    canvas.drawImage(filial['logo_path'], 1.2*cm, header_y + 16, width=110, height=36, preserveAspectRatio=True, mask='auto')
                 except Exception:
                     pass
-            canvas.setFillColor(colors.black)
-            canvas.drawString(4.5*cm, name_y, filial['nome'] or ' ')
+            # Textos em branco
+            canvas.setFillColor(colors.white)
+            try:
+                canvas.setFont('Helvetica-Bold', 10.5)
+            except Exception:
+                canvas.setFont('Helvetica', 10.5)
+            canvas.drawString(4.8*cm, PAGE_HEIGHT - 24, filial['nome'] or ' ')
             if filial['endereco']:
-                canvas.setFont('Helvetica', 8)
-                canvas.drawString(4.5*cm, addr_y, filial['endereco'])
-            # Número da página (topo à direita)
+                canvas.setFont('Helvetica', 8.5)
+                endereco_completo = filial['endereco'] + (f" - CEP {filial['cep']}" if filial.get('cep') else '')
+                canvas.drawString(4.8*cm, PAGE_HEIGHT - 38, endereco_completo)
+            # Número da página à direita
             canvas.setFont('Helvetica', 8)
-            canvas.drawRightString(PAGE_WIDTH - 1.0*cm, name_y, f"Página {page_num}")
-            # Faixa azul de divisão (fina)
-            canvas.setFillColor(colors.HexColor('#005B99'))
-            canvas.rect(0, addr_y - 12, PAGE_WIDTH, 6, stroke=0, fill=1)
+            canvas.drawRightString(PAGE_WIDTH - 1.0*cm, PAGE_HEIGHT - 24, f"Página {page_num}")
 
-            # Rodapé: faixa azul de divisão e dados dinâmicos
+            # Rodapé: barra azul
             canvas.setFillColor(colors.HexColor('#005B99'))
-            canvas.rect(0, 40, PAGE_WIDTH, 6, stroke=0, fill=1)
-            canvas.setFillColor(colors.HexColor('#333333'))
-            canvas.setFont('Helvetica', 8)
+            canvas.rect(0, 0, PAGE_WIDTH, footer_hh, stroke=0, fill=1)
+            canvas.setFillColor(colors.white)
+            canvas.setFont('Helvetica', 8.5)
+            # Linhas com CNPJ/IE e contato
             left = " | ".join([p for p in [f"CNPJ: {filial['cnpj']}" if filial['cnpj'] else '', f"IE: {filial['ie']}" if filial['ie'] else ''] if p])
             right_parts = [filial['telefones'] or '', filial['email'] or '']
             if filial['site']:
                 right_parts.append(filial['site'])
             right = " | ".join([p for p in right_parts if p])
             if left:
-                canvas.drawString(1.5*cm, 28, left)
+                canvas.drawString(1.5*cm, 16, left)
             if right:
-                canvas.drawRightString(PAGE_WIDTH - 1.5*cm, 28, right)
+                canvas.drawRightString(PAGE_WIDTH - 1.5*cm, 16, right)
             canvas.restoreState()
 
         def _draw_layout_page(canvas, doc):
@@ -212,10 +236,10 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
                     continue
                 # Evitar duplicação de cabeçalho/rodapé a partir da página 2
                 if doc.page != 1:
-                    # pular itens do topo (header) e base (footer) do PDF de referência
-                    if y0 > (PAGE_HEIGHT - 70):
+                    # pular itens do topo (header) e base (footer) do PDF de referência (vamos renderizar dinamicamente)
+                    if y0 > (PAGE_HEIGHT - 75):
                         continue
-                    if y0 < 60:
+                    if y0 < 55:
                         continue
                 # Página 2: pular bloco de apresentação para não duplicar (vamos desenhar dinamicamente)
                 if page_index == 1:
@@ -226,6 +250,13 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
                         'disposição para', 'especificações e'
                     )
                     if any(t.startswith(pfx) for pfx in skip_prefixes):
+                        continue
+                    # Não pular os rótulos PROPOSTA/REF/NÚMERO/DATA para que fiquem idênticos ao modelo
+                # Página 5 (index 4): pular labels de tabela estática do modelo (vamos desenhar nossa tabela)
+                if page_index == 4:
+                    t = txt.strip().upper()
+                    skip_cols = ('QUANTIDADE', 'DESCRIÇÃO', 'DESCRICAO', 'VALOR', 'VALOR MENSAL', 'INÍCIO', 'INICIO', 'FIM', 'PERÍODO', 'PERIODO')
+                    if any(t.startswith(s) for s in skip_cols):
                         continue
                 # Página 4: pular o título do compressor do modelo (será dinâmico)
                 if page_index == 3:
@@ -264,28 +295,29 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
             _write_after(["Data:"], dados.get('data_inicio') or date.today().strftime('%d/%m/%Y'))
             _write_after(["NÚMERO:", "NUMERO:"], dados.get('numero'))
 
-            # Página 2 (index 1): Prezados + apresentação
+            # Página 2 (index 1): Cabeçalho superior + A/C / De + Prezados/apresentação
             if page_index == 1:
-                # Bloco superior: PROPOSTA COMERCIAL REF / NÚMERO / DATA
+                # Preencher valores ao lado dos rótulos NÚMERO e DATA do layout, mantendo visual idêntico
                 from datetime import date
                 numero = dados.get('numero') or ''
                 data_txt = dados.get('data_inicio') or date.today().strftime('%d/%m/%Y')
-                ref_txt = (dados.get('referencia') or (dados.get('cliente_nome') or '') or numero)
-                top_y = PAGE_HEIGHT - 110
-                # Renderizar em uma única linha conforme especificado
-                header_line = f"PROPOSTA COMERCIAL REF: {ref_txt}   CONTRATO DE LOCAÇÃO   NÚMERO: {numero}   DATA: {data_txt}"
-                _draw_wrapped_text(canvas, header_line, 72, top_y, max_width=PAGE_WIDTH-144, line_height=14, font='Helvetica-Bold', size=11)
+                _write_after(["NÚMERO:", "NUMERO:"], numero, default_size=10, dx=4)
+                _write_after(["DATA:"], data_txt, default_size=10, dx=4)
 
-                prez = (dados.get('prezados_linha') or 'Prezados Senhores:')
-                ap = (dados.get('apresentacao_texto') or '').strip() or _default_apresentacao(dados)
-                # Posicionar abaixo do bloco de cliente/filial
-                base_y = top_y - 28
+                # Obter Y de A/C e De para posicionar corretamente a apresentação abaixo
+                y_ac = None
+                y_de = None
                 for it in items:
                     t = (it.get('text') or '').strip().upper()
-                    if t.startswith('DE:') or t.startswith('A/C'):
-                        base_y = min(base_y, float(it.get('y0', base_y)) - 36)
-                _draw_wrapped_text(canvas, prez, 72, base_y, max_width=PAGE_WIDTH-144, line_height=14, font='Helvetica-Bold', size=11)
-                _draw_wrapped_text(canvas, ap, 72, base_y-20, max_width=PAGE_WIDTH-144, line_height=13, font='Helvetica', size=10)
+                    if t.startswith('A/C'):
+                        y_ac = float(it.get('y0'))
+                    if t.startswith('DE:'):
+                        y_de = float(it.get('y0'))
+                prez = (dados.get('prezados_linha') or 'Prezados Senhores:')
+                ap = (dados.get('apresentacao_texto') or '').strip() or _default_apresentacao(dados)
+                base_y = (min([v for v in [y_ac, y_de] if v is not None], default=(PAGE_HEIGHT-200)) - 24)
+                _draw_wrapped_text(canvas, prez, 72, base_y, max_width=PAGE_WIDTH-144, line_height=14, font='Helvetica-Bold', size=11, min_y=80)
+                _draw_wrapped_text(canvas, ap, 72, base_y-20, max_width=PAGE_WIDTH-144, line_height=13, font='Helvetica', size=10, min_y=80)
 
             # Página 4 (index 3): título do compressor + imagem (por marca/logo)
             if page_index == 3:
@@ -311,42 +343,57 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
                 if itens:
                     # Título da seção
                     _draw_wrapped_text(canvas, 'COMERCIAIS:', 72, PAGE_HEIGHT-150, max_width=PAGE_WIDTH-144, line_height=14, font='Helvetica-Bold', size=12)
-                    # Config da tabela
-                    cols = ['Quantidade', 'Descrição', 'Valor mensal', 'Início', 'Fim', 'Período']
-                    col_widths = [70, 220, 90, 60, 60, 70]
-                    x = 72
-                    y = PAGE_HEIGHT - 170
-                    row_h = 18
-                    # Cabeçalho
-                    canvas.saveState()
-                    canvas.setFont('Helvetica-Bold', 9)
-                    for idx, col in enumerate(cols):
-                        canvas.drawString(x, y, col)
-                        x += col_widths[idx]
-                    canvas.restoreState()
-                    # Linhas
-                    y -= row_h
-                    max_rows = int((y - 120) // row_h)
-                    for i, it in enumerate(itens[:max_rows]):
-                        x = 72
-                        canvas.saveState()
-                        canvas.setFont('Helvetica', 9)
-                        vals = [
-                            str(it.get('quantidade') or ''),
-                            str(it.get('descricao') or ''),
-                            str(it.get('valor_unitario') or ''),
-                            str(it.get('inicio') or ''),
-                            str(it.get('fim') or ''),
-                            str(it.get('periodo') or ''),
+                    # Tabela com grid
+                    from reportlab.platypus import Table, TableStyle, Paragraph
+                    from reportlab.lib.styles import ParagraphStyle
+                    cell_style = ParagraphStyle('TabCell', fontName='Helvetica', fontSize=9, leading=11)
+                    header_style = ParagraphStyle('TabHead', fontName='Helvetica-Bold', fontSize=9, leading=11)
+                    data = [
+                        [Paragraph('Quantidade', header_style), Paragraph('Descrição', header_style), Paragraph('Valor mensal', header_style), Paragraph('Início', header_style), Paragraph('Fim', header_style), Paragraph('Período', header_style)]
+                    ]
+                    for it in itens:
+                        row = [
+                            Paragraph(str(it.get('quantidade') or ''), cell_style),
+                            Paragraph(str(it.get('descricao') or ''), cell_style),
+                            Paragraph(str(it.get('valor_unitario') or ''), cell_style),
+                            Paragraph(str(it.get('inicio') or ''), cell_style),
+                            Paragraph(str(it.get('fim') or ''), cell_style),
+                            Paragraph(str(it.get('periodo') or ''), cell_style),
                         ]
-                        for idx, v in enumerate(vals):
-                            # quebra simples para descrição
-                            if idx == 1 and len(v) > 60:
-                                v = v[:57] + '...'
-                            canvas.drawString(x, y, v)
-                            x += col_widths[idx]
-                        canvas.restoreState()
-                        y -= row_h
+                        data.append(row)
+                    col_widths = [60, 260, 85, 50, 50, 60]
+                    table = Table(data, colWidths=col_widths, hAlign='LEFT')
+                    table.setStyle(TableStyle([
+                        ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+                        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#E5E7EB')),
+                        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                        ('LEFTPADDING', (0,0), (-1,-1), 4),
+                        ('RIGHTPADDING', (0,0), (-1,-1), 4),
+                        ('TOPPADDING', (0,0), (-1,-1), 3),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+                    ]))
+                    avail_top = PAGE_HEIGHT - 170
+                    avail_bottom = 80
+                    avail_height = avail_top - avail_bottom
+                    # Limitar linhas para não estourar a página
+                    while True:
+                        w, h = table.wrapOn(canvas, PAGE_WIDTH-144, avail_height)
+                        if h <= avail_height:
+                            break
+                        if len(data) <= 2:
+                            break
+                        data.pop()  # remove última linha até caber
+                        table = Table(data, colWidths=col_widths, hAlign='LEFT')
+                        table.setStyle(TableStyle([
+                            ('GRID', (0,0), (-1,-1), 0.5, colors.black),
+                            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#E5E7EB')),
+                            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                            ('LEFTPADDING', (0,0), (-1,-1), 4),
+                            ('RIGHTPADDING', (0,0), (-1,-1), 4),
+                            ('TOPPADDING', (0,0), (-1,-1), 3),
+                            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+                        ]))
+                    table.drawOn(canvas, 72, avail_top - h)
 
             # Página 6 (index 5): condições de pagamento
             if page_index == 5:
