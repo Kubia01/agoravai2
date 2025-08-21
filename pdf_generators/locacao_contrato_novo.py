@@ -2,6 +2,8 @@
 Gerador de PDF de Locação independente
 
 Gera o PDF completo usando apenas ReportLab, sem depender de DOCX ou PDF base.
+Se houver um LAYOUT_SPEC extraído do PDF de exemplo, usa esse layout
+para posicionar textos estáticos e campos dinâmicos por coordenadas.
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from reportlab.platypus import (
     TableStyle,
     Image,
     KeepTogether,
+    PageBreak,
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
@@ -96,9 +99,9 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
 
     nome, endereco, cnpj, telefones, email, logo_path = _build_header_filial(dados)
 
+    # Conteúdo programático (fallback)
     story: List[Any] = []
 
-    # Bloco de cabeçalho (como conteúdo inicial, além do cabeçalho fixo)
     header_block: List[Any] = []
     if logo_path:
         try:
@@ -114,7 +117,6 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
     header_block.append(Spacer(1, 0.4*cm))
     story.extend(header_block)
 
-    # Título
     numero = dados.get('numero') or ''
     cliente_nome = (dados.get('cliente_nome') or '').replace('_', ' ')
     story.append(Paragraph("Contrato de Locação", styles['TitleCenter']))
@@ -127,7 +129,6 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
         story.append(Paragraph(" | ".join(title_info), styles['Normal']))
     story.append(Spacer(1, 0.4*cm))
 
-    # Apresentação / Prezados
     prezados = dados.get('prezados_linha')
     apresentacao = (dados.get('apresentacao_texto') or '').strip()
     if not apresentacao:
@@ -141,7 +142,6 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
 
     story.append(Spacer(1, 0.4*cm))
 
-    # Dados do equipamento
     marca = dados.get('marca') or ''
     modelo = dados.get('modelo') or ''
     serie = dados.get('serie') or ''
@@ -167,7 +167,6 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
 
     story.append(Spacer(1, 0.5*cm))
 
-    # Tabela de itens
     itens: List[Dict[str, Any]] = list(dados.get('itens') or [])
     tabela_data: List[List[Any]] = [[
         'Quantidade', 'Descrição', 'Valor mensal', 'Início', 'Fim', 'Período'
@@ -199,7 +198,6 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
         ]))
         story.append(KeepTogether([tbl, Spacer(1, 0.2*cm)]))
 
-    # Valor mensal total
     valor_mensal = dados.get('valor_mensal')
     if not valor_mensal:
         valor_mensal = total_mensal
@@ -212,7 +210,6 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
 
     story.append(Spacer(1, 0.4*cm))
 
-    # Condições de pagamento
     condicoes = dados.get('condicoes_pagamento')
     if not condicoes:
         dia = dados.get('vencimento_dia') or '10'
@@ -222,7 +219,6 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
 
     story.append(Spacer(1, 0.4*cm))
 
-    # Termos finais / rodapé de identificação
     termos = [
         f"Filial: {nome}" if nome else '',
         f"Locatária: {cliente_nome}" if cliente_nome else '',
@@ -239,9 +235,97 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
         styles['Normal']
     ))
 
-    # Construir documento com cabeçalho/rodapé fixos e numeração de páginas
+    # Construção com layout extraído se disponível; caso contrário, usar composição programática
     PAGE_WIDTH, PAGE_HEIGHT = A4
 
+    if LAYOUT_SPEC and LAYOUT_SPEC.get('pages'):
+        def _draw_layout_page(canvas, doc):
+            page_index = (doc.page or 1) - 1
+            # Cabeçalho e rodapé simples
+            canvas.saveState()
+            canvas.setStrokeColor(colors.HexColor('#d0d0d0'))
+            canvas.setLineWidth(0.6)
+            canvas.line(2*cm, PAGE_HEIGHT-1.2*cm, PAGE_WIDTH-2*cm, PAGE_HEIGHT-1.2*cm)
+            canvas.line(2*cm, 1.6*cm, PAGE_WIDTH-2*cm, 1.6*cm)
+            canvas.setFont('Helvetica', 8)
+            canvas.setFillColor(colors.HexColor('#666666'))
+            canvas.drawRightString(PAGE_WIDTH-2*cm, 1.1*cm, f"Página {doc.page}")
+            if nome:
+                canvas.drawString(2*cm, 1.1*cm, nome)
+            canvas.restoreState()
+
+            # Desenhar textos estáticos do layout
+            if 0 <= page_index < len(LAYOUT_SPEC.get('pages', [])):
+                items = LAYOUT_SPEC['pages'][page_index].get('items', [])
+                for it in items:
+                    txt = it.get('text', '')
+                    size = it.get('size') or 10
+                    x0 = float(it.get('x0', 0))
+                    y0 = float(it.get('y0', 0))
+                    if not txt.strip():
+                        continue
+                    canvas.saveState()
+                    canvas.setFont('Helvetica', size)
+                    canvas.setFillColor(colors.black)
+                    canvas.drawString(x0, y0, txt)
+                    canvas.restoreState()
+
+                # Campos dinâmicos posicionados logo após labels conhecidas
+                def _write_after(label_prefixes, value, default_size=10, dx=4):
+                    if not value:
+                        return
+                    for it in items:
+                        raw = (it.get('text') or '').strip()
+                        if any(raw.startswith(lp) for lp in label_prefixes):
+                            size = it.get('size') or default_size
+                            x1 = float(it.get('x1', it.get('x0', 0)))
+                            y0 = float(it.get('y0', 0))
+                            canvas.saveState()
+                            canvas.setFont('Helvetica', size)
+                            canvas.drawString(x1 + dx, y0, str(value))
+                            canvas.restoreState()
+                            break
+
+                from datetime import date
+                _write_after(["Cliente:"], dados.get('cliente_nome'))
+                _write_after(["A/C", "A/C :"], dados.get('contato'))
+                _write_after(["Data:"], dados.get('data_inicio') or date.today().strftime('%d/%m/%Y'))
+                _write_after(["NÚMERO:", "NUMERO:"], dados.get('numero'))
+
+                vm = _as_decimal(dados.get('valor_mensal') or 0)
+                if vm > 0:
+                    _write_after(["VALOR MENSAL", "VALOR TOTAL", "VALOR MENSAL TOTAL"], _format_currency(vm, dados.get('moeda') or 'BRL'))
+
+                condicoes = dados.get('condicoes_pagamento')
+                if not condicoes:
+                    dia = dados.get('vencimento_dia') or '10'
+                    condicoes = f"A vencimento de cada mensalidade, todo dia {dia}, conforme proposta acordada com o cliente."
+                _write_after(["CONDIÇÕES DE PAGAMENTO", "CONDICOES DE PAGAMENTO"], condicoes, default_size=9, dx=6)
+
+                _write_after(["MARCA", "Marca"], dados.get('marca'))
+                _write_after(["MODELO", "Modelo"], dados.get('modelo'))
+                _write_after(["SÉRIE", "SERIE"], dados.get('serie'))
+
+        frame = Frame(1*cm, 1.8*cm, PAGE_WIDTH-2*cm, PAGE_HEIGHT-3.6*cm, id='layout_frame')
+        template = PageTemplate(id='layout', frames=[frame], onPage=_draw_layout_page)
+        doc = BaseDocTemplate(
+            output_path,
+            pagesize=A4,
+            title=f"Contrato de Locação {numero}",
+            author=nome or "",
+            pageTemplates=[template]
+        )
+        # Cria tantas páginas quanto o layout, não usa story de conteúdo
+        story_pages: List[Any] = []
+        for _ in LAYOUT_SPEC['pages']:
+            story_pages.append(Spacer(0, 0.1*cm))
+            story_pages.append(PageBreak())
+        if story_pages:
+            story_pages.pop()
+        doc.build(story_pages)
+        return
+
+    # Fallback programático
     def draw_header(canvas, doc):
         canvas.saveState()
         # Linha superior
@@ -287,9 +371,7 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
         pageTemplates=[template]
     )
 
-    # two-pass to have total page count in footer (optional)
     doc.build(story)
 
 
 __all__ = ["gerar_pdf_locacao"]
-
