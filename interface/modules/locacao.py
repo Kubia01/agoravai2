@@ -471,17 +471,18 @@ class LocacaoModule(BaseModule):
     def _gerar_pdf(self):
         # Importar aqui para evitar erro de import quebrar a carga da UI
         try:
-            from pdf_generators.locacao_contrato_simple import gerar_pdf_locacao
+            # Novo fluxo: usa o gerador simples baseado no script fornecido
+            from pdf_generators.locacao_proposta import create_proposal_pdf
         except Exception as e:
             # Fallback: carregar módulo pelo caminho absoluto
             try:
                 import importlib.util, importlib.machinery
-                module_path = os.path.join(os.getcwd(), 'pdf_generators', 'locacao_contrato_simple.py')
+                module_path = os.path.join(os.getcwd(), 'pdf_generators', 'locacao_proposta.py')
                 loader = importlib.machinery.SourceFileLoader('pdf_loc_gen', module_path)
                 spec = importlib.util.spec_from_loader(loader.name, loader)
                 mod = importlib.util.module_from_spec(spec)
                 loader.exec_module(mod)
-                gerar_pdf_locacao = getattr(mod, 'gerar_pdf_locacao')
+                create_proposal_pdf = getattr(mod, 'create_proposal_pdf')
             except Exception as e2:
                 self.show_error(f"Erro de dependências do gerador de PDF: {e}\nFallback falhou: {e2}\nInstale as dependências e tente novamente.")
                 return
@@ -510,10 +511,10 @@ class LocacaoModule(BaseModule):
         try:
             output_dir = os.path.join(os.getcwd(), 'data', 'locacoes')
             os.makedirs(output_dir, exist_ok=True)
-            output_path = os.path.join(output_dir, f"contrato-locacao-{dados['numero'].replace('/', '-')}.pdf")
-            
-            # Chamar a função importada
-            gerar_pdf_locacao(dados, output_path)
+            output_path = os.path.join(output_dir, f"proposta_comercial-{(dados['numero'] or 'sem-numero').replace('/', '-')}.pdf")
+
+            # Chamar a função importada (gera no caminho informado)
+            create_proposal_pdf(output_path)
 
             # Persistir caminho no banco, criando/atualizando registro
             conn = sqlite3.connect(DB_NAME)
