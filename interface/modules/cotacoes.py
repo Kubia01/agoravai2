@@ -394,6 +394,9 @@ class CotacoesModule(BaseModule):
 		self.item_deslocamento_var = tk.StringVar(value="0.00")
 		self.item_estadia_var = tk.StringVar(value="0.00")
 		self.item_tipo_operacao_var = tk.StringVar(value="Compra")
+		# Novos campos por item (locação)
+		self.item_loc_inicio_var = tk.StringVar()
+		self.item_loc_fim_var = tk.StringVar()
 		
 		# Grid de campos
 		fields_grid = tk.Frame(parent, bg="white")
@@ -423,13 +426,13 @@ class CotacoesModule(BaseModule):
 		tk.Label(fields_grid, text="Qtd:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=4, padx=5, sticky="w")
 		tk.Entry(fields_grid, textvariable=self.item_qtd_var, width=5).grid(row=0, column=5, padx=5)
 		
-		tk.Label(fields_grid, text="Valor Unit.:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=6, padx=5, sticky="w")
-		tk.Entry(fields_grid, textvariable=self.item_valor_var, width=10).grid(row=0, column=7, padx=5)
+		tk.Label(fields_grid, text="Valor Unit./Mensal:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=6, padx=5, sticky="w")
+		tk.Entry(fields_grid, textvariable=self.item_valor_var, width=12).grid(row=0, column=7, padx=5)
 		
-		tk.Label(fields_grid, text="Tipo:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=8, padx=5, sticky="w")
+		tk.Label(fields_grid, text="Tipo Oper.:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=8, padx=5, sticky="w")
 		tipo_operacao_combo = ttk.Combobox(fields_grid, textvariable=self.item_tipo_operacao_var, 
 								  values=["Compra", "Locação"], 
-								  width=8, state="readonly")
+								  width=10, state="readonly")
 		tipo_operacao_combo.grid(row=0, column=9, padx=5)
 		
 		# Segunda linha - Descrição
@@ -449,12 +452,22 @@ class CotacoesModule(BaseModule):
 		tk.Label(self.servico_frame, text="Estadia:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=4, padx=5, sticky="w")
 		tk.Entry(self.servico_frame, textvariable=self.item_estadia_var, width=10).grid(row=0, column=5, padx=5)
 		
+		# Quarta linha - Campos de locação por item (mostrados apenas para Locação)
+		self.locacao_item_frame = tk.Frame(fields_grid, bg="white")
+		self.locacao_item_frame.grid(row=3, column=0, columnspan=8, sticky="ew", pady=5)
+		tk.Label(self.locacao_item_frame, text="Início (DD/MM/AAAA):", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=0, padx=5, sticky="w")
+		tk.Entry(self.locacao_item_frame, textvariable=self.item_loc_inicio_var, width=14).grid(row=0, column=1, padx=5)
+		tk.Label(self.locacao_item_frame, text="Fim (DD/MM/AAAA):", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=2, padx=5, sticky="w")
+		tk.Entry(self.locacao_item_frame, textvariable=self.item_loc_fim_var, width=14).grid(row=0, column=3, padx=5)
+		# Ocultar inicialmente (será mostrado para Locação)
+		self.locacao_item_frame.grid_remove()
+		
 		# Inicialmente ocultar campos de serviço
 		self.servico_frame.grid_remove()
 		
 		# Botão adicionar
 		adicionar_button = self.create_button(fields_grid, "Adicionar Item", self.adicionar_item)
-		adicionar_button.grid(row=3, column=0, columnspan=8, pady=10)
+		adicionar_button.grid(row=4, column=0, columnspan=10, pady=10)
 		
 		# Configurar grid
 		fields_grid.grid_columnconfigure(3, weight=1)
@@ -479,31 +492,35 @@ class CotacoesModule(BaseModule):
 	def on_tipo_cotacao_changed(self, event=None):
 		"""Alternar entre fluxo de Compra e Locação"""
 		modo = self.tipo_cotacao_var.get()
+		# Sempre manter seção de itens visível
+		if hasattr(self, 'itens_section'):
+			self.itens_section.pack(fill="both", expand=True, pady=(0, 10))
+		# Mostrar campos de locação por item somente em Locação
+		if hasattr(self, 'locacao_item_frame'):
+			if modo == "Locação":
+				self.locacao_item_frame.grid()
+			else:
+				self.locacao_item_frame.grid_remove()
+		# Não usar lista de produtos para Locação; permitir digitar o nome
 		if modo == "Locação":
-			# Mostrar campos de locação e ocultar itens
-			if hasattr(self, 'locacao_frame'):
-				self.locacao_frame.pack(fill="x", pady=(0, 10))
-			if hasattr(self, 'itens_section'):
-				self.itens_section.pack_forget()
-			self.recalcular_locacao()
+			self.item_nome_combo['values'] = []
 		else:
-			# Ocultar locação e mostrar itens
-			if hasattr(self, 'locacao_frame'):
-				self.locacao_frame.pack_forget()
-			if hasattr(self, 'itens_section'):
-				self.itens_section.pack(fill="both", expand=True, pady=(0, 10))
-			self.atualizar_total()
+			self.update_produtos_combo()
+		# Ajustar total
+		self.atualizar_total()
 		
 	def update_produtos_combo(self):
 		"""Atualizar combo de produtos baseado no tipo selecionado"""
+		# Se for Locação, não sugerir produtos (nome manual)
+		if hasattr(self, 'tipo_cotacao_var') and self.tipo_cotacao_var.get() == 'Locação':
+			self.item_nome_combo['values'] = []
+			return
 		tipo = self.item_tipo_var.get()
 		if not tipo:
 			self.item_nome_combo['values'] = []
 			return
-			
 		conn = sqlite3.connect(DB_NAME)
 		c = conn.cursor()
-		
 		try:
 			c.execute("SELECT nome FROM produtos WHERE tipo = ? AND ativo = 1 ORDER BY nome", (tipo,))
 			produtos = [row[0] for row in c.fetchall()]
@@ -543,38 +560,42 @@ class CotacoesModule(BaseModule):
 		list_frame = tk.Frame(parent, bg='white')
 		list_frame.pack(fill="both", expand=True)
 		
-		# Treeview
-		columns = ("tipo", "nome", "qtd", "valor_unit", "mao_obra", "deslocamento", "estadia", "valor_total", "descricao")
-		self.itens_tree = ttk.Treeview(list_frame, 
-								  columns=columns,
-								  show="headings",
-								  height=8)
+		# Treeview com colunas estendidas para suportar Locação por item
+		columns = ("tipo", "nome", "qtd", "valor_unit", "mao_obra", "deslocamento", "estadia", "meses", "inicio", "fim", "valor_total", "descricao", "tipo_operacao")
+		self.itens_tree = ttk.Treeview(list_frame, columns=columns, show="headings", height=8)
 		
 		# Cabeçalhos
 		self.itens_tree.heading("tipo", text="Tipo")
 		self.itens_tree.heading("nome", text="Nome")
 		self.itens_tree.heading("qtd", text="Qtd")
-		self.itens_tree.heading("valor_unit", text="Valor Unit.")
+		self.itens_tree.heading("valor_unit", text="Valor Unit./Mensal")
 		self.itens_tree.heading("mao_obra", text="Mão Obra")
 		self.itens_tree.heading("deslocamento", text="Desloc.")
 		self.itens_tree.heading("estadia", text="Estadia")
+		self.itens_tree.heading("meses", text="Meses")
+		self.itens_tree.heading("inicio", text="Início")
+		self.itens_tree.heading("fim", text="Fim")
 		self.itens_tree.heading("valor_total", text="Total")
 		self.itens_tree.heading("descricao", text="Descrição")
+		self.itens_tree.heading("tipo_operacao", text="Operação")
 		
 		# Larguras
 		self.itens_tree.column("tipo", width=80)
-		self.itens_tree.column("nome", width=150)
+		self.itens_tree.column("nome", width=160)
 		self.itens_tree.column("qtd", width=50)
-		self.itens_tree.column("valor_unit", width=80)
+		self.itens_tree.column("valor_unit", width=110)
 		self.itens_tree.column("mao_obra", width=80)
 		self.itens_tree.column("deslocamento", width=80)
 		self.itens_tree.column("estadia", width=80)
-		self.itens_tree.column("valor_total", width=80)
+		self.itens_tree.column("meses", width=60)
+		self.itens_tree.column("inicio", width=90)
+		self.itens_tree.column("fim", width=90)
+		self.itens_tree.column("valor_total", width=90)
 		self.itens_tree.column("descricao", width=200)
+		self.itens_tree.column("tipo_operacao", width=0, stretch=False)
 		
 		# Scrollbar
-		scrollbar = ttk.Scrollbar(list_frame, orient="vertical", 
-							 command=self.itens_tree.yview)
+		scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.itens_tree.yview)
 		self.itens_tree.configure(yscrollcommand=scrollbar.set)
 		
 		# Pack
@@ -589,10 +610,7 @@ class CotacoesModule(BaseModule):
 		remove_btn.pack(side="left", padx=5)
 		
 		# Label do total
-		self.total_label = tk.Label(item_buttons, text="Total: R$ 0,00",
-							   font=('Arial', 12, 'bold'),
-							   bg='white',
-							   fg='#1e293b')
+		self.total_label = tk.Label(item_buttons, text="Total: R$ 0,00", font=('Arial', 12, 'bold'), bg='white', fg='#1e293b')
 		self.total_label.pack(side="right")
 		
 	def create_cotacao_buttons(self, parent):
@@ -714,24 +732,47 @@ class CotacoesModule(BaseModule):
 		deslocamento_str = self.item_deslocamento_var.get()
 		estadia_str = self.item_estadia_var.get()
 		tipo_operacao = self.item_tipo_operacao_var.get()
+		inicio_str = self.item_loc_inicio_var.get()
+		fim_str = self.item_loc_fim_var.get()
+		modo = self.tipo_cotacao_var.get()
 		
 		# Validações
 		if not tipo or not nome:
-			self.show_warning("Selecione o tipo e nome do item.")
+			self.show_warning("Selecione o tipo e informe o nome do item.")
 			return
-			
 		try:
 			quantidade = float(qtd_str) if qtd_str else 1
 			valor_unitario = clean_number(valor_str)
 			mao_obra = clean_number(mao_obra_str)
 			deslocamento = clean_number(deslocamento_str)
 			estadia = clean_number(estadia_str)
-			
-			valor_total = quantidade * (valor_unitario + mao_obra + deslocamento + estadia)
 		except ValueError:
 			self.show_error("Verifique os valores numéricos informados.")
 			return
-			
+		
+		meses = ""
+		inicio_fmt = ""
+		fim_fmt = ""
+		if modo == 'Locação' or tipo_operacao == 'Locação':
+			# Datas obrigatórias por item em locação
+			inicio_iso = self.parse_date_input(inicio_str)
+			fim_iso = self.parse_date_input(fim_str)
+			if not inicio_iso or not fim_iso:
+				self.show_warning("Informe datas válidas de início e fim para locação.")
+				return
+			meses_int = self.calculate_months_between(inicio_iso, fim_iso)
+			meses = str(meses_int)
+			inicio_fmt = format_date(inicio_iso)
+			fim_fmt = format_date(fim_iso)
+			valor_total = quantidade * (valor_unitario) * meses_int
+			# Ignorar custos de serviço em locação
+			mao_obra = 0
+			deslocamento = 0
+			estadia = 0
+			tipo_operacao = 'Locação'
+		else:
+			valor_total = quantidade * (valor_unitario + mao_obra + deslocamento + estadia)
+		
 		# Adicionar à lista
 		self.itens_tree.insert("", "end", values=(
 			tipo,
@@ -741,9 +782,12 @@ class CotacoesModule(BaseModule):
 			format_currency(mao_obra),
 			format_currency(deslocamento),
 			format_currency(estadia),
+			meses,
+			inicio_fmt,
+			fim_fmt,
 			format_currency(valor_total),
-			tipo_operacao,
-			descricao
+			descricao,
+			tipo_operacao
 		))
 		
 		# Limpar campos
@@ -755,6 +799,8 @@ class CotacoesModule(BaseModule):
 		self.item_deslocamento_var.set("0.00")
 		self.item_estadia_var.set("0.00")
 		self.item_tipo_operacao_var.set("Compra")
+		self.item_loc_inicio_var.set("")
+		self.item_loc_fim_var.set("")
 		
 		# Atualizar total
 		self.atualizar_total()
@@ -819,27 +865,15 @@ class CotacoesModule(BaseModule):
 		
 	def atualizar_total(self):
 		"""Atualizar valor total da cotação"""
-		if hasattr(self, 'tipo_cotacao_var') and self.tipo_cotacao_var.get() == 'Locação':
-			# Em locação o total vem dos campos de locação
-			try:
-				valor_str = self.locacao_total_var.get().replace('R$ ', '').replace('.', '').replace(',', '.')
-				total = float(valor_str) if valor_str else 0.0
-			except ValueError:
-				total = 0.0
-			self.total_label.config(text=f"Total: {format_currency(total)}")
-			return
-		
 		total = 0
 		for item in self.itens_tree.get_children():
 			values = self.itens_tree.item(item)['values']
-			if len(values) >= 8:
-				# Remover formatação e converter para float
-				valor_total_str = values[7].replace('R$ ', '').replace('.', '').replace(',', '.')
+			if len(values) >= 11:
+				valor_total_str = values[10].replace('R$ ', '').replace('.', '').replace(',', '.')
 				try:
 					total += float(valor_total_str)
 				except ValueError:
 					pass
-					
 		self.total_label.config(text=f"Total: {format_currency(total)}")
 		
 	def nova_cotacao(self):
@@ -891,106 +925,52 @@ class CotacoesModule(BaseModule):
 		if not numero:
 			self.show_warning("Informe o número da proposta.")
 			return
-			
 		if not cliente_str:
 			self.show_warning("Selecione um cliente.")
 			return
-			
-		# Obter ID do cliente
 		cliente_id = self.clientes_dict.get(cliente_str)
 		if not cliente_id:
 			self.show_warning("Cliente selecionado inválido.")
 			return
-			
-		# Verificar se há itens (somente para Compra)
-		if modo != 'Locação' and not self.itens_tree.get_children():
+		if not self.itens_tree.get_children():
 			self.show_warning("Adicione pelo menos um item à cotação.")
 			return
-			
 		conn = sqlite3.connect(DB_NAME)
 		c = conn.cursor()
-		
 		try:
-			# Calcular valor total
-			if modo == 'Locação':
-				valor_mensal = clean_number(self.locacao_valor_mensal_var.get() or "0")
-				inicio_iso = self.parse_date_input(self.locacao_data_inicio_var.get())
-				fim_iso = self.parse_date_input(self.locacao_data_fim_var.get())
-				if not valor_mensal or not inicio_iso or not fim_iso or not self.locacao_equipamento_var.get().strip():
-					self.show_warning("Preencha todos os campos de locação (equipamento, valores e datas).")
-					return
-				qtd_meses = self.calculate_months_between(inicio_iso, fim_iso)
-				total_loc = (valor_mensal or 0) * (qtd_meses or 0)
-				valor_total = total_loc
-			else:
-				valor_total = 0
-				for item in self.itens_tree.get_children():
-					values = self.itens_tree.item(item)['values']
-					if len(values) >= 8:
-						valor_total_str = values[7].replace('R$ ', '').replace('.', '').replace(',', '.')
-						try:
-							valor_total += float(valor_total_str)
-						except ValueError:
-							pass
-			
-			# Converter data_validade para formato YYYY-MM-DD se vier no formato brasileiro
+			# Calcular valor total somando itens
+			valor_total = 0
+			for item in self.itens_tree.get_children():
+				values = self.itens_tree.item(item)['values']
+				if len(values) >= 11:
+					valor_total_str = values[10].replace('R$ ', '').replace('.', '').replace(',', '.')
+					try:
+						valor_total += float(valor_total_str)
+					except ValueError:
+						pass
+			# Data validade
 			data_validade_input = self.data_validade_var.get().strip()
 			data_validade = None
 			if data_validade_input:
 				try:
-					# Tentar formato DD/MM/AAAA
 					from datetime import datetime
 					data_validade = datetime.strptime(data_validade_input, '%d/%m/%Y').strftime('%Y-%m-%d')
 				except ValueError:
-					# Usar como está (assumindo YYYY-MM-DD)
 					data_validade = data_validade_input
-
-			# Obter ID da filial
+			# Filial
 			filial_str = self.filial_var.get()
 			filial_id = int(filial_str.split(' - ')[0]) if ' - ' in filial_str else int(filial_str)
-			
-			# Dados da cotação
+			# Inserir/atualizar cotação (sem usar campos globais de locação)
 			if self.current_cotacao_id:
-				# Atualizar cotação existente
 				c.execute("""
 					UPDATE cotacoes SET
 						numero_proposta = ?, modelo_compressor = ?, numero_serie_compressor = ?,
 						observacoes = ?, valor_total = ?, status = ?, data_validade = ?,
 						condicao_pagamento = ?, prazo_entrega = ?, filial_id = ?,
 						esboco_servico = ?, relacao_pecas_substituir = ?,
-						tipo_cotacao = ?, locacao_valor_mensal = ?, locacao_data_inicio = ?,
-						locacao_data_fim = ?, locacao_qtd_meses = ?, locacao_nome_equipamento = ?
+						tipo_cotacao = ?
 					WHERE id = ?
 				""", (numero, self.modelo_var.get(), self.serie_var.get(),
-					 self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
-					 self.status_var.get(), data_validade,
-					 self.condicao_pagamento_var.get(), self.prazo_entrega_var.get(),
-					 filial_id, 
-					 self.esboco_servico_text.get("1.0", tk.END).strip(),
-					 self.relacao_pecas_text.get("1.0", tk.END).strip(),
-					 modo,
-					 (clean_number(self.locacao_valor_mensal_var.get()) if modo == 'Locação' else None),
-					 (self.parse_date_input(self.locacao_data_inicio_var.get()) if modo == 'Locação' else None),
-					 (self.parse_date_input(self.locacao_data_fim_var.get()) if modo == 'Locação' else None),
-					 (int(self.locacao_qtd_meses_var.get() or 0) if modo == 'Locação' else None),
-					 (self.locacao_equipamento_var.get().strip() if modo == 'Locação' else None),
-					 self.current_cotacao_id))
-				
-				# Remover itens antigos
-				c.execute("DELETE FROM itens_cotacao WHERE cotacao_id = ?", (self.current_cotacao_id,))
-				cotacao_id = self.current_cotacao_id
-			else:
-				# Inserir nova cotação
-				c.execute("""
-					INSERT INTO cotacoes (numero_proposta, cliente_id, responsavel_id, data_criacao,
-									  modelo_compressor, numero_serie_compressor, observacoes,
-									  valor_total, status, data_validade, condicao_pagamento,
-									  prazo_entrega, filial_id, esboco_servico, relacao_pecas_substituir,
-									  tipo_cotacao, locacao_valor_mensal, locacao_data_inicio,
-									  locacao_data_fim, locacao_qtd_meses, locacao_nome_equipamento)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-				""", (numero, cliente_id, self.user_id, datetime.now().strftime('%Y-%m-%d'),
-					 self.modelo_var.get(), self.serie_var.get(),
 					 self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
 					 self.status_var.get(), data_validade,
 					 self.condicao_pagamento_var.get(), self.prazo_entrega_var.get(),
@@ -998,67 +978,56 @@ class CotacoesModule(BaseModule):
 					 self.esboco_servico_text.get("1.0", tk.END).strip(),
 					 self.relacao_pecas_text.get("1.0", tk.END).strip(),
 					 modo,
-					 (clean_number(self.locacao_valor_mensal_var.get()) if modo == 'Locação' else None),
-					 (self.parse_date_input(self.locacao_data_inicio_var.get()) if modo == 'Locação' else None),
-					 (self.parse_date_input(self.locacao_data_fim_var.get()) if modo == 'Locação' else None),
-					 (int(self.locacao_qtd_meses_var.get() or 0) if modo == 'Locação' else None),
-					 (self.locacao_equipamento_var.get().strip() if modo == 'Locação' else None)))
-					 
+					 self.current_cotacao_id))
+				c.execute("DELETE FROM itens_cotacao WHERE cotacao_id = ?", (self.current_cotacao_id,))
+				cotacao_id = self.current_cotacao_id
+			else:
+				c.execute("""
+					INSERT INTO cotacoes (numero_proposta, cliente_id, responsavel_id, data_criacao,
+									  modelo_compressor, numero_serie_compressor, observacoes,
+									  valor_total, status, data_validade, condicao_pagamento,
+									  prazo_entrega, filial_id, esboco_servico, relacao_pecas_substituir,
+									  tipo_cotacao)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""", (numero, cliente_id, self.user_id, datetime.now().strftime('%Y-%m-%d'),
+					 self.modelo_var.get(), self.serie_var.get(), self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
+					 self.status_var.get(), data_validade, self.condicao_pagamento_var.get(), self.prazo_entrega_var.get(),
+					 filial_id, self.esboco_servico_text.get("1.0", tk.END).strip(), self.relacao_pecas_text.get("1.0", tk.END).strip(), modo))
 				cotacao_id = c.lastrowid
 				self.current_cotacao_id = cotacao_id
-			
 			# Inserir itens
-			if modo == 'Locação':
-				# Criar um único item representando a locação
-				valor_mensal = clean_number(self.locacao_valor_mensal_var.get() or "0")
-				qtd_meses = int(self.locacao_qtd_meses_var.get() or 0)
-				desc = f"Locação do equipamento {self.locacao_equipamento_var.get().strip()} de {self.locacao_data_inicio_var.get()} a {self.locacao_data_fim_var.get()}"
-				valor_total_item = (valor_mensal or 0) * (qtd_meses or 0)
+			for item in self.itens_tree.get_children():
+				values = self.itens_tree.item(item)['values']
+				# Esperado 13 colunas
+				if len(values) != 13:
+					continue
+				tipo, nome, qtd, valor_unit, mao_obra, desloc, estadia, meses, inicio, fim, total, desc, tipo_operacao = values
+				quantidade = float(qtd)
+				valor_unitario = clean_number(valor_unit)
+				valor_mao_obra = clean_number(mao_obra)
+				valor_desloc = clean_number(desloc)
+				valor_estadia = clean_number(estadia)
+				valor_total_item = clean_number(total)
+				# Datas locação
+				inicio_iso = self.parse_date_input(inicio)
+				fim_iso = self.parse_date_input(fim)
+				meses_int = int(meses) if str(meses).isdigit() else None
+				# Forçar tipo_operacao conforme modo
+				if modo == 'Locação':
+					tipo_operacao = 'Locação'
 				c.execute("""
 					INSERT INTO itens_cotacao (cotacao_id, tipo, item_nome, quantidade,
 										 valor_unitario, valor_total_item, descricao,
-										 mao_obra, deslocamento, estadia, tipo_operacao)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-				""", (cotacao_id, 'Serviço', self.locacao_equipamento_var.get().strip(),
-					 qtd_meses, valor_mensal, valor_total_item, desc, 0, 0, 0, 'Locação'))
-			else:
-				for item in self.itens_tree.get_children():
-					values = self.itens_tree.item(item)['values']
-					# Suportar linhas com 9 ou 10 colunas (compatibilidade)
-					if len(values) == 10:
-						tipo, nome, qtd, valor_unit, mao_obra, desloc, estadia, total, tipo_operacao, desc = values
-					elif len(values) == 9:
-						tipo, nome, qtd, valor_unit, mao_obra, desloc, estadia, total, desc = values
-						tipo_operacao = 'Compra'
-					else:
-						# Formato inesperado; pular linha
-						continue
-					
-					# Converter valores
-					quantidade = float(qtd)
-					valor_unitario = clean_number(valor_unit)
-					valor_mao_obra = clean_number(mao_obra)
-					valor_desloc = clean_number(desloc)
-					valor_estadia = clean_number(estadia)
-					valor_total_item = clean_number(total)
-					
-					c.execute("""
-						INSERT INTO itens_cotacao (cotacao_id, tipo, item_nome, quantidade,
-											 valor_unitario, valor_total_item, descricao,
-											 mao_obra, deslocamento, estadia, tipo_operacao)
-						VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-					""", (cotacao_id, tipo, nome, quantidade, valor_unitario,
-						 valor_total_item, desc, valor_mao_obra, valor_desloc, valor_estadia, tipo_operacao))
-			
+										 mao_obra, deslocamento, estadia, tipo_operacao,
+										 locacao_data_inicio, locacao_data_fim, locacao_qtd_meses)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""", (cotacao_id, tipo, nome, quantidade, valor_unitario, valor_total_item, desc,
+					 valor_mao_obra, valor_desloc, valor_estadia, tipo_operacao,
+					 inicio_iso, fim_iso, meses_int))
 			conn.commit()
 			self.show_success("Cotação salva com sucesso!")
-			
-			# Emitir evento para atualizar outros módulos
 			self.emit_event('cotacao_created')
-			
-			# Recarregar lista
 			self.carregar_cotacoes()
-			
 		except sqlite3.Error as e:
 			self.show_error(f"Erro ao salvar cotação: {e}")
 		finally:
@@ -1278,21 +1247,19 @@ class CotacoesModule(BaseModule):
 		# Limpar lista atual
 		for item in self.itens_tree.get_children():
 			self.itens_tree.delete(item)
-			
 		conn = sqlite3.connect(DB_NAME)
 		c = conn.cursor()
-		
 		try:
 			c.execute("""
 				SELECT tipo, item_nome, quantidade, valor_unitario, valor_total_item,
-					   descricao, mao_obra, deslocamento, estadia
+				       descricao, mao_obra, deslocamento, estadia,
+				       locacao_qtd_meses, locacao_data_inicio, locacao_data_fim, tipo_operacao
 				FROM itens_cotacao
 				WHERE cotacao_id = ?
 				ORDER BY id
 			""", (cotacao_id,))
-			
 			for row in c.fetchall():
-				tipo, nome, qtd, valor_unit, total, desc, mao_obra, desloc, estadia = row
+				(tipo, nome, qtd, valor_unit, total, desc, mao_obra, desloc, estadia, meses, inicio, fim, tipo_oper) = row
 				self.itens_tree.insert("", "end", values=(
 					tipo,
 					nome,
@@ -1301,17 +1268,19 @@ class CotacoesModule(BaseModule):
 					format_currency(mao_obra or 0),
 					format_currency(desloc or 0),
 					format_currency(estadia or 0),
+					str(meses or ""),
+					(format_date(inicio) if inicio else ""),
+					(format_date(fim) if fim else ""),
 					format_currency(total),
-					desc or ""
+					desc or "",
+					tipo_oper or "Compra"
 				))
-				
 			self.atualizar_total()
-			
 		except sqlite3.Error as e:
 			self.show_error(f"Erro ao carregar itens: {e}")
 		finally:
 			conn.close()
-			
+
 	def duplicar_cotacao(self):
 		"""Duplicar cotação selecionada"""
 		selected = self.cotacoes_tree.selection()
