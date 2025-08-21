@@ -142,38 +142,38 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
         footer_text_y = 18
 
         def _draw_header_footer(canvas, page_num: int):
-            # Header: faixa azul com logo, nome e endereço
+            # Header: nome, endereço, logo e faixa azul divisória
             canvas.saveState()
-            canvas.setFillColor(colors.HexColor('#005B99'))
-            canvas.rect(0, PAGE_HEIGHT - header_h, PAGE_WIDTH, header_h, stroke=0, fill=1)
-            canvas.setStrokeColor(colors.HexColor('#004A7A'))
-            canvas.setLineWidth(0.6)
-            canvas.line(0, PAGE_HEIGHT - header_h, PAGE_WIDTH, PAGE_HEIGHT - header_h)
-            # Logo
-            if filial['logo_path'] and os.path.exists(filial['logo_path']):
-                try:
-                    logo_w, logo_h = 90, 26
-                    canvas.drawImage(filial['logo_path'], 1.0*cm, PAGE_HEIGHT - header_h + (header_h-logo_h)/2, width=logo_w, height=logo_h, preserveAspectRatio=True, mask='auto')
-                except Exception:
-                    pass
             # Nome + Endereço
-            canvas.setFillColor(colors.white)
             try:
                 canvas.setFont('Helvetica-Bold', 11)
             except Exception:
                 canvas.setFont('Helvetica', 11)
-            canvas.drawString(4.5*cm, PAGE_HEIGHT - 24, filial['nome'] or ' ')
+            name_y = PAGE_HEIGHT - 28
+            addr_y = name_y - 12
+            logo_y = PAGE_HEIGHT - 30
+            if filial['logo_path'] and os.path.exists(filial['logo_path']):
+                try:
+                    logo_w, logo_h = 80, 22
+                    canvas.drawImage(filial['logo_path'], 1.0*cm, logo_y - (logo_h/2), width=logo_w, height=logo_h, preserveAspectRatio=True, mask='auto')
+                except Exception:
+                    pass
+            canvas.setFillColor(colors.black)
+            canvas.drawString(4.5*cm, name_y, filial['nome'] or ' ')
             if filial['endereco']:
                 canvas.setFont('Helvetica', 8)
-                canvas.drawString(4.5*cm, PAGE_HEIGHT - 36, filial['endereco'])
-            # Número da página
+                canvas.drawString(4.5*cm, addr_y, filial['endereco'])
+            # Número da página (topo à direita)
             canvas.setFont('Helvetica', 8)
-            canvas.drawRightString(PAGE_WIDTH - 1.0*cm, PAGE_HEIGHT - 24, f"Página {page_num}")
+            canvas.drawRightString(PAGE_WIDTH - 1.0*cm, name_y, f"Página {page_num}")
+            # Faixa azul de divisão (fina)
+            canvas.setFillColor(colors.HexColor('#005B99'))
+            canvas.rect(0, addr_y - 12, PAGE_WIDTH, 6, stroke=0, fill=1)
 
             # Rodapé: faixa azul de divisão e dados dinâmicos
             canvas.setFillColor(colors.HexColor('#005B99'))
-            canvas.rect(0, footer_text_y + sep_h, PAGE_WIDTH, sep_h, stroke=0, fill=1)
-            canvas.setFillColor(colors.HexColor('#666666'))
+            canvas.rect(0, 40, PAGE_WIDTH, 6, stroke=0, fill=1)
+            canvas.setFillColor(colors.HexColor('#333333'))
             canvas.setFont('Helvetica', 8)
             left = " | ".join([p for p in [f"CNPJ: {filial['cnpj']}" if filial['cnpj'] else '', f"IE: {filial['ie']}" if filial['ie'] else ''] if p])
             right_parts = [filial['telefones'] or '', filial['email'] or '']
@@ -181,9 +181,9 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
                 right_parts.append(filial['site'])
             right = " | ".join([p for p in right_parts if p])
             if left:
-                canvas.drawString(1.5*cm, footer_text_y, left)
+                canvas.drawString(1.5*cm, 28, left)
             if right:
-                canvas.drawRightString(PAGE_WIDTH - 1.5*cm, footer_text_y, right)
+                canvas.drawRightString(PAGE_WIDTH - 1.5*cm, 28, right)
             canvas.restoreState()
 
         def _draw_layout_page(canvas, doc):
@@ -246,14 +246,14 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
             if page_index == 1:
                 prez = (dados.get('prezados_linha') or 'Prezados Senhores:')
                 ap = (dados.get('apresentacao_texto') or '').strip() or _default_apresentacao(dados)
-                # Basear-se no item após REF
-                base_y = 660.0
+                # Posicionar abaixo do bloco de cliente/filial
+                base_y = 600.0
                 for it in items:
-                    if (it.get('text') or '').strip().upper().startswith('REF'):
-                        base_y = float(it.get('y0', base_y)) - 16
-                        break
+                    t = (it.get('text') or '').strip().upper()
+                    if t.startswith('DE:') or t.startswith('A/C'):
+                        base_y = min(base_y, float(it.get('y0', base_y)) - 36)
                 _draw_wrapped_text(canvas, prez, 72, base_y, max_width=PAGE_WIDTH-144, line_height=14, font='Helvetica-Bold', size=11)
-                _draw_wrapped_text(canvas, ap, 72, base_y-18, max_width=PAGE_WIDTH-144, line_height=13, font='Helvetica', size=10)
+                _draw_wrapped_text(canvas, ap, 72, base_y-20, max_width=PAGE_WIDTH-144, line_height=13, font='Helvetica', size=10)
 
             # Página 4 (index 3): desenho do compressor (por marca/logo)
             if page_index == 3:
