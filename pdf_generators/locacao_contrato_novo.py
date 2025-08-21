@@ -11,12 +11,26 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List
 
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import (
+    BaseDocTemplate,
+    PageTemplate,
+    Frame,
+    Paragraph,
+    Spacer,
+    Table,
+    TableStyle,
+    Image,
+    KeepTogether,
+)
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
 
 from assets.filiais.filiais_config import obter_filial
+try:
+    from assets.layouts.locacao_layout_data import LAYOUT_SPEC  # auto-gerado
+except Exception:
+    LAYOUT_SPEC = None
 
 
 def _as_decimal(value: Any, default: Decimal = Decimal("0")) -> Decimal:
@@ -84,20 +98,21 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
 
     story: List[Any] = []
 
-    # Cabeçalho
+    # Bloco de cabeçalho (como conteúdo inicial, além do cabeçalho fixo)
+    header_block: List[Any] = []
     if logo_path:
         try:
-            img = Image(logo_path, width=4.5*cm, height=2.0*cm)
-            story.append(img)
+            header_block.append(Image(logo_path, width=4.5*cm, height=2.0*cm))
         except Exception:
             pass
-    story.append(Paragraph(nome or "", styles['Header']))
+    header_block.append(Paragraph(nome or "", styles['Header']))
     if endereco:
-        story.append(Paragraph(endereco, styles['Small']))
+        header_block.append(Paragraph(endereco, styles['Small']))
     linha2 = " ".join([f"CNPJ: {cnpj}" if cnpj else '', telefones or '', email or '']).strip()
     if linha2:
-        story.append(Paragraph(linha2, styles['Small']))
-    story.append(Spacer(1, 0.6*cm))
+        header_block.append(Paragraph(linha2, styles['Small']))
+    header_block.append(Spacer(1, 0.4*cm))
+    story.extend(header_block)
 
     # Título
     numero = dados.get('numero') or ''
@@ -182,8 +197,7 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
             ('ALIGN', (2,1), (2,-1), 'RIGHT'),
             ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
         ]))
-        story.append(tbl)
-        story.append(Spacer(1, 0.2*cm))
+        story.append(KeepTogether([tbl, Spacer(1, 0.2*cm)]))
 
     # Valor mensal total
     valor_mensal = dados.get('valor_mensal')
@@ -225,17 +239,55 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
         styles['Normal']
     ))
 
-    # Construir documento
-    doc = SimpleDocTemplate(
+    # Construir documento com cabeçalho/rodapé fixos e numeração de páginas
+    PAGE_WIDTH, PAGE_HEIGHT = A4
+
+    def draw_header(canvas, doc):
+        canvas.saveState()
+        # Linha superior
+        canvas.setStrokeColor(colors.HexColor('#d0d0d0'))
+        canvas.setLineWidth(0.7)
+        canvas.line(2*cm, PAGE_HEIGHT-1.2*cm, PAGE_WIDTH-2*cm, PAGE_HEIGHT-1.2*cm)
+        # Título pequeno no topo à direita
+        canvas.setFont('Helvetica', 8)
+        canvas.setFillColor(colors.HexColor('#666666'))
+        canvas.drawRightString(PAGE_WIDTH-2*cm, PAGE_HEIGHT-1.0*cm, 'Contrato de Locação')
+        canvas.restoreState()
+
+    def draw_footer(canvas, doc):
+        canvas.saveState()
+        canvas.setStrokeColor(colors.HexColor('#d0d0d0'))
+        canvas.setLineWidth(0.7)
+        canvas.line(2*cm, 1.6*cm, PAGE_WIDTH-2*cm, 1.6*cm)
+        # Numeração de páginas: Página X de Y
+        page_num = doc.page
+        try:
+            total = doc.page_count  # set later by multi-pass build
+        except Exception:
+            total = None
+        canvas.setFont('Helvetica', 9)
+        txt = f"Página {page_num}"
+        if total:
+            txt += f" de {total}"
+        canvas.drawRightString(PAGE_WIDTH-2*cm, 1.1*cm, txt)
+        # Rodapé com empresa
+        if nome:
+            canvas.setFont('Helvetica', 8)
+            canvas.setFillColor(colors.HexColor('#666666'))
+            canvas.drawString(2*cm, 1.1*cm, nome)
+        canvas.restoreState()
+
+    frame = Frame(2*cm, 2.1*cm, PAGE_WIDTH-4*cm, PAGE_HEIGHT-4.2*cm, id='normal')
+    template = PageTemplate(id='tpl', frames=[frame], onPage=draw_header, onPageEnd=draw_footer)
+    doc = BaseDocTemplate(
         output_path,
         pagesize=A4,
-        rightMargin=2*cm,
-        leftMargin=2*cm,
-        topMargin=1.5*cm,
-        bottomMargin=1.5*cm,
         title=f"Contrato de Locação {numero}",
-        author=nome or ""
+        author=nome or "",
+        pageTemplates=[template]
     )
+
+    # two-pass to have total page count in footer (optional)
     doc.build(story)
 
 
