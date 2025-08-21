@@ -1,5 +1,6 @@
 import os
 import subprocess
+import shutil
 from datetime import datetime
 from assets.filiais.filiais_config import obter_filial
 from reportlab.pdfgen import canvas
@@ -179,17 +180,49 @@ def gerar_pdf_locacao(dados: dict, output_path: str):
     model_docx = os.path.join(os.getcwd(), "Modelo Contrato de Locação (1).docx")
 
     if not os.path.exists(model_docx):
-        # Nome alternativo com cedilha/acentos, conforme repositório
         for fname in os.listdir(os.getcwd()):
             if fname.lower().startswith("modelo contrato de loc") and fname.lower().endswith('.docx'):
-
                 model_docx = os.path.join(os.getcwd(), fname)
                 break
 
     base_pdf = os.path.join(os.path.dirname(output_path), "_modelo_base_locacao.pdf")
 
-    if not _docx_to_pdf(model_docx, base_pdf):
-        raise RuntimeError("Falha ao converter o modelo DOCX para PDF. Instale LibreOffice no ambiente.")
+    # 1) Preferir PDF base via variável de ambiente (não depende de LibreOffice)
+    env_base_pdf = os.environ.get("LOCACAO_BASE_PDF")
+    if env_base_pdf and os.path.exists(env_base_pdf):
+        try:
+            if os.path.abspath(env_base_pdf) != os.path.abspath(base_pdf):
+                shutil.copyfile(env_base_pdf, base_pdf)
+        except Exception:
+            pass
+
+    # 2) Se ainda não temos o base_pdf, tentar converter via LibreOffice/soffice
+    if not os.path.exists(base_pdf):
+        _docx_to_pdf(model_docx, base_pdf)
+
+    # 3) Se ainda falhar, tentar autodetectar um PDF exemplo no repositório
+    if not os.path.exists(base_pdf):
+        candidates = []
+        try:
+            for fname in os.listdir(os.getcwd()):
+                low = fname.lower()
+                if low.endswith('.pdf') and (
+                    'locacao' in low or 'locação' in low or 'contrato' in low or 'exemplo' in low
+                ):
+                    candidates.append(os.path.join(os.getcwd(), fname))
+        except Exception:
+            candidates = []
+        if candidates:
+            try:
+                shutil.copyfile(candidates[0], base_pdf)
+            except Exception:
+                pass
+
+    if not os.path.exists(base_pdf):
+        raise RuntimeError(
+            "Falha ao obter PDF base. Instale o LibreOffice no ambiente OU "
+            "defina a variável de ambiente LOCACAO_BASE_PDF apontando para um PDF modelo do contrato."
+        )
 
     _overlay_dynamic_fields(base_pdf, output_path, dados)
     try:
