@@ -52,6 +52,32 @@ def criar_banco():
     except sqlite3.OperationalError:
         pass  # Coluna já existe
 
+    # Migração: Adicionar colunas para Locação nas cotações
+    try:
+        c.execute("ALTER TABLE cotacoes ADD COLUMN tipo_cotacao TEXT DEFAULT 'Compra'")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE cotacoes ADD COLUMN locacao_valor_mensal REAL")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE cotacoes ADD COLUMN locacao_data_inicio DATE")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE cotacoes ADD COLUMN locacao_data_fim DATE")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE cotacoes ADD COLUMN locacao_qtd_meses INTEGER")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        c.execute("ALTER TABLE cotacoes ADD COLUMN locacao_nome_equipamento TEXT")
+    except sqlite3.OperationalError:
+        pass
+
     # Tabela Clientes - ATUALIZADA
     c.execute('''CREATE TABLE IF NOT EXISTS clientes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -144,6 +170,12 @@ def criar_banco():
         relacao_pecas TEXT,
         esboco_servico TEXT,
         relacao_pecas_substituir TEXT,
+        tipo_cotacao TEXT DEFAULT 'Compra',
+        locacao_valor_mensal REAL,
+        locacao_data_inicio DATE,
+        locacao_data_fim DATE,
+        locacao_qtd_meses INTEGER,
+        locacao_nome_equipamento TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (cliente_id) REFERENCES clientes(id),
         FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
