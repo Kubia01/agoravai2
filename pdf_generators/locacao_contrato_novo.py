@@ -35,7 +35,16 @@ from assets.filiais.filiais_config import obter_filial
 try:
     from assets.layouts.locacao_layout_data import LAYOUT_SPEC  # auto-gerado
 except Exception:
+    # Fallback: tentar carregar do JSON gerado pelo extractor
     LAYOUT_SPEC = None
+    try:
+        import json
+        _json_path = os.path.join(os.getcwd(), 'assets', 'layouts', 'locacao_layout.json')
+        if os.path.exists(_json_path):
+            with open(_json_path, 'r', encoding='utf-8') as _f:
+                LAYOUT_SPEC = json.load(_f)
+    except Exception:
+        LAYOUT_SPEC = None
 
 
 # ========= Helpers =========
@@ -188,7 +197,9 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
 
         def _draw_layout_page(canvas, doc):
             page_index = (doc.page or 1) - 1
-            _draw_header_footer(canvas, doc.page)
+            # Cabeçalho/rodapé dinâmicos para todas as páginas, exceto a primeira
+            if doc.page != 1:
+                _draw_header_footer(canvas, doc.page)
             # Desenhar textos estáticos do layout
             items = LAYOUT_SPEC['pages'][page_index].get('items', []) if 0 <= page_index < len(LAYOUT_SPEC.get('pages', [])) else []
             for it in items:
@@ -199,6 +210,13 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
                 y0 = float(it.get('y0', 0))
                 if not txt.strip():
                     continue
+                # Evitar duplicação de cabeçalho/rodapé a partir da página 2
+                if doc.page != 1:
+                    # pular itens do topo (header) e base (footer) do PDF de referência
+                    if y0 > (PAGE_HEIGHT - 70):
+                        continue
+                    if y0 < 60:
+                        continue
                 # Página 2: pular bloco de apresentação para não duplicar (vamos desenhar dinamicamente)
                 if page_index == 1:
                     t = txt.strip()
@@ -208,6 +226,10 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
                         'disposição para', 'especificações e'
                     )
                     if any(t.startswith(pfx) for pfx in skip_prefixes):
+                        continue
+                # Página 4: pular o título do compressor do modelo (será dinâmico)
+                if page_index == 3:
+                    if txt.strip().upper().startswith('COMPRESSOR DE PARAFUSO'):
                         continue
                 canvas.saveState()
                 try:
@@ -244,10 +266,20 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
 
             # Página 2 (index 1): Prezados + apresentação
             if page_index == 1:
+                # Bloco superior: PROPOSTA COMERCIAL REF / NÚMERO / DATA
+                from datetime import date
+                numero = dados.get('numero') or ''
+                data_txt = dados.get('data_inicio') or date.today().strftime('%d/%m/%Y')
+                ref_txt = (dados.get('referencia') or (dados.get('cliente_nome') or '') or numero)
+                top_y = PAGE_HEIGHT - 110
+                # Renderizar em uma única linha conforme especificado
+                header_line = f"PROPOSTA COMERCIAL REF: {ref_txt}   CONTRATO DE LOCAÇÃO   NÚMERO: {numero}   DATA: {data_txt}"
+                _draw_wrapped_text(canvas, header_line, 72, top_y, max_width=PAGE_WIDTH-144, line_height=14, font='Helvetica-Bold', size=11)
+
                 prez = (dados.get('prezados_linha') or 'Prezados Senhores:')
                 ap = (dados.get('apresentacao_texto') or '').strip() or _default_apresentacao(dados)
                 # Posicionar abaixo do bloco de cliente/filial
-                base_y = 600.0
+                base_y = top_y - 28
                 for it in items:
                     t = (it.get('text') or '').strip().upper()
                     if t.startswith('DE:') or t.startswith('A/C'):
@@ -255,8 +287,17 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
                 _draw_wrapped_text(canvas, prez, 72, base_y, max_width=PAGE_WIDTH-144, line_height=14, font='Helvetica-Bold', size=11)
                 _draw_wrapped_text(canvas, ap, 72, base_y-20, max_width=PAGE_WIDTH-144, line_height=13, font='Helvetica', size=10)
 
-            # Página 4 (index 3): desenho do compressor (por marca/logo)
+            # Página 4 (index 3): título do compressor + imagem (por marca/logo)
             if page_index == 3:
+                # Título do compressor
+                equip_title = (dados.get('equipamento_titulo') or '').strip() or 'COMPRESSOR DE PARAFUSO LUBRIFICADO REFRIGERADO À AR'
+                # Tentar posicionar próximo do título do modelo do PDF de referência
+                title_y = PAGE_HEIGHT - 160
+                for it in items:
+                    if (it.get('text') or '').strip().upper().startswith('COMPRESSOR DE PARAFUSO'):
+                        title_y = float(it.get('y0', title_y))
+                        break
+                _draw_wrapped_text(canvas, equip_title.upper(), 72, title_y, max_width=PAGE_WIDTH-144, line_height=14, font='Helvetica-Bold', size=12)
                 img_path = _resolve_image_path(dados.get('imagem_compressor')) or filial['logo_path']
                 if img_path and os.path.exists(img_path):
                     try:
@@ -264,12 +305,54 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
                     except Exception:
                         pass
 
+            # Página 5 (index 4): tabela de itens da locação (COMERCIAIS)
+            if page_index == 4:
+                itens = dados.get('itens') or []
+                if itens:
+                    # Título da seção
+                    _draw_wrapped_text(canvas, 'COMERCIAIS:', 72, PAGE_HEIGHT-150, max_width=PAGE_WIDTH-144, line_height=14, font='Helvetica-Bold', size=12)
+                    # Config da tabela
+                    cols = ['Quantidade', 'Descrição', 'Valor mensal', 'Início', 'Fim', 'Período']
+                    col_widths = [70, 220, 90, 60, 60, 70]
+                    x = 72
+                    y = PAGE_HEIGHT - 170
+                    row_h = 18
+                    # Cabeçalho
+                    canvas.saveState()
+                    canvas.setFont('Helvetica-Bold', 9)
+                    for idx, col in enumerate(cols):
+                        canvas.drawString(x, y, col)
+                        x += col_widths[idx]
+                    canvas.restoreState()
+                    # Linhas
+                    y -= row_h
+                    max_rows = int((y - 120) // row_h)
+                    for i, it in enumerate(itens[:max_rows]):
+                        x = 72
+                        canvas.saveState()
+                        canvas.setFont('Helvetica', 9)
+                        vals = [
+                            str(it.get('quantidade') or ''),
+                            str(it.get('descricao') or ''),
+                            str(it.get('valor_unitario') or ''),
+                            str(it.get('inicio') or ''),
+                            str(it.get('fim') or ''),
+                            str(it.get('periodo') or ''),
+                        ]
+                        for idx, v in enumerate(vals):
+                            # quebra simples para descrição
+                            if idx == 1 and len(v) > 60:
+                                v = v[:57] + '...'
+                            canvas.drawString(x, y, v)
+                            x += col_widths[idx]
+                        canvas.restoreState()
+                        y -= row_h
+
             # Página 6 (index 5): condições de pagamento
             if page_index == 5:
                 cond = (dados.get('condicoes_pagamento') or '').strip()
                 if not cond:
-                    dia = dados.get('vencimento_dia') or '10'
-                    cond = f"A vencimento de cada mensalidade, todo dia {dia}, conforme proposta acordada com o cliente."
+                    cond = "A vencimento de cada mensalidade, vai depender da proposta que vai ser feita com o cliente."
                 _draw_wrapped_text(canvas, cond, 72, 700, max_width=PAGE_WIDTH-144, line_height=13, font='Helvetica', size=10)
 
             # Página 7 (index 6): termos finais + imagem por marca
@@ -290,6 +373,27 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
                         canvas.drawImage(img_path, 60, 420, width=200, height=130, preserveAspectRatio=True, mask='auto')
                     except Exception:
                         pass
+
+            # Página 13 (index 12): data e blocos de assinatura dinâmicos
+            if page_index == 12:
+                from datetime import date
+                meses = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
+                hoje = date.today()
+                data_ext = f"São Bernardo do Campo, {hoje.day} de {meses[hoje.month-1]} de {hoje.year}."
+                _draw_wrapped_text(canvas, data_ext, 72, 220, max_width=PAGE_WIDTH-144, line_height=14, font='Helvetica', size=10)
+                # Assinaturas
+                y_sig = 160
+                canvas.saveState()
+                try:
+                    canvas.setFont('Helvetica', 10)
+                except Exception:
+                    canvas.setFont('Helvetica', 10)
+                # linha
+                canvas.line(72, y_sig, PAGE_WIDTH-72, y_sig)
+                y_text = y_sig - 14
+                canvas.drawString(72, y_text, f"Contratada: {filial['nome'] or ''}")
+                canvas.drawString(72, y_text-14, f"CNPJ: {filial['cnpj'] or ''}")
+                canvas.restoreState()
 
         # Template que só usa páginas vazias para acionar o onPage
         frame = Frame(1*cm, 1.8*cm, PAGE_WIDTH-2*cm, PAGE_HEIGHT-3.6*cm, id='layout_frame')
