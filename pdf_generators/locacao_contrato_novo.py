@@ -251,12 +251,7 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
                     )
                     if any(t.startswith(pfx) for pfx in skip_prefixes):
                         continue
-                    # Pular também as labels superiores (serão substituídas por linha única dinâmica)
-                    skip_labels = (
-                        'PROPOSTA COMERCIAL', 'REF:', 'CONTRATO DE LOCAÇÃO', 'NÚMERO', 'NUMERO', 'DATA:'
-                    )
-                    if any(t.upper().startswith(pfx) for pfx in skip_labels):
-                        continue
+                    # Não pular os rótulos PROPOSTA/REF/NÚMERO/DATA para que fiquem idênticos ao modelo
                 # Página 5 (index 4): pular labels de tabela estática do modelo (vamos desenhar nossa tabela)
                 if page_index == 4:
                     t = txt.strip().upper()
@@ -302,12 +297,14 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
 
             # Página 2 (index 1): Cabeçalho superior + A/C / De + Prezados/apresentação
             if page_index == 1:
-                # Bloco superior: PROPOSTA COMERCIAL REF / NÚMERO / DATA (linha única ajustada ao espaço)
+                # Preencher valores ao lado dos rótulos NÚMERO e DATA do layout, mantendo visual idêntico
                 from datetime import date
                 numero = dados.get('numero') or ''
                 data_txt = dados.get('data_inicio') or date.today().strftime('%d/%m/%Y')
-                ref_txt = (dados.get('referencia') or (dados.get('cliente_nome') or '') or numero)
-                # Detectar posições de A/C e De no layout para evitar sobreposição
+                _write_after(["NÚMERO:", "NUMERO:"], numero, default_size=10, dx=4)
+                _write_after(["DATA:"], data_txt, default_size=10, dx=4)
+
+                # Obter Y de A/C e De para posicionar corretamente a apresentação abaixo
                 y_ac = None
                 y_de = None
                 for it in items:
@@ -316,16 +313,9 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
                         y_ac = float(it.get('y0'))
                     if t.startswith('DE:'):
                         y_de = float(it.get('y0'))
-                y_block = max([v for v in [y_ac, y_de] if v is not None], default=PAGE_HEIGHT-140)
-                # posicionar consideravelmente acima das labels A/C/De para evitar sobreposição
-                header_line_y = min(PAGE_HEIGHT - 120, y_block + 80)
-                header_line = f"PROPOSTA COMERCIAL REF: {ref_txt}   CONTRATO DE LOCAÇÃO   NÚMERO: {numero}   DATA: {data_txt}"
-                _draw_fit_text(canvas, header_line, 72, header_line_y, max_width=PAGE_WIDTH-144, font='Helvetica-Bold', start_size=11, min_size=8)
-
-                # Texto de apresentação abaixo de A/C/De
                 prez = (dados.get('prezados_linha') or 'Prezados Senhores:')
                 ap = (dados.get('apresentacao_texto') or '').strip() or _default_apresentacao(dados)
-                base_y = (min([v for v in [y_ac, y_de] if v is not None], default=header_line_y) - 24)
+                base_y = (min([v for v in [y_ac, y_de] if v is not None], default=(PAGE_HEIGHT-200)) - 24)
                 _draw_wrapped_text(canvas, prez, 72, base_y, max_width=PAGE_WIDTH-144, line_height=14, font='Helvetica-Bold', size=11, min_y=80)
                 _draw_wrapped_text(canvas, ap, 72, base_y-20, max_width=PAGE_WIDTH-144, line_height=13, font='Helvetica', size=10, min_y=80)
 
