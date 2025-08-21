@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from interface.modules import CotacoesModule, RelatoriosModule, ClientesModule, ProdutosModule, UsuariosModule, DashboardModule, PermissoesModule, ConsultasModule, LocacaoModule
+from interface.modules import CotacoesModule, RelatoriosModule, ClientesModule, ProdutosModule, UsuariosModule, DashboardModule, PermissoesModule, ConsultasModule
 
 class MainWindow:
     def __init__(self, root, user_id, role, nome_completo):
@@ -128,10 +128,7 @@ class MainWindow:
         self.notebook.add(cotacoes_frame, text="💰 Cotações")
         self.cotacoes_module = CotacoesModule(cotacoes_frame, self.user_id, self.role, self)
         
-        # Locação
-        locacao_frame = tk.Frame(self.notebook)
-        self.notebook.add(locacao_frame, text="📝 Locação")
-        self.locacao_module = LocacaoModule(locacao_frame, self.user_id, self.role, self)
+        # Locação removida
 
         # Relatórios Técnicos
         relatorios_frame = tk.Frame(self.notebook)
