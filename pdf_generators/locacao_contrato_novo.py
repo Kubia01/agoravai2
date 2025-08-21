@@ -1,9 +1,10 @@
 """
 Gerador de PDF de Locação independente
 
-Gera o PDF completo usando apenas ReportLab, sem depender de DOCX ou PDF base.
-Se houver um LAYOUT_SPEC extraído do PDF de exemplo, usa esse layout
-para posicionar textos estáticos e campos dinâmicos por coordenadas.
+- Desenha cabeçalho e rodapé com faixa azul, logo e dados dinâmicos da filial
+- Reproduz o layout do PDF de exemplo usando LAYOUT_SPEC extraído (sem depender do PDF em runtime)
+- Sobrepõe campos dinâmicos por página (ex.: pág. 2 prezados, pág. 4/7 imagem, pág. 6 condições, pág. 7 termos)
+- Fallback para gerador programático caso LAYOUT_SPEC não esteja disponível
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import cm
+from reportlab.pdfbase import pdfmetrics
 
 from assets.filiais.filiais_config import obter_filial
 try:
@@ -35,6 +37,8 @@ try:
 except Exception:
     LAYOUT_SPEC = None
 
+
+# ========= Helpers =========
 
 def _as_decimal(value: Any, default: Decimal = Decimal("0")) -> Decimal:
     try:
@@ -65,15 +69,16 @@ def _resolve_image_path(path: str | None) -> str | None:
     return p if os.path.exists(p) else None
 
 
-def _build_header_filial(dados: Dict[str, Any]):
+def _build_filial(dados: Dict[str, Any]) -> Dict[str, Any]:
     filial = obter_filial(dados.get('filial_id') or 2) or {}
-    nome = filial.get('nome', '')
-    endereco = filial.get('endereco', '')
-    cnpj = filial.get('cnpj', '')
-    telefones = filial.get('telefones', '')
-    email = filial.get('email', '')
-    logo_path = _resolve_image_path(filial.get('logo_path'))
-    return nome, endereco, cnpj, telefones, email, logo_path
+    return {
+        'nome': filial.get('nome', ''),
+        'endereco': filial.get('endereco', ''),
+        'cnpj': filial.get('cnpj', ''),
+        'telefones': filial.get('telefones', ''),
+        'email': filial.get('email', ''),
+        'logo_path': _resolve_image_path(filial.get('logo_path')),
+    }
 
 
 def _default_apresentacao(dados: Dict[str, Any]) -> str:
@@ -88,6 +93,35 @@ def _default_apresentacao(dados: Dict[str, Any]) -> str:
     )
 
 
+def _draw_wrapped_text(canvas, text: str, x: float, y: float, max_width: float, line_height: float, font: str = 'Helvetica', size: float = 11):
+    if not text:
+        return
+    canvas.saveState()
+    try:
+        canvas.setFont(font, size)
+    except Exception:
+        canvas.setFont('Helvetica', size)
+    words = text.split()
+    line = ''
+    lines: List[str] = []
+    for w in words:
+        candidate = (line + ' ' + w).strip()
+        if pdfmetrics.stringWidth(candidate, font, size) <= max_width or not line:
+            line = candidate
+        else:
+            lines.append(line)
+            line = w
+    if line:
+        lines.append(line)
+    ty = y
+    for ln in lines:
+        canvas.drawString(x, ty, ln)
+        ty -= line_height
+    canvas.restoreState()
+
+
+# ========= Gerador =========
+
 def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
@@ -97,21 +131,25 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
     styles.add(ParagraphStyle(name="Small", parent=styles['Normal'], fontSize=9, leading=12))
     styles.add(ParagraphStyle(name="NormalJust", parent=styles['Normal'], alignment=4))
 
-    nome, endereco, cnpj, telefones, email, logo_path = _build_header_filial(dados)
+    filial = _build_filial(dados)
 
-    # Conteúdo programático (fallback)
+    # Fallback content (se LAYOUT_SPEC não existir)
     story: List[Any] = []
 
     header_block: List[Any] = []
-    if logo_path:
+    if filial['logo_path']:
         try:
-            header_block.append(Image(logo_path, width=4.5*cm, height=2.0*cm))
+            header_block.append(Image(filial['logo_path'], width=4.5*cm, height=2.0*cm))
         except Exception:
             pass
-    header_block.append(Paragraph(nome or "", styles['Header']))
-    if endereco:
-        header_block.append(Paragraph(endereco, styles['Small']))
-    linha2 = " ".join([f"CNPJ: {cnpj}" if cnpj else '', telefones or '', email or '']).strip()
+    header_block.append(Paragraph(filial['nome'] or "", styles['Header']))
+    if filial['endereco']:
+        header_block.append(Paragraph(filial['endereco'], styles['Small']))
+    linha2 = " ".join([
+        f"CNPJ: {filial['cnpj']}" if filial['cnpj'] else '',
+        filial['telefones'] or '',
+        filial['email'] or '',
+    ]).strip()
     if linha2:
         header_block.append(Paragraph(linha2, styles['Small']))
     header_block.append(Spacer(1, 0.4*cm))
@@ -130,9 +168,7 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
     story.append(Spacer(1, 0.4*cm))
 
     prezados = dados.get('prezados_linha')
-    apresentacao = (dados.get('apresentacao_texto') or '').strip()
-    if not apresentacao:
-        apresentacao = _default_apresentacao(dados)
+    apresentacao = (dados.get('apresentacao_texto') or '').strip() or _default_apresentacao(dados)
     if prezados:
         story.append(Paragraph(prezados, styles['Normal']))
         story.append(Spacer(1, 0.2*cm))
@@ -157,7 +193,7 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
     if eq_lines:
         story.append(Paragraph(" | ".join(eq_lines), styles['Normal']))
 
-    img_comp = _resolve_image_path(dados.get('imagem_compressor')) or logo_path
+    img_comp = _resolve_image_path(dados.get('imagem_compressor')) or filial['logo_path']
     if img_comp and os.path.exists(img_comp):
         try:
             story.append(Spacer(1, 0.2*cm))
@@ -198,9 +234,7 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
         ]))
         story.append(KeepTogether([tbl, Spacer(1, 0.2*cm)]))
 
-    valor_mensal = dados.get('valor_mensal')
-    if not valor_mensal:
-        valor_mensal = total_mensal
+    valor_mensal = dados.get('valor_mensal') or total_mensal
     valor_mensal_dec = _as_decimal(valor_mensal)
     if valor_mensal_dec > 0:
         story.append(Paragraph(
@@ -220,7 +254,7 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
     story.append(Spacer(1, 0.4*cm))
 
     termos = [
-        f"Filial: {nome}" if nome else '',
+        f"Filial: {filial['nome']}" if filial['nome'] else '',
         f"Locatária: {cliente_nome}" if cliente_nome else '',
         f"Nº da Proposta: {numero}" if numero else '',
     ]
@@ -235,99 +269,163 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
         styles['Normal']
     ))
 
-    # Construção com layout extraído se disponível; caso contrário, usar composição programática
+    # ========== Layout-based rendering ==========
     PAGE_WIDTH, PAGE_HEIGHT = A4
 
     if LAYOUT_SPEC and LAYOUT_SPEC.get('pages'):
-        def _draw_layout_page(canvas, doc):
-            page_index = (doc.page or 1) - 1
-            # Cabeçalho e rodapé simples
+        header_h = 40
+        footer_h = 30
+
+        def _draw_header_footer(canvas, page_num: int):
+            # Header: faixa azul, logo, nome, cnpj
             canvas.saveState()
-            # Faixa azul do cabeçalho
+            # Faixa
             canvas.setFillColor(colors.HexColor('#005B99'))
-            canvas.rect(0, PAGE_HEIGHT-40, PAGE_WIDTH, 40, stroke=0, fill=1)
-            # Linha sutil
+            canvas.rect(0, PAGE_HEIGHT - header_h, PAGE_WIDTH, header_h, stroke=0, fill=1)
+            # Linha base da faixa
             canvas.setStrokeColor(colors.HexColor('#004A7A'))
             canvas.setLineWidth(0.6)
-            canvas.line(0, PAGE_HEIGHT-40, PAGE_WIDTH, PAGE_HEIGHT-40)
-            canvas.line(2*cm, 1.6*cm, PAGE_WIDTH-2*cm, 1.6*cm)
-            canvas.setFont('Helvetica', 8)
+            canvas.line(0, PAGE_HEIGHT - header_h, PAGE_WIDTH, PAGE_HEIGHT - header_h)
+            # Logo
+            if filial['logo_path'] and os.path.exists(filial['logo_path']):
+                try:
+                    logo_w, logo_h = 90, 26
+                    canvas.drawImage(filial['logo_path'], 1.0*cm, PAGE_HEIGHT - header_h + (header_h-logo_h)/2, width=logo_w, height=logo_h, preserveAspectRatio=True, mask='auto')
+                except Exception:
+                    pass
+            # Título/nome
             canvas.setFillColor(colors.white)
-            # Número da página no topo à direita dentro da faixa
-            canvas.drawRightString(PAGE_WIDTH-1.0*cm, PAGE_HEIGHT-27, f"Página {doc.page}")
-            # Rodapé com linha e texto
-            canvas.setFillColor(colors.HexColor('#666666'))
+            try:
+                canvas.setFont('Helvetica-Bold', 11)
+            except Exception:
+                canvas.setFont('Helvetica', 11)
+            canvas.drawString(4.5*cm, PAGE_HEIGHT - 26, filial['nome'] or ' ')
+            # Número da página (topo à direita)
+            canvas.setFont('Helvetica', 8)
+            canvas.drawRightString(PAGE_WIDTH - 1.0*cm, PAGE_HEIGHT - 24, f"Página {page_num}")
+
+            # Footer: linha e dados de contato
             canvas.setStrokeColor(colors.HexColor('#d0d0d0'))
-            if nome:
-                canvas.drawString(2*cm, 1.1*cm, nome)
+            canvas.setLineWidth(0.7)
+            canvas.line(1.5*cm, footer_h, PAGE_WIDTH - 1.5*cm, footer_h)
+            canvas.setFillColor(colors.HexColor('#666666'))
+            canvas.setFont('Helvetica', 8)
+            footer_left = filial['endereco'] or ''
+            footer_right = " | ".join([p for p in [filial['telefones'] or '', filial['email'] or ''] if p])
+            if footer_left:
+                canvas.drawString(1.5*cm, footer_h - 12, footer_left)
+            if footer_right:
+                canvas.drawRightString(PAGE_WIDTH - 1.5*cm, footer_h - 12, footer_right)
             canvas.restoreState()
 
+        def _draw_layout_page(canvas, doc):
+            page_index = (doc.page or 1) - 1
+            _draw_header_footer(canvas, doc.page)
             # Desenhar textos estáticos do layout
-            if 0 <= page_index < len(LAYOUT_SPEC.get('pages', [])):
-                items = LAYOUT_SPEC['pages'][page_index].get('items', [])
+            items = LAYOUT_SPEC['pages'][page_index].get('items', []) if 0 <= page_index < len(LAYOUT_SPEC.get('pages', [])) else []
+            for it in items:
+                txt = it.get('text', '')
+                size = it.get('size') or 10
+                font = it.get('font') or 'Helvetica'
+                x0 = float(it.get('x0', 0))
+                y0 = float(it.get('y0', 0))
+                if not txt.strip():
+                    continue
+                canvas.saveState()
+                try:
+                    canvas.setFont(font, size)
+                except Exception:
+                    canvas.setFont('Helvetica', size)
+                canvas.setFillColor(colors.black)
+                canvas.drawString(x0, y0, txt)
+                canvas.restoreState()
+
+            # Campos dinâmicos posicionados logo após labels conhecidas
+            def _write_after(label_prefixes, value, default_size=10, dx=4):
+                if not value:
+                    return
                 for it in items:
-                    txt = it.get('text', '')
-                    size = it.get('size') or 10
-                    font = it.get('font') or 'Helvetica'
-                    x0 = float(it.get('x0', 0))
-                    y0 = float(it.get('y0', 0))
-                    if not txt.strip():
-                        continue
-                    canvas.saveState()
-                    try:
-                        canvas.setFont(font, size)
-                    except Exception:
+                    raw = (it.get('text') or '').strip()
+                    if any(raw.startswith(lp) for lp in label_prefixes):
+                        size = it.get('size') or default_size
+                        x1 = float(it.get('x1', it.get('x0', 0)))
+                        y0 = float(it.get('y0', 0))
+                        canvas.saveState()
                         canvas.setFont('Helvetica', size)
-                    canvas.setFillColor(colors.black)
-                    canvas.drawString(x0, y0, txt)
-                    canvas.restoreState()
+                        canvas.drawString(x1 + dx, y0, str(value))
+                        canvas.restoreState()
+                        break
 
-                # Campos dinâmicos posicionados logo após labels conhecidas
-                def _write_after(label_prefixes, value, default_size=10, dx=4):
-                    if not value:
-                        return
-                    for it in items:
-                        raw = (it.get('text') or '').strip()
-                        if any(raw.startswith(lp) for lp in label_prefixes):
-                            size = it.get('size') or default_size
-                            x1 = float(it.get('x1', it.get('x0', 0)))
-                            y0 = float(it.get('y0', 0))
-                            canvas.saveState()
-                            canvas.setFont('Helvetica', size)
-                            canvas.drawString(x1 + dx, y0, str(value))
-                            canvas.restoreState()
-                            break
+            # Dynamic overlays per page
+            from datetime import date
+            # Comuns
+            _write_after(["Cliente:"], dados.get('cliente_nome'))
+            _write_after(["A/C", "A/C :"], dados.get('contato'))
+            _write_after(["Data:"], dados.get('data_inicio') or date.today().strftime('%d/%m/%Y'))
+            _write_after(["NÚMERO:", "NUMERO:"], dados.get('numero'))
 
-                from datetime import date
-                _write_after(["Cliente:"], dados.get('cliente_nome'))
-                _write_after(["A/C", "A/C :"], dados.get('contato'))
-                _write_after(["Data:"], dados.get('data_inicio') or date.today().strftime('%d/%m/%Y'))
-                _write_after(["NÚMERO:", "NUMERO:"], dados.get('numero'))
+            # Página 2 (index 1): Prezados + apresentação texto
+            if page_index == 1:
+                prez = (dados.get('prezados_linha') or 'Prezados Senhores:')
+                ap = (dados.get('apresentacao_texto') or '').strip() or _default_apresentacao(dados)
+                # Encontrar base após REF ou usar coordenadas padrão
+                base_y = 660.0
+                for it in items:
+                    if (it.get('text') or '').strip().upper().startswith('REF'):
+                        base_y = float(it.get('y0', base_y)) - 16
+                        break
+                _draw_wrapped_text(canvas, prez, 72, base_y, max_width=PAGE_WIDTH-144, line_height=14, font='Helvetica-Bold', size=11)
+                _draw_wrapped_text(canvas, ap, 72, base_y-18, max_width=PAGE_WIDTH-144, line_height=13, font='Helvetica', size=10)
 
-                vm = _as_decimal(dados.get('valor_mensal') or 0)
-                if vm > 0:
-                    _write_after(["VALOR MENSAL", "VALOR TOTAL", "VALOR MENSAL TOTAL"], _format_currency(vm, dados.get('moeda') or 'BRL'))
+            # Página 4 (index 3): desenho do compressor (por marca/logo)
+            if page_index == 3:
+                img_path = _resolve_image_path(dados.get('imagem_compressor')) or filial['logo_path']
+                if img_path and os.path.exists(img_path):
+                    try:
+                        canvas.drawImage(img_path, 60, 420, width=470, height=300, preserveAspectRatio=True, mask='auto')
+                    except Exception:
+                        pass
 
-                condicoes = dados.get('condicoes_pagamento')
-                if not condicoes:
+            # Página 6 (index 5): condições de pagamento
+            if page_index == 5:
+                cond = (dados.get('condicoes_pagamento') or '').strip()
+                if not cond:
                     dia = dados.get('vencimento_dia') or '10'
-                    condicoes = f"A vencimento de cada mensalidade, todo dia {dia}, conforme proposta acordada com o cliente."
-                _write_after(["CONDIÇÕES DE PAGAMENTO", "CONDICOES DE PAGAMENTO"], condicoes, default_size=9, dx=6)
+                    cond = f"A vencimento de cada mensalidade, todo dia {dia}, conforme proposta acordada com o cliente."
+                _draw_wrapped_text(canvas, cond, 72, 700, max_width=PAGE_WIDTH-144, line_height=13, font='Helvetica', size=10)
 
-                _write_after(["MARCA", "Marca"], dados.get('marca'))
-                _write_after(["MODELO", "Modelo"], dados.get('modelo'))
-                _write_after(["SÉRIE", "SERIE"], dados.get('serie'))
+            # Página 7 (index 6): termos finais + imagem por marca
+            if page_index == 6:
+                # Termos
+                termos_lines = [
+                    f"Filial: {filial['nome']}" if filial['nome'] else '',
+                    f"Locatária: {(dados.get('cliente_nome') or '').replace('_',' ')}" if dados.get('cliente_nome') else '',
+                    f"Nº da Proposta: {dados.get('numero') or ''}",
+                ]
+                yy = 700
+                for line in termos_lines:
+                    if line:
+                        _draw_wrapped_text(canvas, line, 72, yy, max_width=PAGE_WIDTH-144, line_height=14, font='Helvetica', size=11)
+                        yy -= 16
+                # Imagem
+                img_path = _resolve_image_path(dados.get('imagem_compressor')) or filial['logo_path']
+                if img_path and os.path.exists(img_path):
+                    try:
+                        canvas.drawImage(img_path, 60, 420, width=200, height=130, preserveAspectRatio=True, mask='auto')
+                    except Exception:
+                        pass
 
+        # Template que só usa páginas vazias para acionar o onPage
         frame = Frame(1*cm, 1.8*cm, PAGE_WIDTH-2*cm, PAGE_HEIGHT-3.6*cm, id='layout_frame')
         template = PageTemplate(id='layout', frames=[frame], onPage=_draw_layout_page)
         doc = BaseDocTemplate(
             output_path,
             pagesize=A4,
             title=f"Contrato de Locação {numero}",
-            author=nome or "",
+            author=filial['nome'] or "",
             pageTemplates=[template]
         )
-        # Cria tantas páginas quanto o layout, não usa story de conteúdo
+        # Cria tantas páginas quanto o layout
         story_pages: List[Any] = []
         for _ in LAYOUT_SPEC['pages']:
             story_pages.append(Spacer(0, 0.1*cm))
@@ -337,40 +435,35 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
         doc.build(story_pages)
         return
 
-    # Fallback programático
+    # ========== Fallback programático (sem LAYOUT_SPEC) ==========
     def draw_header(canvas, doc):
         canvas.saveState()
-        # Linha superior
-        canvas.setStrokeColor(colors.HexColor('#d0d0d0'))
-        canvas.setLineWidth(0.7)
-        canvas.line(2*cm, PAGE_HEIGHT-1.2*cm, PAGE_WIDTH-2*cm, PAGE_HEIGHT-1.2*cm)
-        # Título pequeno no topo à direita
+        # Faixa azul
+        canvas.setFillColor(colors.HexColor('#005B99'))
+        canvas.rect(0, PAGE_HEIGHT-40, PAGE_WIDTH, 40, stroke=0, fill=1)
+        canvas.setFillColor(colors.white)
+        try:
+            canvas.setFont('Helvetica-Bold', 11)
+        except Exception:
+            canvas.setFont('Helvetica', 11)
+        canvas.drawString(2*cm, PAGE_HEIGHT-26, filial['nome'] or '')
         canvas.setFont('Helvetica', 8)
-        canvas.setFillColor(colors.HexColor('#666666'))
-        canvas.drawRightString(PAGE_WIDTH-2*cm, PAGE_HEIGHT-1.0*cm, 'Contrato de Locação')
+        canvas.drawRightString(PAGE_WIDTH-1.0*cm, PAGE_HEIGHT-24, f"Página {doc.page}")
         canvas.restoreState()
 
     def draw_footer(canvas, doc):
         canvas.saveState()
         canvas.setStrokeColor(colors.HexColor('#d0d0d0'))
         canvas.setLineWidth(0.7)
-        canvas.line(2*cm, 1.6*cm, PAGE_WIDTH-2*cm, 1.6*cm)
-        # Numeração de páginas: Página X de Y
-        page_num = doc.page
-        try:
-            total = doc.page_count  # set later by multi-pass build
-        except Exception:
-            total = None
-        canvas.setFont('Helvetica', 9)
-        txt = f"Página {page_num}"
-        if total:
-            txt += f" de {total}"
-        canvas.drawRightString(PAGE_WIDTH-2*cm, 1.1*cm, txt)
-        # Rodapé com empresa
-        if nome:
-            canvas.setFont('Helvetica', 8)
-            canvas.setFillColor(colors.HexColor('#666666'))
-            canvas.drawString(2*cm, 1.1*cm, nome)
+        canvas.line(1.5*cm, 1.6*cm, PAGE_WIDTH-1.5*cm, 1.6*cm)
+        canvas.setFillColor(colors.HexColor('#666666'))
+        canvas.setFont('Helvetica', 8)
+        footer_left = filial['endereco'] or ''
+        footer_right = " | ".join([p for p in [filial['telefones'] or '', filial['email'] or ''] if p])
+        if footer_left:
+            canvas.drawString(1.5*cm, 1.1*cm, footer_left)
+        if footer_right:
+            canvas.drawRightString(PAGE_WIDTH-1.5*cm, 1.1*cm, footer_right)
         canvas.restoreState()
 
     frame = Frame(2*cm, 2.1*cm, PAGE_WIDTH-4*cm, PAGE_HEIGHT-4.2*cm, id='normal')
@@ -379,7 +472,7 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
         output_path,
         pagesize=A4,
         title=f"Contrato de Locação {numero}",
-        author=nome or "",
+        author=filial['nome'] or "",
         pageTemplates=[template]
     )
 
