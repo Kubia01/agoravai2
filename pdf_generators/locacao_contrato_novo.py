@@ -243,13 +243,21 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
             page_index = (doc.page or 1) - 1
             # Cabeçalho e rodapé simples
             canvas.saveState()
-            canvas.setStrokeColor(colors.HexColor('#d0d0d0'))
+            # Faixa azul do cabeçalho
+            canvas.setFillColor(colors.HexColor('#005B99'))
+            canvas.rect(0, PAGE_HEIGHT-40, PAGE_WIDTH, 40, stroke=0, fill=1)
+            # Linha sutil
+            canvas.setStrokeColor(colors.HexColor('#004A7A'))
             canvas.setLineWidth(0.6)
-            canvas.line(2*cm, PAGE_HEIGHT-1.2*cm, PAGE_WIDTH-2*cm, PAGE_HEIGHT-1.2*cm)
+            canvas.line(0, PAGE_HEIGHT-40, PAGE_WIDTH, PAGE_HEIGHT-40)
             canvas.line(2*cm, 1.6*cm, PAGE_WIDTH-2*cm, 1.6*cm)
             canvas.setFont('Helvetica', 8)
+            canvas.setFillColor(colors.white)
+            # Número da página no topo à direita dentro da faixa
+            canvas.drawRightString(PAGE_WIDTH-1.0*cm, PAGE_HEIGHT-27, f"Página {doc.page}")
+            # Rodapé com linha e texto
             canvas.setFillColor(colors.HexColor('#666666'))
-            canvas.drawRightString(PAGE_WIDTH-2*cm, 1.1*cm, f"Página {doc.page}")
+            canvas.setStrokeColor(colors.HexColor('#d0d0d0'))
             if nome:
                 canvas.drawString(2*cm, 1.1*cm, nome)
             canvas.restoreState()
@@ -260,12 +268,16 @@ def gerar_pdf_locacao(dados: Dict[str, Any], output_path: str):
                 for it in items:
                     txt = it.get('text', '')
                     size = it.get('size') or 10
+                    font = it.get('font') or 'Helvetica'
                     x0 = float(it.get('x0', 0))
                     y0 = float(it.get('y0', 0))
                     if not txt.strip():
                         continue
                     canvas.saveState()
-                    canvas.setFont('Helvetica', size)
+                    try:
+                        canvas.setFont(font, size)
+                    except Exception:
+                        canvas.setFont('Helvetica', size)
                     canvas.setFillColor(colors.black)
                     canvas.drawString(x0, y0, txt)
                     canvas.restoreState()
