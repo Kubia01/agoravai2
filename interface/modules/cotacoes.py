@@ -557,6 +557,22 @@ class CotacoesModule(BaseModule):
 		self.compra_fields_frame.pack(fill="x")
 		self.locacao_fields_frame.pack_forget()
 		
+		lrow += 1
+		tk.Label(loc_grid, text="Imagem do Equipamento:", font=('Arial', 10, 'bold'), bg='white').grid(row=lrow, column=0, sticky="w", pady=5)
+		self.locacao_imagem_var = tk.StringVar()
+		img_frame = tk.Frame(loc_grid, bg='white')
+		img_frame.grid(row=lrow, column=1, sticky="ew", padx=(10, 0), pady=5)
+		self.locacao_imagem_entry = tk.Entry(img_frame, textvariable=self.locacao_imagem_var, font=('Arial', 10), width=35)
+		self.locacao_imagem_entry.pack(side="left", fill="x", expand=True)
+		def _pick_image():
+			from tkinter import filedialog
+			path = filedialog.askopenfilename(title="Selecionar Imagem do Equipamento",
+							   filetypes=[("Imagens", "*.jpg *.jpeg *.png *.bmp *.gif"), ("Todos", "*.*")])
+			if path:
+				self.locacao_imagem_var.set(path)
+		picker_btn = self.create_button(img_frame, "Selecionar...", _pick_image, bg='#10b981')
+		picker_btn.pack(side="right", padx=(5, 0))
+		
 	def on_tipo_changed(self, event=None):
 		"""Callback quando o tipo do item muda"""
 		tipo = self.item_tipo_var.get()
@@ -1119,6 +1135,8 @@ class CotacoesModule(BaseModule):
 			self.item_loc_total_var.set("R$ 0,00")
 		if hasattr(self, 'item_modelo_compressor_var'):
 			self.item_modelo_compressor_var.set("")
+		if hasattr(self, 'locacao_imagem_var'):
+			self.locacao_imagem_var.set("")
 		if hasattr(self, 'locacao_frame'):
 			self.locacao_frame.pack_forget()
 		if hasattr(self, 'itens_section'):
@@ -1288,12 +1306,20 @@ class CotacoesModule(BaseModule):
 		try:
 			# Obter username do usuário atual para template personalizado
 			current_username = self._get_current_username()
-			# Passar contato selecionado para o gerador
+			# Parâmetros extras para Locação - Página 4
+			loc_text = None
+			loc_img = None
+			if (self.tipo_cotacao_var.get() or '') == 'Locação':
+				loc_text = "Detalhes do equipamento conforme imagem ilustrativa."
+				loc_img = getattr(self, 'locacao_imagem_var', None).get() if hasattr(self, 'locacao_imagem_var') else None
+			# Passar contato selecionado e extras para o gerador
 			sucesso, resultado = gerar_pdf_cotacao_nova(
 				self.current_cotacao_id,
 				DB_NAME,
 				current_username,
-				contato_nome=self.contato_cliente_var.get()
+				contato_nome=self.contato_cliente_var.get(),
+				locacao_pagina4_text=loc_text,
+				locacao_pagina4_image=loc_img
 			)
 			if sucesso:
 				self.show_success(f"PDF gerado com sucesso!\nLocal: {resultado}")
