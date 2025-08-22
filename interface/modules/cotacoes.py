@@ -433,6 +433,7 @@ class CotacoesModule(BaseModule):
 		self.item_loc_meses_var = tk.StringVar(value="0")
 		self.item_loc_total_var = tk.StringVar(value="R$ 0,00")
 		self.item_modelo_compressor_var = tk.StringVar()
+		self.locacao_imagem_var = tk.StringVar()
 		
 		# Container principal para os dois layouts
 		fields_container = tk.Frame(parent, bg="white")
@@ -554,6 +555,20 @@ class CotacoesModule(BaseModule):
 		tk.Label(locacao_grid, text="Valor Unit./Mensal:", font=("Arial", 10, "bold"), bg="white").grid(row=5, column=2, padx=(30, 5), sticky="w")
 		tk.Entry(locacao_grid, textvariable=self.item_valor_var, width=15).grid(row=5, column=3, padx=5, sticky="w")
 		
+		# Sétima linha - Imagem do Equipamento (por item de locação)
+		tk.Label(locacao_grid, text="Imagem do Equipamento:", font=("Arial", 10, "bold"), bg="white").grid(row=6, column=0, padx=5, sticky="w")
+		img_frame_item = tk.Frame(locacao_grid, bg='white')
+		img_frame_item.grid(row=6, column=1, columnspan=3, padx=5, sticky="ew")
+		img_entry_item = tk.Entry(img_frame_item, textvariable=self.locacao_imagem_var, width=50)
+		img_entry_item.pack(side="left", fill="x", expand=True)
+		def _pick_image_item():
+			from tkinter import filedialog
+			path = filedialog.askopenfilename(title="Selecionar Imagem do Equipamento",
+							   filetypes=[("Imagens", "*.jpg *.jpeg *.png *.bmp *.gif"), ("Todos", "*.*")])
+			if path:
+				self.locacao_imagem_var.set(path)
+		self.create_button(img_frame_item, "Selecionar...", _pick_image_item, bg='#10b981').pack(side="right")
+		
 		# Configurar grid para locação
 		locacao_grid.grid_columnconfigure(1, weight=1)
 		locacao_grid.grid_columnconfigure(2, weight=1)
@@ -561,7 +576,7 @@ class CotacoesModule(BaseModule):
 		
 		# Botão adicionar para locação
 		adicionar_button_locacao = self.create_button(locacao_grid, "Adicionar Item", self.adicionar_item)
-		adicionar_button_locacao.grid(row=6, column=0, columnspan=4, pady=15)
+		adicionar_button_locacao.grid(row=7, column=0, columnspan=4, pady=15)
 		
 		# Bindings para calcular meses e total automaticamente
 		self.item_loc_inicio_var.trace_add('write', lambda *args: self.recalcular_locacao_item())
