@@ -1234,7 +1234,8 @@ class CotacoesModule(BaseModule):
 						condicao_pagamento = ?, prazo_entrega = ?, filial_id = ?,
 						esboco_servico = ?, relacao_pecas_substituir = ?,
 						tipo_cotacao = ?, locacao_nome_equipamento = ?,
-						locacao_valor_mensal = ?, locacao_data_inicio = ?, locacao_data_fim = ?, locacao_qtd_meses = ?
+						locacao_valor_mensal = ?, locacao_data_inicio = ?, locacao_data_fim = ?, locacao_qtd_meses = ?,
+						locacao_imagem_path = ?
 					WHERE id = ?
 				""", (numero, modelo_valor, serie_valor,
 					 self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
@@ -1248,6 +1249,7 @@ class CotacoesModule(BaseModule):
 					 self.parse_date_input(self.locacao_data_inicio_var.get()),
 					 self.parse_date_input(self.locacao_data_fim_var.get()),
 					 int(self.locacao_qtd_meses_var.get() or 0),
+					 (self.locacao_imagem_var.get() if hasattr(self, 'locacao_imagem_var') else None),
 					 self.current_cotacao_id))
 				c.execute("DELETE FROM itens_cotacao WHERE cotacao_id = ?", (self.current_cotacao_id,))
 				cotacao_id = self.current_cotacao_id
@@ -1260,14 +1262,15 @@ class CotacoesModule(BaseModule):
 				condicao_pagamento_valor = self.condicao_pagamento_var.get() if modo != "Locação" else ""
 				prazo_entrega_valor = self.prazo_entrega_var.get() if modo != "Locação" else ""
 				
-								c.execute("""
+				c.execute("""
 					INSERT INTO cotacoes (numero_proposta, cliente_id, responsavel_id, data_criacao,
-										  modelo_compressor, numero_serie_compressor, observacoes,
-										  valor_total, status, data_validade, condicao_pagamento,
-										  prazo_entrega, filial_id, esboco_servico, relacao_pecas_substituir,
-										  tipo_cotacao, locacao_nome_equipamento,
-										  locacao_valor_mensal, locacao_data_inicio, locacao_data_fim, locacao_qtd_meses)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+									  modelo_compressor, numero_serie_compressor, observacoes,
+									  valor_total, status, data_validade, condicao_pagamento,
+									  prazo_entrega, filial_id, esboco_servico, relacao_pecas_substituir,
+									  tipo_cotacao, locacao_nome_equipamento,
+									  locacao_valor_mensal, locacao_data_inicio, locacao_data_fim, locacao_qtd_meses,
+									  locacao_imagem_path)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""", (numero, cliente_id, self.user_id, datetime.now().strftime('%Y-%m-%d'),
 					 modelo_valor, serie_valor, self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
 					 status_valor, data_validade_valor, condicao_pagamento_valor, prazo_entrega_valor,
@@ -1275,7 +1278,8 @@ class CotacoesModule(BaseModule):
 					 clean_number(self.locacao_valor_mensal_var.get() or "0"),
 					 self.parse_date_input(self.locacao_data_inicio_var.get()),
 					 self.parse_date_input(self.locacao_data_fim_var.get()),
-					 int(self.locacao_qtd_meses_var.get() or 0)))
+					 int(self.locacao_qtd_meses_var.get() or 0),
+					 (self.locacao_imagem_var.get() if hasattr(self, 'locacao_imagem_var') else None)))
 				cotacao_id = c.lastrowid
 				self.current_cotacao_id = cotacao_id
 			# Inserir itens
@@ -1531,6 +1535,11 @@ class CotacoesModule(BaseModule):
 			self.locacao_data_fim_var.set(format_date(cotacao[24]) if cotacao[24] else "")
 			self.locacao_qtd_meses_var.set(str(cotacao[25] or 0))
 			self.locacao_equipamento_var.set(cotacao[26] or "")
+			# Recarregar caminho da imagem se existir
+			try:
+				self.locacao_imagem_var.set(cotacao[27] or "")
+			except Exception:
+				pass
 			
 			# Alternar UI conforme tipo de cotação
 			self.on_tipo_cotacao_changed()
