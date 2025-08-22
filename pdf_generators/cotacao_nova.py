@@ -335,6 +335,10 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
             capa_loc_path = os.path.join(os.path.dirname(__file__), '..', 'capaloc.jpg')
             if os.path.exists(capa_loc_path):
                 pdf.image(capa_loc_path, x=0, y=0, w=210, h=297)
+            else:
+                capa_loc_path2 = os.path.join(os.path.dirname(__file__), '..', 'caploc.jpg')
+                if os.path.exists(capa_loc_path2):
+                    pdf.image(capa_loc_path2, x=0, y=0, w=210, h=297)
         else:
             fundo_padrao = os.path.join(os.path.dirname(__file__), '..', 'imgfundo.jpg')
             if os.path.exists(fundo_padrao):
@@ -445,18 +449,18 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
         # Texto de apresentação
         pdf.set_font("Arial", size=11)
         if (tipo_cotacao or '').lower() == 'locação' or (tipo_cotacao or '').lower() == 'locacao':
-            texto_apresentacao = clean_text("""
-Prezados Senhores: 
-Agradecemos por nos conceder a oportunidade de apresentarmos nossa proposta para 
-fornecimento de LOCAÇÃO DE COMPRESSOR DE AR. 
-A World Comp Compressores é especializada em manutenção de compressores de parafuso 
-das principais marcas do mercado, como Atlas Copco, Ingersoll Rand,Chicago. Atuamos também com 
-revisão de equipamentos e unidades compressoras, venda de peças, bem como venda e locação de 
-compressores de parafuso isentos de óleo e lubrificados. 
-Com profissionais altamente qualificados e atendimento especializado, colocamo-nos à 
-disposição para analisar, corrigir e prestar os devidos esclarecimentos, sempre buscando atender às 
-especificações e necessidades dos nossos clientes.
-            """)
+            texto_apresentacao = (
+"Prezados Senhores:\n\n"
+"Agradecemos por nos conceder a oportunidade de apresentarmos nossa proposta para\n"
+"fornecimento de LOCAÇÃO DE COMPRESSOR DE AR.\n\n"
+"A World Comp Compressores é especializada em manutenção de compressores de parafuso\n"
+"das principais marcas do mercado, como Atlas Copco, Ingersoll Rand, Chicago. Atuamos também com\n"
+"revisão de equipamentos e unidades compressoras, venda de peças, bem como venda e locação de\n"
+"compressores de parafuso isentos de óleo e lubrificados.\n\n"
+"Com profissionais altamente qualificados e atendimento especializado, colocamo-nos à\n"
+"disposição para analisar, corrigir e prestar os devidos esclarecimentos, sempre buscando atender às\n"
+"especificações e necessidades dos nossos clientes."
+            )
         else:
             modelo_text = f" {modelo_compressor}" if modelo_compressor else ""
             texto_apresentacao = clean_text(f"""
