@@ -153,25 +153,26 @@ class CotacoesModule(BaseModule):
 		main_grid = tk.Frame(parent, bg='white')
 		main_grid.pack(fill="both", expand=True)
 
-		# 2 colunas, 2 linhas
-		main_grid.grid_columnconfigure(0, weight=1, uniform="col")
-		main_grid.grid_columnconfigure(1, weight=1, uniform="col")
-		main_grid.grid_rowconfigure(0, weight=1, uniform="row")
-		main_grid.grid_rowconfigure(1, weight=1, uniform="row")
+		# Layout otimizado: dados compactos no topo, itens expandidos embaixo
+		main_grid.grid_columnconfigure(0, weight=1)
+		main_grid.grid_rowconfigure(0, weight=0)  # Dados: altura fixa
+		main_grid.grid_rowconfigure(1, weight=1)  # Itens: expansível
 
-		# Coluna 0: Dados + Itens (stacked)
+		# Dados da cotação (altura compacta)
 		dados_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-		dados_frame.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=2, pady=2)
+		dados_frame.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
 		self.create_dados_cotacao_section(dados_frame)
+		
+		# Itens da cotação (área expandida)
 		itens_frame = tk.Frame(main_grid, bg='white', relief='groove', bd=2)
-		itens_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=2, pady=2)
+		itens_frame.grid(row=1, column=0, sticky="nsew", padx=2, pady=(0, 2))
 		self.create_itens_cotacao_section(itens_frame)
 
 		# Botões de ação já estão fixos no rodapé do painel de formulário (setup_ui)
 		
 	def create_dados_cotacao_section(self, parent):
 		section_frame = self.create_section_frame(parent, "Dados da Cotação")
-		section_frame.pack(fill="x", pady=(0, 10))
+		section_frame.pack(fill="x", pady=(0, 5))
 		
 		# Grid de campos
 		fields_frame = tk.Frame(section_frame, bg='white')
@@ -336,11 +337,11 @@ class CotacoesModule(BaseModule):
 		self.locacao_data_inicio_var.trace_add('write', lambda *args: self.recalcular_locacao())
 		self.locacao_data_fim_var.trace_add('write', lambda *args: self.recalcular_locacao())
 		
-		# Observações
+		# Observações (mais compacto)
 		tk.Label(fields_frame, text="Observações:", 
-				 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="nw", pady=5)
-		self.observacoes_text = scrolledtext.ScrolledText(fields_frame, height=3, width=30)
-		self.observacoes_text.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+				 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="nw", pady=2)
+		self.observacoes_text = scrolledtext.ScrolledText(fields_frame, height=2, width=30)
+		self.observacoes_text.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=2)
 		
 		fields_frame.grid_columnconfigure(1, weight=1)
 		
@@ -348,40 +349,37 @@ class CotacoesModule(BaseModule):
 		self.create_esboco_servico_section(parent)
 		self.create_relacao_pecas_section(parent)
 		
-		# Configurar colunas
-		fields_frame.grid_columnconfigure(1, weight=1)
-		
 	# Dashboards removidos deste módulo
 	
 	def create_esboco_servico_section(self, parent):
 		"""Criar seção para esboço do serviço"""
 		section_frame = self.create_section_frame(parent, "Esboço do Serviço a Ser Executado")
-		section_frame.pack(fill="x", pady=(0, 10))
+		section_frame.pack(fill="x", pady=(5, 5))
 		self.esboco_servico_section = section_frame
 		
 		# Variáveis
 		self.esboco_servico_var = tk.StringVar()
 		
-		# Text area para esboço do serviço
-		self.esboco_servico_text = scrolledtext.ScrolledText(section_frame, height=6, width=80, wrap=tk.WORD)
-		self.esboco_servico_text.pack(fill="both", expand=True, padx=10, pady=10)
+		# Text area para esboço do serviço (mais compacta)
+		self.esboco_servico_text = scrolledtext.ScrolledText(section_frame, height=4, width=80, wrap=tk.WORD)
+		self.esboco_servico_text.pack(fill="both", expand=True, padx=10, pady=5)
 		
 	def create_relacao_pecas_section(self, parent):
 		"""Criar seção para relação de peças a serem substituídas"""
 		section_frame = self.create_section_frame(parent, "Relação de Peças a Serem Substituídas")
-		section_frame.pack(fill="x", pady=(0, 10))
+		section_frame.pack(fill="x", pady=(5, 5))
 		self.relacao_pecas_section = section_frame
 		
 		# Variáveis
 		self.relacao_pecas_var = tk.StringVar()
 		
-		# Text area para relação de peças
-		self.relacao_pecas_text = scrolledtext.ScrolledText(section_frame, height=6, width=80, wrap=tk.WORD)
-		self.relacao_pecas_text.pack(fill="both", expand=True, padx=10, pady=10)
+		# Text area para relação de peças (mais compacta)
+		self.relacao_pecas_text = scrolledtext.ScrolledText(section_frame, height=4, width=80, wrap=tk.WORD)
+		self.relacao_pecas_text.pack(fill="both", expand=True, padx=10, pady=5)
 		
 	def create_itens_cotacao_section(self, parent):
 		section_frame = self.create_section_frame(parent, "Itens da Cotação")
-		section_frame.pack(fill="both", expand=True, pady=(5, 10))
+		section_frame.pack(fill="both", expand=True, pady=(0, 5))
 		self.itens_section = section_frame
 		
 		# Frame para adicionar item
@@ -416,7 +414,7 @@ class CotacoesModule(BaseModule):
 		fields_grid = tk.Frame(parent, bg="white")
 		fields_grid.pack(padx=10, pady=(0, 10), fill="x")
 		
-		# Primeira linha
+		# Primeira linha - layout otimizado
 		self.tipo_label = tk.Label(fields_grid, text="Tipo:", font=("Arial", 10, "bold"), bg="white")
 		self.tipo_label.grid(row=0, column=0, padx=5, sticky="w")
 		
@@ -429,36 +427,36 @@ class CotacoesModule(BaseModule):
 		self.nome_label = tk.Label(fields_grid, text="Nome:", font=("Arial", 10, "bold"), bg="white")
 		self.nome_label.grid(row=0, column=2, padx=5, sticky="w")
 		
-		# Frame para nome do item com botão de refresh
+		# Frame para nome do item com botão de refresh (expandido para locação)
 		nome_frame = tk.Frame(fields_grid, bg='white')
-		nome_frame.grid(row=0, column=3, padx=5, sticky="ew")
+		nome_frame.grid(row=0, column=3, columnspan=2, padx=5, sticky="ew")
 		
-		self.item_nome_combo = ttk.Combobox(nome_frame, textvariable=self.item_nome_var, width=20)
+		self.item_nome_combo = ttk.Combobox(nome_frame, textvariable=self.item_nome_var, width=25)
 		self.item_nome_combo.pack(side="left", fill="x", expand=True)
 		self.item_nome_combo.bind("<<ComboboxSelected>>", self.on_item_selected)
 		
 		refresh_produtos_btn = self.create_button(nome_frame, "🔄", self.refresh_produtos, bg='#10b981')
 		refresh_produtos_btn.pack(side="right", padx=(2, 0))
 		
-		tk.Label(fields_grid, text="Qtd:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=4, padx=5, sticky="w")
-		tk.Entry(fields_grid, textvariable=self.item_qtd_var, width=5).grid(row=0, column=5, padx=5)
+		tk.Label(fields_grid, text="Qtd:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=5, padx=5, sticky="w")
+		tk.Entry(fields_grid, textvariable=self.item_qtd_var, width=5).grid(row=0, column=6, padx=5)
 		
-		tk.Label(fields_grid, text="Valor Unit./Mensal:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=6, padx=5, sticky="w")
-		tk.Entry(fields_grid, textvariable=self.item_valor_var, width=12).grid(row=0, column=7, padx=5)
+		tk.Label(fields_grid, text="Valor Unit./Mensal:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=7, padx=5, sticky="w")
+		tk.Entry(fields_grid, textvariable=self.item_valor_var, width=12).grid(row=0, column=8, padx=5)
 		
-		tk.Label(fields_grid, text="Tipo Oper.:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=8, padx=5, sticky="w")
+		tk.Label(fields_grid, text="Tipo Oper.:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=9, padx=5, sticky="w")
 		tipo_operacao_combo = ttk.Combobox(fields_grid, textvariable=self.item_tipo_operacao_var, 
 								  values=["Compra", "Locação"], 
 								  width=10, state="readonly")
-		tipo_operacao_combo.grid(row=0, column=9, padx=5)
+		tipo_operacao_combo.grid(row=0, column=10, padx=5)
 		
 		# Segunda linha - Descrição
 		tk.Label(fields_grid, text="Descrição:", font=("Arial", 10, "bold"), bg="white").grid(row=1, column=0, padx=5, sticky="w")
-		tk.Entry(fields_grid, textvariable=self.item_desc_var, width=50).grid(row=1, column=1, columnspan=4, padx=5, sticky="ew")
+		tk.Entry(fields_grid, textvariable=self.item_desc_var, width=60).grid(row=1, column=1, columnspan=6, padx=5, sticky="ew")
 		
 		# Terceira linha - Campos de serviço (inicialmente ocultos)
 		self.servico_frame = tk.Frame(fields_grid, bg="white")
-		self.servico_frame.grid(row=2, column=0, columnspan=8, sticky="ew", pady=5)
+		self.servico_frame.grid(row=2, column=0, columnspan=11, sticky="ew", pady=5)
 		
 		tk.Label(self.servico_frame, text="Mão de Obra:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=0, padx=5, sticky="w")
 		tk.Entry(self.servico_frame, textvariable=self.item_mao_obra_var, width=10).grid(row=0, column=1, padx=5)
@@ -471,27 +469,32 @@ class CotacoesModule(BaseModule):
 		
 		# Quarta linha - Campos de locação por item (mostrados apenas para Locação)
 		self.locacao_item_frame = tk.Frame(fields_grid, bg="white")
-		self.locacao_item_frame.grid(row=3, column=0, columnspan=10, sticky="ew", pady=5)
+		self.locacao_item_frame.grid(row=3, column=0, columnspan=11, sticky="ew", pady=5)
 		
-		# Primeira linha dos campos de locação
+		# Campos de locação organizados em grid compacto
+		# Linha 1: Datas
 		tk.Label(self.locacao_item_frame, text="Data Início (DD/MM/AAAA):", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=0, padx=5, sticky="w")
-		tk.Entry(self.locacao_item_frame, textvariable=self.item_loc_inicio_var, width=14).grid(row=0, column=1, padx=5)
+		tk.Entry(self.locacao_item_frame, textvariable=self.item_loc_inicio_var, width=15).grid(row=0, column=1, padx=5, sticky="w")
 		
-		tk.Label(self.locacao_item_frame, text="Data Fim (DD/MM/AAAA):", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=2, padx=5, sticky="w")
-		tk.Entry(self.locacao_item_frame, textvariable=self.item_loc_fim_var, width=14).grid(row=0, column=3, padx=5)
+		tk.Label(self.locacao_item_frame, text="Data Fim (DD/MM/AAAA):", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=2, padx=(15, 5), sticky="w")
+		tk.Entry(self.locacao_item_frame, textvariable=self.item_loc_fim_var, width=15).grid(row=0, column=3, padx=5, sticky="w")
 		
-		# Segunda linha dos campos de locação
+		# Linha 2: Cálculos
 		tk.Label(self.locacao_item_frame, text="Meses:", font=("Arial", 10, "bold"), bg="white").grid(row=1, column=0, padx=5, sticky="w")
 		self.item_loc_meses_entry = tk.Entry(self.locacao_item_frame, textvariable=self.item_loc_meses_var, width=8, state="readonly")
 		self.item_loc_meses_entry.grid(row=1, column=1, padx=5, sticky="w")
 		
-		tk.Label(self.locacao_item_frame, text="Total Item:", font=("Arial", 10, "bold"), bg="white").grid(row=1, column=2, padx=5, sticky="w")
+		tk.Label(self.locacao_item_frame, text="Total Item:", font=("Arial", 10, "bold"), bg="white").grid(row=1, column=2, padx=(15, 5), sticky="w")
 		self.item_loc_total_entry = tk.Entry(self.locacao_item_frame, textvariable=self.item_loc_total_var, width=15, state="readonly")
 		self.item_loc_total_entry.grid(row=1, column=3, padx=5, sticky="w")
 		
-		# Terceira linha dos campos de locação
+		# Linha 3: Modelo do Compressor (alinhado à esquerda)
 		tk.Label(self.locacao_item_frame, text="Modelo do Compressor:", font=("Arial", 10, "bold"), bg="white").grid(row=2, column=0, padx=5, sticky="w")
-		tk.Entry(self.locacao_item_frame, textvariable=self.item_modelo_compressor_var, width=20).grid(row=2, column=1, columnspan=3, padx=5, sticky="ew")
+		tk.Entry(self.locacao_item_frame, textvariable=self.item_modelo_compressor_var, width=35).grid(row=2, column=1, columnspan=3, padx=5, sticky="ew")
+		
+		# Configurar grid para melhor distribuição
+		self.locacao_item_frame.grid_columnconfigure(1, weight=1)
+		self.locacao_item_frame.grid_columnconfigure(3, weight=1)
 		
 		# Ocultar inicialmente (será mostrado para Locação)
 		self.locacao_item_frame.grid_remove()
@@ -506,10 +509,11 @@ class CotacoesModule(BaseModule):
 		
 		# Botão adicionar
 		adicionar_button = self.create_button(fields_grid, "Adicionar Item", self.adicionar_item)
-		adicionar_button.grid(row=4, column=0, columnspan=10, pady=10)
+		adicionar_button.grid(row=4, column=0, columnspan=11, pady=10)
 		
-		# Configurar grid
+		# Configurar grid para melhor distribuição
 		fields_grid.grid_columnconfigure(3, weight=1)
+		fields_grid.grid_columnconfigure(4, weight=1)
 		
 	def on_tipo_changed(self, event=None):
 		"""Callback quando o tipo do item muda"""
@@ -548,9 +552,9 @@ class CotacoesModule(BaseModule):
 		else:
 			# Mostrar seções para compra
 			if hasattr(self, 'esboco_servico_section'):
-				self.esboco_servico_section.pack(fill="x", pady=(0, 10))
+				self.esboco_servico_section.pack(fill="x", pady=(5, 5))
 			if hasattr(self, 'relacao_pecas_section'):
-				self.relacao_pecas_section.pack(fill="x", pady=(0, 10))
+				self.relacao_pecas_section.pack(fill="x", pady=(5, 5))
 		
 		# Mostrar campos de locação por item somente em Locação
 		if hasattr(self, 'locacao_item_frame'):
@@ -633,12 +637,18 @@ class CotacoesModule(BaseModule):
 		
 		# Ajustar campo nome baseado no tipo de cotação
 		if modo == "Locação":
-			# Para locação, converter combo para Entry (texto livre)
+			# Para locação, converter combo para Entry (texto livre) com tamanho maior
 			if hasattr(self, 'item_nome_combo') and not hasattr(self, 'item_nome_entry'):
-				# Criar Entry para substituir o combo
-				self.item_nome_entry = tk.Entry(self.item_nome_combo.master, textvariable=self.item_nome_var, width=20)
+				# Criar Entry para substituir o combo com tamanho expandido
+				self.item_nome_entry = tk.Entry(self.item_nome_combo.master, textvariable=self.item_nome_var, width=40, font=('Arial', 10))
 				self.item_nome_entry.pack(side="left", fill="x", expand=True)
 				self.item_nome_combo.pack_forget()  # Ocultar combo
+			elif hasattr(self, 'item_nome_entry'):
+				# Se já existe, apenas garantir que está visível com tamanho correto
+				self.item_nome_entry.config(width=40)
+				self.item_nome_entry.pack(side="left", fill="x", expand=True)
+				if hasattr(self, 'item_nome_combo'):
+					self.item_nome_combo.pack_forget()
 			# Limpar tipo selecionado
 			self.item_tipo_var.set("")
 		else:
@@ -751,8 +761,8 @@ class CotacoesModule(BaseModule):
 		list_container.grid_rowconfigure(0, weight=1)
 		list_container.grid_columnconfigure(0, weight=1)
 		
-		# Configurar altura da tabela para mostrar mais linhas
-		self.itens_tree.configure(height=12)
+		# Configurar altura da tabela para ocupar melhor o espaço disponível
+		self.itens_tree.configure(height=15)
 		
 		# Botões para itens
 		item_buttons = tk.Frame(parent, bg='white')
