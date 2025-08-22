@@ -339,6 +339,21 @@ class CotacoesModule(BaseModule):
 		tk.Label(loc_grid, text="Total Locação:", font=('Arial', 10, 'bold'), bg='white').grid(row=lrow, column=0, sticky="w", pady=5)
 		self.locacao_total_entry = tk.Entry(loc_grid, textvariable=self.locacao_total_var, font=('Arial', 10), width=20, state="readonly")
 		self.locacao_total_entry.grid(row=lrow, column=1, sticky="w", padx=(10, 0), pady=5)
+		lrow += 1
+		tk.Label(loc_grid, text="Imagem do Equipamento:", font=('Arial', 10, 'bold'), bg='white').grid(row=lrow, column=0, sticky="w", pady=5)
+		self.locacao_imagem_var = tk.StringVar()
+		img_frame = tk.Frame(loc_grid, bg='white')
+		img_frame.grid(row=lrow, column=1, sticky="ew", padx=(10, 0), pady=5)
+		self.locacao_imagem_entry = tk.Entry(img_frame, textvariable=self.locacao_imagem_var, font=('Arial', 10), width=35)
+		self.locacao_imagem_entry.pack(side="left", fill="x", expand=True)
+		def _pick_image():
+			from tkinter import filedialog
+			path = filedialog.askopenfilename(title="Selecionar Imagem do Equipamento",
+							   filetypes=[("Imagens", "*.jpg *.jpeg *.png *.bmp *.gif"), ("Todos", "*.*")])
+			if path:
+				self.locacao_imagem_var.set(path)
+		picker_btn = self.create_button(img_frame, "Selecionar...", _pick_image, bg='#10b981')
+		picker_btn.pack(side="right", padx=(5, 0))
 		# Ocultar inicialmente
 		self.locacao_frame.pack_forget()
 		# Recalcular ao alterar campos
@@ -557,21 +572,8 @@ class CotacoesModule(BaseModule):
 		self.compra_fields_frame.pack(fill="x")
 		self.locacao_fields_frame.pack_forget()
 		
-		lrow += 1
-		tk.Label(loc_grid, text="Imagem do Equipamento:", font=('Arial', 10, 'bold'), bg='white').grid(row=lrow, column=0, sticky="w", pady=5)
-		self.locacao_imagem_var = tk.StringVar()
-		img_frame = tk.Frame(loc_grid, bg='white')
-		img_frame.grid(row=lrow, column=1, sticky="ew", padx=(10, 0), pady=5)
-		self.locacao_imagem_entry = tk.Entry(img_frame, textvariable=self.locacao_imagem_var, font=('Arial', 10), width=35)
-		self.locacao_imagem_entry.pack(side="left", fill="x", expand=True)
-		def _pick_image():
-			from tkinter import filedialog
-			path = filedialog.askopenfilename(title="Selecionar Imagem do Equipamento",
-							   filetypes=[("Imagens", "*.jpg *.jpeg *.png *.bmp *.gif"), ("Todos", "*.*")])
-			if path:
-				self.locacao_imagem_var.set(path)
-		picker_btn = self.create_button(img_frame, "Selecionar...", _pick_image, bg='#10b981')
-		picker_btn.pack(side="right", padx=(5, 0))
+		# Campo de imagem será adicionado na seção de Locação principal
+
 		
 	def on_tipo_changed(self, event=None):
 		"""Callback quando o tipo do item muda"""
