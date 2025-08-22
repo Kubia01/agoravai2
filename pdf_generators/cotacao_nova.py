@@ -230,7 +230,7 @@ class PDFCotacao(FPDF):
         
         return composicao
 
-def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=None):
+def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=None, locacao_pagina4_text=None, locacao_pagina4_image=None):
     """
     Versão melhorada do gerador de PDF de cotações
     - Corrige problemas de logo
@@ -568,20 +568,60 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             pdf.ln(10)
         
         # =====================================================
-        # PÁGINA 4: ESBOÇO DO SERVIÇO A SER EXECUTADO
+        # PÁGINA 4: ESBOÇO DO SERVIÇO A SER EXECUTADO (COMPRA)
+        # OU PÁGINA 4 DE LOCAÇÃO COM TEXTO + IMAGEM
         # =====================================================
-        if esboco_servico:
+        if (tipo_cotacao or '').lower() == 'locação' or (tipo_cotacao or '').lower() == 'locacao':
+            # Página 4 específica de Locação
             pdf.add_page()
-            # Primeira página da seção: mais alto; complementares: afastar ainda mais do cabeçalho
-            pdf.begin_section('esboco', top_first=35, bottom_first=40, top_cont=130, bottom_cont=40, title="ESBOÇO DO SERVIÇO A SER EXECUTADO")
             pdf.set_y(35)
-            pdf.set_font("Arial", 'B', 14)
-            pdf.cell(0, 8, clean_text("ESBOÇO DO SERVIÇO A SER EXECUTADO"), 0, 1, 'L')
-            pdf.ln(5)
+            # Título pequeno (consistente com identidade visual)
+            pdf.set_text_color(*pdf.baby_blue)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 8, clean_text("DETALHES DO EQUIPAMENTO"), 0, 1, 'L')
+            pdf.set_text_color(0, 0, 0)
             pdf.set_font("Arial", '', 11)
-            pdf.multi_cell(0, 6, clean_text(esboco_servico))
-            # Restaurar margens padrão
-            pdf.end_section()
+            # Texto dinâmico com fallback
+            bloco_texto = locacao_pagina4_text or "Detalhes técnicos e condições de fornecimento do equipamento conforme abaixo."
+            pdf.multi_cell(0, 5, clean_text(bloco_texto))
+            pdf.ln(5)
+            # Imagem dinâmica (se fornecida)
+            if locacao_pagina4_image and os.path.exists(locacao_pagina4_image):
+                # Calcular tamanho proporcional dentro de uma área (largura ~170mm, altura ~120mm)
+                max_w, max_h = 170, 120
+                try:
+                    from PIL import Image
+                    img = Image.open(locacao_pagina4_image)
+                    iw, ih = img.size
+                    ratio = min(max_w / iw, max_h / ih)
+                    w = iw * ratio
+                    h = ih * ratio
+                except Exception:
+                    # Fallback simples caso PIL não esteja disponível
+                    w, h = 170, 110
+                # Inserir imagem deixando margem esquerda 20mm
+                x = 20
+                y = pdf.get_y() + 3
+                # Garantir que cabe na página; se não, nova página
+                if y + h > 270:
+                    pdf.add_page()
+                    y = 35
+                pdf.image(locacao_pagina4_image, x=x, y=y, w=w, h=h)
+                pdf.set_y(y + h + 6)
+        else:
+            # Compra: manter comportamento existente
+            if esboco_servico:
+                pdf.add_page()
+                # Primeira página da seção: mais alto; complementares: afastar ainda mais do cabeçalho
+                pdf.begin_section('esboco', top_first=35, bottom_first=40, top_cont=130, bottom_cont=40, title="ESBOÇO DO SERVIÇO A SER EXECUTADO")
+                pdf.set_y(35)
+                pdf.set_font("Arial", 'B', 14)
+                pdf.cell(0, 8, clean_text("ESBOÇO DO SERVIÇO A SER EXECUTADO"), 0, 1, 'L')
+                pdf.ln(5)
+                pdf.set_font("Arial", '', 11)
+                pdf.multi_cell(0, 6, clean_text(esboco_servico))
+                # Restaurar margens padrão
+                pdf.end_section()
         
         # =====================================================
         # PÁGINA 5: RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS
