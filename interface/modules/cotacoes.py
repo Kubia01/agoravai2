@@ -642,6 +642,12 @@ class CotacoesModule(BaseModule):
 		
 		# Ajustar total
 		self.atualizar_total()
+		# Regenerar número da proposta em novas cotações ao mudar o tipo
+		if self.current_cotacao_id is None:
+			try:
+				self.numero_var.set(self.gerar_numero_sequencial())
+			except Exception as e:
+				print(f"Aviso ao regenerar número: {e}")
 		
 	def update_produtos_combo(self):
 		"""Atualizar combo de produtos baseado no tipo selecionado"""
@@ -1066,12 +1072,15 @@ class CotacoesModule(BaseModule):
 		total = 0
 		for item in self.itens_tree.get_children():
 			values = self.itens_tree.item(item)['values']
-			if len(values) >= 11:
-				valor_total_str = values[10].replace('R$ ', '').replace('.', '').replace(',', '.')
-				try:
+			try:
+				if len(values) >= 7:
+					valor_total_str = str(values[6]).replace('R$ ', '').replace('.', '').replace(',', '.')
 					total += float(valor_total_str)
-				except ValueError:
-					pass
+				elif len(values) >= 11:
+					valor_total_str = str(values[10]).replace('R$ ', '').replace('.', '').replace(',', '.')
+					total += float(valor_total_str)
+			except Exception:
+				pass
 		self.total_label.config(text=f"Total: {format_currency(total)}")
 		
 	def nova_cotacao(self):
@@ -1121,7 +1130,7 @@ class CotacoesModule(BaseModule):
 			
 		self.atualizar_total()
 		
-		# Gerar número sequencial automático
+		# Gerar número sequencial automático alinhado ao tipo atual
 		numero = self.gerar_numero_sequencial()
 		self.numero_var.set(numero)
 		
@@ -1152,12 +1161,15 @@ class CotacoesModule(BaseModule):
 			valor_total = 0
 			for item in self.itens_tree.get_children():
 				values = self.itens_tree.item(item)['values']
-				if len(values) >= 11:
-					valor_total_str = values[10].replace('R$ ', '').replace('.', '').replace(',', '.')
-					try:
+				try:
+					if len(values) >= 7:
+						valor_total_str = str(values[6]).replace('R$ ', '').replace('.', '').replace(',', '.')
 						valor_total += float(valor_total_str)
-					except ValueError:
-						pass
+					elif len(values) >= 11:
+						valor_total_str = str(values[10]).replace('R$ ', '').replace('.', '').replace(',', '.')
+						valor_total += float(valor_total_str)
+				except Exception:
+					pass
 			# Data validade
 			data_validade_input = self.data_validade_var.get().strip()
 			data_validade = None
@@ -1224,10 +1236,18 @@ class CotacoesModule(BaseModule):
 			# Inserir itens
 			for item in self.itens_tree.get_children():
 				values = self.itens_tree.item(item)['values']
-				# Esperado 13 colunas
-				if len(values) != 13:
+				# Suportar layouts de compra (13 colunas) e locação (9 colunas)
+				if len(values) == 13:
+					tipo, nome, qtd, valor_unit, mao_obra, desloc, estadia, meses, inicio, fim, total, desc, tipo_operacao = values
+				elif len(values) == 9:
+					# ordem para locação list: (nome, qtd, valor_unit, meses, inicio, fim, valor_total, descricao, tipo_operacao)
+					tipo = ''
+					nome, qtd, valor_unit, meses, inicio, fim, total, desc, tipo_operacao = values
+					mao_obra = '0'
+					desloc = '0'
+					estadia = '0'
+				else:
 					continue
-				tipo, nome, qtd, valor_unit, mao_obra, desloc, estadia, meses, inicio, fim, total, desc, tipo_operacao = values
 				quantidade = float(qtd)
 				valor_unitario = clean_number(valor_unit)
 				valor_mao_obra = clean_number(mao_obra)
@@ -1524,9 +1544,9 @@ class CotacoesModule(BaseModule):
 		cotacao_id = tags[0]
 		self.carregar_cotacao_para_edicao(cotacao_id)
 		
-		# Limpar ID e gerar novo número
+		# Limpar ID e gerar novo número respeitando tipo atual
 		self.current_cotacao_id = None
-		numero = f"PROP-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+		numero = self.gerar_numero_sequencial()
 		self.numero_var.set(numero)
 		
 		# Layout único: permanecer na mesma tela
