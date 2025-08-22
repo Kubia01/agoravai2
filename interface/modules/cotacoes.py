@@ -352,7 +352,7 @@ class CotacoesModule(BaseModule):
 							   filetypes=[("Imagens", "*.jpg *.jpeg *.png *.bmp *.gif"), ("Todos", "*.*")])
 			if path:
 				self.locacao_imagem_var.set(path)
-		picker_btn = self.create_button(img_frame, "Selecionar...", _pick_image, bg='#10b981')
+		picker_btn = tk.Button(img_frame, text="Selecionar...", command=_pick_image, font=('Arial', 9), bg='#10b981', fg='white', relief='flat', cursor='hand2', padx=8, pady=4)
 		picker_btn.pack(side="right", padx=(5, 0))
 		# Ocultar inicialmente
 		self.locacao_frame.pack_forget()
@@ -567,7 +567,7 @@ class CotacoesModule(BaseModule):
 							   filetypes=[("Imagens", "*.jpg *.jpeg *.png *.bmp *.gif"), ("Todos", "*.*")])
 			if path:
 				self.locacao_imagem_var.set(path)
-		self.create_button(img_frame_item, "Selecionar...", _pick_image_item, bg='#10b981').pack(side="right")
+		tk.Button(img_frame_item, text="Selecionar...", command=_pick_image_item, font=('Arial', 9), bg='#10b981', fg='white', relief='flat', cursor='hand2', padx=8, pady=4).pack(side="right")
 		
 		# Configurar grid para locação
 		locacao_grid.grid_columnconfigure(1, weight=1)
@@ -622,9 +622,9 @@ class CotacoesModule(BaseModule):
 				self.esboco_servico_section.pack_forget()
 			if hasattr(self, 'relacao_pecas_section'):
 				self.relacao_pecas_section.pack_forget()
-			# Ocultar seção de locação principal (não é mais necessária)
+			# Mostrar seção de locação principal
 			if hasattr(self, 'locacao_frame'):
-				self.locacao_frame.pack_forget()
+				self.locacao_frame.pack(fill="x", pady=(0, 10))
 			
 			# Mostrar layout de locação, ocultar layout de compra
 			self.compra_fields_frame.pack_forget()
