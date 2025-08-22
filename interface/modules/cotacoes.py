@@ -98,6 +98,15 @@ class CotacoesModule(BaseModule):
 		
 		# Busca
 		search_frame, self.search_var = self.create_search_frame(lista_inner, command=self.buscar_cotacoes)
+		# Adicionar filtro de tipo ao lado da busca
+		filtro_frame = tk.Frame(search_frame, bg='white')
+		filtro_frame.pack(side="right", padx=(10, 0))
+		tk.Label(filtro_frame, text="Tipo:", font=('Arial', 10, 'bold'), bg='white').pack(side="left", padx=(0,5))
+		self.tipo_filtro_var = tk.StringVar(value="Todos")
+		self.tipo_filtro_combo = ttk.Combobox(filtro_frame, textvariable=self.tipo_filtro_var,
+							  values=["Todos", "Locação", "Compra"], width=12, state="readonly")
+		self.tipo_filtro_combo.pack(side="left")
+		self.tipo_filtro_combo.bind("<<ComboboxSelected>>", lambda e: self.buscar_cotacoes())
 		search_frame.pack(fill="x", pady=(0, 10))
 		
 		# Reservar rodapé dos botões da lista antes da Treeview
@@ -841,26 +850,27 @@ class CotacoesModule(BaseModule):
 			conn.close()
 			
 	def gerar_numero_sequencial(self):
-		"""Gerar número sequencial para cotação"""
+		"""Gerar número sequencial para cotação, variando prefixo por tipo (PROP-/LOC-)"""
 		try:
 			conn = sqlite3.connect(DB_NAME)
 			c = conn.cursor()
 			
-			# Buscar o maior número sequencial existente
-			c.execute("SELECT MAX(CAST(SUBSTR(numero_proposta, 6) AS INTEGER)) FROM cotacoes WHERE numero_proposta LIKE 'PROP-%'")
+			modo = getattr(self, 'tipo_cotacao_var', None).get() if hasattr(self, 'tipo_cotacao_var') else 'Compra'
+			prefixo = 'LOC-' if modo == 'Locação' else 'PROP-'
+			start_idx = 5 if prefixo == 'LOC-' else 6
+			
+			# Buscar o maior número sequencial existente para o prefixo
+			c.execute(f"SELECT MAX(CAST(SUBSTR(numero_proposta, {start_idx}) AS INTEGER)) FROM cotacoes WHERE numero_proposta LIKE ?", (f"{prefixo}%",))
 			result = c.fetchone()
 			
-			if result and result[0]:
-				proximo_numero = result[0] + 1
-			else:
-				proximo_numero = 1
-				
-			return f"PROP-{proximo_numero:06d}"
+			proximo_numero = (result[0] + 1) if result and result[0] else 1
+			return f"{prefixo}{proximo_numero:06d}"
 			
 		except sqlite3.Error as e:
 			print(f"Erro ao gerar número sequencial: {e}")
 			# Fallback para timestamp
-			return f"PROP-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+			fallback_prefix = 'LOC-' if (hasattr(self, 'tipo_cotacao_var') and self.tipo_cotacao_var.get() == 'Locação') else 'PROP-'
+			return f"{fallback_prefix}{datetime.now().strftime('%Y%m%d%H%M%S')}"
 		finally:
 			conn.close()
 		
@@ -1005,7 +1015,7 @@ class CotacoesModule(BaseModule):
 			return None
 		
 	def calculate_months_between(self, start_iso, end_iso):
-		"""Calcular meses entre duas datas (contando mês parcial como inteiro, mínimo 1)"""
+		"""Calcular meses completos entre duas datas (sem somar mês parcial)."""
 		if not start_iso or not end_iso:
 			return 0
 		start = datetime.strptime(start_iso, '%Y-%m-%d').date()
@@ -1013,12 +1023,10 @@ class CotacoesModule(BaseModule):
 		if end < start:
 			return 0
 		months = (end.year - start.year) * 12 + (end.month - start.month)
-		# Contar parcial
-		if end.day >= start.day:
-			months += 1
-		if months < 1:
-			months = 1
-		return months
+		# Ajuste de dia: se o dia final for menor que o dia inicial, não conta o mês corrente
+		if end.day < start.day:
+			months -= 1
+		return max(months, 0)
 		
 	def recalcular_locacao(self):
 		"""Recalcular meses e total da locação"""
@@ -1326,6 +1334,7 @@ class CotacoesModule(BaseModule):
 	def buscar_cotacoes(self):
 		"""Buscar cotações com filtro"""
 		termo = self.search_var.get().strip()
+		filtro_tipo = getattr(self, 'tipo_filtro_var', None).get() if hasattr(self, 'tipo_filtro_var') else 'Todos'
 		
 		# Limpar lista atual
 		for item in self.cotacoes_tree.get_children():
@@ -1335,24 +1344,24 @@ class CotacoesModule(BaseModule):
 		c = conn.cursor()
 		
 		try:
+			query = """
+				SELECT c.id, c.numero_proposta, cl.nome, c.data_criacao, c.valor_total, c.status, c.tipo_cotacao
+				FROM cotacoes c
+				JOIN clientes cl ON c.cliente_id = cl.id
+				WHERE 1=1
+			"""
+			params = []
 			if termo:
-				c.execute("""
-					SELECT c.id, c.numero_proposta, cl.nome, c.data_criacao, c.valor_total, c.status
-					FROM cotacoes c
-					JOIN clientes cl ON c.cliente_id = cl.id
-					WHERE c.numero_proposta LIKE ? OR cl.nome LIKE ?
-					ORDER BY c.created_at DESC
-				""", (f"%{termo}%", f"%{termo}%"))
-			else:
-				c.execute("""
-					SELECT c.id, c.numero_proposta, cl.nome, c.data_criacao, c.valor_total, c.status
-					FROM cotacoes c
-					JOIN clientes cl ON c.cliente_id = cl.id
-					ORDER BY c.created_at DESC
-				""")
+				query += " AND (c.numero_proposta LIKE ? OR cl.nome LIKE ?)"
+				params += [f"%{termo}%", f"%{termo}%"]
+			if filtro_tipo and filtro_tipo != 'Todos':
+				query += " AND c.tipo_cotacao = ?"
+				params.append(filtro_tipo)
+			query += " ORDER BY c.created_at DESC"
+			c.execute(query, params)
 			
 			for row in c.fetchall():
-				cotacao_id, numero, cliente, data, valor, status = row
+				cotacao_id, numero, cliente, data, valor, status, tipo_cot = row
 				self.cotacoes_tree.insert("", "end", values=(
 					numero,
 					cliente,
