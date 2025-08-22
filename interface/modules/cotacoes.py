@@ -429,34 +429,35 @@ class CotacoesModule(BaseModule):
 		
 		# Frame para nome do item com botão de refresh (expandido para locação)
 		nome_frame = tk.Frame(fields_grid, bg='white')
-		nome_frame.grid(row=0, column=3, columnspan=2, padx=5, sticky="ew")
+		nome_frame.grid(row=0, column=3, columnspan=3, padx=5, sticky="ew")
 		
-		self.item_nome_combo = ttk.Combobox(nome_frame, textvariable=self.item_nome_var, width=25)
+		self.item_nome_combo = ttk.Combobox(nome_frame, textvariable=self.item_nome_var, width=30)
 		self.item_nome_combo.pack(side="left", fill="x", expand=True)
 		self.item_nome_combo.bind("<<ComboboxSelected>>", self.on_item_selected)
 		
 		refresh_produtos_btn = self.create_button(nome_frame, "🔄", self.refresh_produtos, bg='#10b981')
 		refresh_produtos_btn.pack(side="right", padx=(2, 0))
 		
-		tk.Label(fields_grid, text="Qtd:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=5, padx=5, sticky="w")
-		tk.Entry(fields_grid, textvariable=self.item_qtd_var, width=5).grid(row=0, column=6, padx=5)
+		tk.Label(fields_grid, text="Qtd:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=6, padx=5, sticky="w")
+		tk.Entry(fields_grid, textvariable=self.item_qtd_var, width=5).grid(row=0, column=7, padx=5)
 		
-		tk.Label(fields_grid, text="Valor Unit./Mensal:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=7, padx=5, sticky="w")
-		tk.Entry(fields_grid, textvariable=self.item_valor_var, width=12).grid(row=0, column=8, padx=5)
+		tk.Label(fields_grid, text="Valor Unit./Mensal:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=8, padx=5, sticky="w")
+		tk.Entry(fields_grid, textvariable=self.item_valor_var, width=12).grid(row=0, column=9, padx=5)
 		
-		tk.Label(fields_grid, text="Tipo Oper.:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=9, padx=5, sticky="w")
-		tipo_operacao_combo = ttk.Combobox(fields_grid, textvariable=self.item_tipo_operacao_var, 
+		self.tipo_operacao_label = tk.Label(fields_grid, text="Tipo Oper.:", font=("Arial", 10, "bold"), bg="white")
+		self.tipo_operacao_label.grid(row=0, column=10, padx=5, sticky="w")
+		self.tipo_operacao_combo = ttk.Combobox(fields_grid, textvariable=self.item_tipo_operacao_var, 
 								  values=["Compra", "Locação"], 
 								  width=10, state="readonly")
-		tipo_operacao_combo.grid(row=0, column=10, padx=5)
+		self.tipo_operacao_combo.grid(row=0, column=11, padx=5)
 		
 		# Segunda linha - Descrição
 		tk.Label(fields_grid, text="Descrição:", font=("Arial", 10, "bold"), bg="white").grid(row=1, column=0, padx=5, sticky="w")
-		tk.Entry(fields_grid, textvariable=self.item_desc_var, width=60).grid(row=1, column=1, columnspan=6, padx=5, sticky="ew")
+		tk.Entry(fields_grid, textvariable=self.item_desc_var, width=70).grid(row=1, column=1, columnspan=7, padx=5, sticky="ew")
 		
 		# Terceira linha - Campos de serviço (inicialmente ocultos)
 		self.servico_frame = tk.Frame(fields_grid, bg="white")
-		self.servico_frame.grid(row=2, column=0, columnspan=11, sticky="ew", pady=5)
+		self.servico_frame.grid(row=2, column=0, columnspan=12, sticky="ew", pady=5)
 		
 		tk.Label(self.servico_frame, text="Mão de Obra:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=0, padx=5, sticky="w")
 		tk.Entry(self.servico_frame, textvariable=self.item_mao_obra_var, width=10).grid(row=0, column=1, padx=5)
@@ -469,7 +470,7 @@ class CotacoesModule(BaseModule):
 		
 		# Quarta linha - Campos de locação por item (mostrados apenas para Locação)
 		self.locacao_item_frame = tk.Frame(fields_grid, bg="white")
-		self.locacao_item_frame.grid(row=3, column=0, columnspan=11, sticky="ew", pady=5)
+		self.locacao_item_frame.grid(row=3, column=0, columnspan=12, sticky="ew", pady=5)
 		
 		# Campos de locação organizados em grid compacto
 		# Linha 1: Datas
@@ -509,11 +510,12 @@ class CotacoesModule(BaseModule):
 		
 		# Botão adicionar
 		adicionar_button = self.create_button(fields_grid, "Adicionar Item", self.adicionar_item)
-		adicionar_button.grid(row=4, column=0, columnspan=11, pady=10)
+		adicionar_button.grid(row=4, column=0, columnspan=12, pady=10)
 		
 		# Configurar grid para melhor distribuição
 		fields_grid.grid_columnconfigure(3, weight=1)
 		fields_grid.grid_columnconfigure(4, weight=1)
+		fields_grid.grid_columnconfigure(5, weight=1)
 		
 	def on_tipo_changed(self, event=None):
 		"""Callback quando o tipo do item muda"""
@@ -640,17 +642,23 @@ class CotacoesModule(BaseModule):
 			# Para locação, converter combo para Entry (texto livre) com tamanho maior
 			if hasattr(self, 'item_nome_combo') and not hasattr(self, 'item_nome_entry'):
 				# Criar Entry para substituir o combo com tamanho expandido
-				self.item_nome_entry = tk.Entry(self.item_nome_combo.master, textvariable=self.item_nome_var, width=40, font=('Arial', 10))
+				self.item_nome_entry = tk.Entry(self.item_nome_combo.master, textvariable=self.item_nome_var, width=60, font=('Arial', 10))
 				self.item_nome_entry.pack(side="left", fill="x", expand=True)
 				self.item_nome_combo.pack_forget()  # Ocultar combo
 			elif hasattr(self, 'item_nome_entry'):
 				# Se já existe, apenas garantir que está visível com tamanho correto
-				self.item_nome_entry.config(width=40)
+				self.item_nome_entry.config(width=60)
 				self.item_nome_entry.pack(side="left", fill="x", expand=True)
 				if hasattr(self, 'item_nome_combo'):
 					self.item_nome_combo.pack_forget()
 			# Limpar tipo selecionado
 			self.item_tipo_var.set("")
+			
+			# Ocultar campo Tipo de Operação para locação
+			if hasattr(self, 'tipo_operacao_label'):
+				self.tipo_operacao_label.grid_remove()
+			if hasattr(self, 'item_tipo_operacao_var'):
+				self.item_tipo_operacao_var.set("Locação")  # Definir valor padrão
 		else:
 			# Para compra, usar combo com produtos
 			if hasattr(self, 'item_nome_entry'):
@@ -658,6 +666,12 @@ class CotacoesModule(BaseModule):
 			if hasattr(self, 'item_nome_combo'):
 				self.item_nome_combo.pack(side="left", fill="x", expand=True)  # Mostrar combo
 			self.update_produtos_combo()
+			
+			# Mostrar campo Tipo de Operação para compra
+			if hasattr(self, 'tipo_operacao_label'):
+				self.tipo_operacao_label.grid()
+			if hasattr(self, 'item_tipo_operacao_var'):
+				self.item_tipo_operacao_var.set("Compra")  # Definir valor padrão
 		
 		# Ajustar total
 		self.atualizar_total()
