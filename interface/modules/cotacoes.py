@@ -344,10 +344,8 @@ class CotacoesModule(BaseModule):
 		
 		fields_frame.grid_columnconfigure(1, weight=1)
 		
-		# Seção: Esboço do Serviço
+		# Seções específicas de compra (serão ocultadas para locação)
 		self.create_esboco_servico_section(parent)
-		
-		# Seção: Relação de Peças
 		self.create_relacao_pecas_section(parent)
 		
 		# Configurar colunas
@@ -358,7 +356,7 @@ class CotacoesModule(BaseModule):
 	def create_esboco_servico_section(self, parent):
 		"""Criar seção para esboço do serviço"""
 		section_frame = self.create_section_frame(parent, "Esboço do Serviço a Ser Executado")
-		section_frame.pack(fill="x", pady=(0, 15))
+		section_frame.pack(fill="x", pady=(0, 10))
 		self.esboco_servico_section = section_frame
 		
 		# Variáveis
@@ -371,7 +369,7 @@ class CotacoesModule(BaseModule):
 	def create_relacao_pecas_section(self, parent):
 		"""Criar seção para relação de peças a serem substituídas"""
 		section_frame = self.create_section_frame(parent, "Relação de Peças a Serem Substituídas")
-		section_frame.pack(fill="x", pady=(0, 15))
+		section_frame.pack(fill="x", pady=(0, 10))
 		self.relacao_pecas_section = section_frame
 		
 		# Variáveis
@@ -383,7 +381,7 @@ class CotacoesModule(BaseModule):
 		
 	def create_itens_cotacao_section(self, parent):
 		section_frame = self.create_section_frame(parent, "Itens da Cotação")
-		section_frame.pack(fill="both", expand=True, pady=(0, 10))
+		section_frame.pack(fill="both", expand=True, pady=(5, 10))
 		self.itens_section = section_frame
 		
 		# Frame para adicionar item
@@ -412,6 +410,7 @@ class CotacoesModule(BaseModule):
 		self.item_loc_fim_var = tk.StringVar()
 		self.item_loc_meses_var = tk.StringVar(value="0")
 		self.item_loc_total_var = tk.StringVar(value="R$ 0,00")
+		self.item_modelo_compressor_var = tk.StringVar()
 		
 		# Grid de campos
 		fields_grid = tk.Frame(parent, bg="white")
@@ -490,6 +489,10 @@ class CotacoesModule(BaseModule):
 		self.item_loc_total_entry = tk.Entry(self.locacao_item_frame, textvariable=self.item_loc_total_var, width=15, state="readonly")
 		self.item_loc_total_entry.grid(row=1, column=3, padx=5, sticky="w")
 		
+		# Terceira linha dos campos de locação
+		tk.Label(self.locacao_item_frame, text="Modelo do Compressor:", font=("Arial", 10, "bold"), bg="white").grid(row=2, column=0, padx=5, sticky="w")
+		tk.Entry(self.locacao_item_frame, textvariable=self.item_modelo_compressor_var, width=20).grid(row=2, column=1, columnspan=3, padx=5, sticky="ew")
+		
 		# Ocultar inicialmente (será mostrado para Locação)
 		self.locacao_item_frame.grid_remove()
 		
@@ -545,9 +548,9 @@ class CotacoesModule(BaseModule):
 		else:
 			# Mostrar seções para compra
 			if hasattr(self, 'esboco_servico_section'):
-				self.esboco_servico_section.pack(fill="x", pady=(0, 15))
+				self.esboco_servico_section.pack(fill="x", pady=(0, 10))
 			if hasattr(self, 'relacao_pecas_section'):
-				self.relacao_pecas_section.pack(fill="x", pady=(0, 15))
+				self.relacao_pecas_section.pack(fill="x", pady=(0, 10))
 		
 		# Mostrar campos de locação por item somente em Locação
 		if hasattr(self, 'locacao_item_frame'):
@@ -628,12 +631,22 @@ class CotacoesModule(BaseModule):
 			if hasattr(self, 'nome_label'):
 				self.nome_label.config(text="Nome:")
 		
-		# Não usar lista de produtos para Locação; permitir digitar o nome
+		# Ajustar campo nome baseado no tipo de cotação
 		if modo == "Locação":
-			self.item_nome_combo['values'] = []
+			# Para locação, converter combo para Entry (texto livre)
+			if hasattr(self, 'item_nome_combo') and not hasattr(self, 'item_nome_entry'):
+				# Criar Entry para substituir o combo
+				self.item_nome_entry = tk.Entry(self.item_nome_combo.master, textvariable=self.item_nome_var, width=20)
+				self.item_nome_entry.pack(side="left", fill="x", expand=True)
+				self.item_nome_combo.pack_forget()  # Ocultar combo
 			# Limpar tipo selecionado
 			self.item_tipo_var.set("")
 		else:
+			# Para compra, usar combo com produtos
+			if hasattr(self, 'item_nome_entry'):
+				self.item_nome_entry.pack_forget()  # Ocultar Entry
+			if hasattr(self, 'item_nome_combo'):
+				self.item_nome_combo.pack(side="left", fill="x", expand=True)  # Mostrar combo
 			self.update_produtos_combo()
 		
 		# Ajustar total
@@ -873,6 +886,7 @@ class CotacoesModule(BaseModule):
 		tipo_operacao = self.item_tipo_operacao_var.get()
 		inicio_str = self.item_loc_inicio_var.get()
 		fim_str = self.item_loc_fim_var.get()
+		modelo_compressor = self.item_modelo_compressor_var.get()
 		modo = self.tipo_cotacao_var.get()
 		
 		# Validações
@@ -921,6 +935,12 @@ class CotacoesModule(BaseModule):
 		
 		# Adicionar à lista
 		tipo_exibicao = tipo if modo != 'Locação' else "Equipamento"
+		# Para locação, incluir modelo do compressor na descrição
+		if modo == 'Locação' and modelo_compressor:
+			descricao_completa = f"{descricao} - Modelo: {modelo_compressor}".strip(" -")
+		else:
+			descricao_completa = descricao
+			
 		self.itens_tree.insert("", "end", values=(
 			tipo_exibicao,
 			nome,
@@ -933,7 +953,7 @@ class CotacoesModule(BaseModule):
 			inicio_fmt,
 			fim_fmt,
 			format_currency(valor_total),
-			descricao,
+			descricao_completa,
 			tipo_operacao
 		))
 		
@@ -957,6 +977,7 @@ class CotacoesModule(BaseModule):
 		self.item_loc_fim_var.set("")
 		self.item_loc_meses_var.set("0")
 		self.item_loc_total_var.set("R$ 0,00")
+		self.item_modelo_compressor_var.set("")
 		
 		# Atualizar total
 		self.atualizar_total()
@@ -1035,6 +1056,10 @@ class CotacoesModule(BaseModule):
 		total = (valor_mensal or 0) * (meses or 0) * quantidade
 		self.item_loc_total_var.set(format_currency(total))
 		
+		# Atualizar total geral se for locação
+		if self.tipo_cotacao_var.get() == 'Locação':
+			self.atualizar_total()
+		
 	def atualizar_total(self):
 		"""Atualizar valor total da cotação"""
 		total = 0
@@ -1082,6 +1107,8 @@ class CotacoesModule(BaseModule):
 			self.item_loc_meses_var.set("0")
 		if hasattr(self, 'item_loc_total_var'):
 			self.item_loc_total_var.set("R$ 0,00")
+		if hasattr(self, 'item_modelo_compressor_var'):
+			self.item_modelo_compressor_var.set("")
 		if hasattr(self, 'locacao_frame'):
 			self.locacao_frame.pack_forget()
 		if hasattr(self, 'itens_section'):
