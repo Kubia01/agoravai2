@@ -622,9 +622,9 @@ class CotacoesModule(BaseModule):
 				self.esboco_servico_section.pack_forget()
 			if hasattr(self, 'relacao_pecas_section'):
 				self.relacao_pecas_section.pack_forget()
-			# Mostrar seção de locação principal
+			# Ocultar seção de locação principal (não utilizada na edição)
 			if hasattr(self, 'locacao_frame'):
-				self.locacao_frame.pack(fill="x", pady=(0, 10))
+				self.locacao_frame.pack_forget()
 			
 			# Mostrar layout de locação, ocultar layout de compra
 			self.compra_fields_frame.pack_forget()
@@ -1233,7 +1233,8 @@ class CotacoesModule(BaseModule):
 						observacoes = ?, valor_total = ?, status = ?, data_validade = ?,
 						condicao_pagamento = ?, prazo_entrega = ?, filial_id = ?,
 						esboco_servico = ?, relacao_pecas_substituir = ?,
-						tipo_cotacao = ?, locacao_nome_equipamento = ?
+						tipo_cotacao = ?, locacao_nome_equipamento = ?,
+						locacao_valor_mensal = ?, locacao_data_inicio = ?, locacao_data_fim = ?, locacao_qtd_meses = ?
 					WHERE id = ?
 				""", (numero, modelo_valor, serie_valor,
 					 self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
@@ -1243,6 +1244,10 @@ class CotacoesModule(BaseModule):
 					 self.esboco_servico_text.get("1.0", tk.END).strip(),
 					 self.relacao_pecas_text.get("1.0", tk.END).strip(),
 					 modo, self.locacao_equipamento_var.get(),
+					 clean_number(self.locacao_valor_mensal_var.get() or "0"),
+					 self.parse_date_input(self.locacao_data_inicio_var.get()),
+					 self.parse_date_input(self.locacao_data_fim_var.get()),
+					 int(self.locacao_qtd_meses_var.get() or 0),
 					 self.current_cotacao_id))
 				c.execute("DELETE FROM itens_cotacao WHERE cotacao_id = ?", (self.current_cotacao_id,))
 				cotacao_id = self.current_cotacao_id
@@ -1255,17 +1260,22 @@ class CotacoesModule(BaseModule):
 				condicao_pagamento_valor = self.condicao_pagamento_var.get() if modo != "Locação" else ""
 				prazo_entrega_valor = self.prazo_entrega_var.get() if modo != "Locação" else ""
 				
-				c.execute("""
+								c.execute("""
 					INSERT INTO cotacoes (numero_proposta, cliente_id, responsavel_id, data_criacao,
-									  modelo_compressor, numero_serie_compressor, observacoes,
-									  valor_total, status, data_validade, condicao_pagamento,
-									  prazo_entrega, filial_id, esboco_servico, relacao_pecas_substituir,
-									  tipo_cotacao, locacao_nome_equipamento)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+										  modelo_compressor, numero_serie_compressor, observacoes,
+										  valor_total, status, data_validade, condicao_pagamento,
+										  prazo_entrega, filial_id, esboco_servico, relacao_pecas_substituir,
+										  tipo_cotacao, locacao_nome_equipamento,
+										  locacao_valor_mensal, locacao_data_inicio, locacao_data_fim, locacao_qtd_meses)
+					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""", (numero, cliente_id, self.user_id, datetime.now().strftime('%Y-%m-%d'),
 					 modelo_valor, serie_valor, self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
 					 status_valor, data_validade_valor, condicao_pagamento_valor, prazo_entrega_valor,
-					 filial_id, self.esboco_servico_text.get("1.0", tk.END).strip(), self.relacao_pecas_text.get("1.0", tk.END).strip(), modo, self.locacao_equipamento_var.get()))
+					 filial_id, self.esboco_servico_text.get("1.0", tk.END).strip(), self.relacao_pecas_text.get("1.0", tk.END).strip(), modo, self.locacao_equipamento_var.get(),
+					 clean_number(self.locacao_valor_mensal_var.get() or "0"),
+					 self.parse_date_input(self.locacao_data_inicio_var.get()),
+					 self.parse_date_input(self.locacao_data_fim_var.get()),
+					 int(self.locacao_qtd_meses_var.get() or 0)))
 				cotacao_id = c.lastrowid
 				self.current_cotacao_id = cotacao_id
 			# Inserir itens
@@ -1551,14 +1561,11 @@ class CotacoesModule(BaseModule):
 			""", (cotacao_id,))
 			for row in c.fetchall():
 				(tipo, nome, qtd, valor_unit, total, desc, mao_obra, desloc, estadia, meses, inicio, fim, tipo_oper) = row
+				# Inserir no formato de 9 colunas da Treeview atual (locação/compra unificada)
 				self.itens_tree.insert("", "end", values=(
-					tipo,
 					nome,
 					f"{qtd:.2f}",
 					format_currency(valor_unit),
-					format_currency(mao_obra or 0),
-					format_currency(desloc or 0),
-					format_currency(estadia or 0),
 					str(meses or ""),
 					(format_date(inicio) if inicio else ""),
 					(format_date(fim) if fim else ""),
