@@ -412,7 +412,8 @@ class CotacoesModule(BaseModule):
 		self.tipo_combo.grid(row=0, column=1, padx=5)
 		self.tipo_combo.bind("<<ComboboxSelected>>", self.on_tipo_changed)
 		
-		tk.Label(fields_grid, text="Nome:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=2, padx=5, sticky="w")
+		self.nome_label = tk.Label(fields_grid, text="Nome:", font=("Arial", 10, "bold"), bg="white")
+		self.nome_label.grid(row=0, column=2, padx=5, sticky="w")
 		
 		# Frame para nome do item com botão de refresh
 		nome_frame = tk.Frame(fields_grid, bg='white')
@@ -519,10 +520,16 @@ class CotacoesModule(BaseModule):
 				# Ocultar label do tipo também
 				if hasattr(self, 'tipo_label'):
 					self.tipo_label.grid_remove()
+				# Alterar label do nome para "Nome do Equipamento"
+				if hasattr(self, 'nome_label'):
+					self.nome_label.config(text="Nome do Equipamento:")
 			else:
 				self.tipo_combo.grid(row=0, column=1, padx=5)
 				if hasattr(self, 'tipo_label'):
 					self.tipo_label.grid(row=0, column=0, padx=5, sticky="w")
+				# Restaurar label do nome para "Nome"
+				if hasattr(self, 'nome_label'):
+					self.nome_label.config(text="Nome:")
 		
 		# Não usar lista de produtos para Locação; permitir digitar o nome
 		if modo == "Locação":
@@ -582,17 +589,17 @@ class CotacoesModule(BaseModule):
 			conn.close()
 			
 	def create_itens_list(self, parent):
-		# Frame para lista
-		list_frame = tk.Frame(parent, bg='white')
-		list_frame.pack(fill="both", expand=True)
+		# Frame para lista com scrollbars
+		list_container = tk.Frame(parent, bg='white')
+		list_container.pack(fill="both", expand=True)
 		
 		# Treeview com colunas estendidas para suportar Locação por item
 		columns = ("tipo", "nome", "qtd", "valor_unit", "mao_obra", "deslocamento", "estadia", "meses", "inicio", "fim", "valor_total", "descricao", "tipo_operacao")
-		self.itens_tree = ttk.Treeview(list_frame, columns=columns, show="headings", height=8)
+		self.itens_tree = ttk.Treeview(list_container, columns=columns, show="headings", height=8)
 		
 		# Cabeçalhos
 		self.itens_tree.heading("tipo", text="Tipo")
-		self.itens_tree.heading("nome", text="Nome")
+		self.itens_tree.heading("nome", text="Nome/Equipamento")
 		self.itens_tree.heading("qtd", text="Qtd")
 		self.itens_tree.heading("valor_unit", text="Valor Unit./Mensal")
 		self.itens_tree.heading("mao_obra", text="Mão Obra")
@@ -605,30 +612,34 @@ class CotacoesModule(BaseModule):
 		self.itens_tree.heading("descricao", text="Descrição")
 		self.itens_tree.heading("tipo_operacao", text="Operação")
 		
-		# Larguras ajustadas para evitar dados cortados
-		self.itens_tree.column("tipo", width=100, minwidth=80)
-		self.itens_tree.column("nome", width=200, minwidth=160)
-		self.itens_tree.column("qtd", width=60, minwidth=50)
-		self.itens_tree.column("valor_unit", width=130, minwidth=110)
-		self.itens_tree.column("mao_obra", width=100, minwidth=80)
-		self.itens_tree.column("deslocamento", width=100, minwidth=80)
-		self.itens_tree.column("estadia", width=100, minwidth=80)
-		self.itens_tree.column("meses", width=80, minwidth=60)
-		self.itens_tree.column("inicio", width=120, minwidth=90)
-		self.itens_tree.column("fim", width=120, minwidth=90)
-		self.itens_tree.column("valor_total", width=120, minwidth=90)
-		self.itens_tree.column("descricao", width=250, minwidth=200)
-		self.itens_tree.column("tipo_operacao", width=0, stretch=False)
+		# Larguras otimizadas para melhor visualização
+		self.itens_tree.column("tipo", width=80, minwidth=60)
+		self.itens_tree.column("nome", width=220, minwidth=180)
+		self.itens_tree.column("qtd", width=50, minwidth=40)
+		self.itens_tree.column("valor_unit", width=120, minwidth=100)
+		self.itens_tree.column("mao_obra", width=90, minwidth=70)
+		self.itens_tree.column("deslocamento", width=90, minwidth=70)
+		self.itens_tree.column("estadia", width=90, minwidth=70)
+		self.itens_tree.column("meses", width=60, minwidth=50)
+		self.itens_tree.column("inicio", width=100, minwidth=80)
+		self.itens_tree.column("fim", width=100, minwidth=80)
+		self.itens_tree.column("valor_total", width=100, minwidth=80)
+		self.itens_tree.column("descricao", width=200, minwidth=150)
+		self.itens_tree.column("tipo_operacao", width=80, minwidth=60)
 		
 		# Scrollbars vertical e horizontal
-		v_scrollbar = ttk.Scrollbar(list_frame, orient="vertical", command=self.itens_tree.yview)
-		h_scrollbar = ttk.Scrollbar(list_frame, orient="horizontal", command=self.itens_tree.xview)
+		v_scrollbar = ttk.Scrollbar(list_container, orient="vertical", command=self.itens_tree.yview)
+		h_scrollbar = ttk.Scrollbar(list_container, orient="horizontal", command=self.itens_tree.xview)
 		self.itens_tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
 		
-		# Pack com scrollbars
-		self.itens_tree.pack(side="top", fill="both", expand=True)
-		v_scrollbar.pack(side="right", fill="y")
-		h_scrollbar.pack(side="bottom", fill="x")
+		# Grid layout para melhor controle dos scrollbars
+		self.itens_tree.grid(row=0, column=0, sticky="nsew")
+		v_scrollbar.grid(row=0, column=1, sticky="ns")
+		h_scrollbar.grid(row=1, column=0, sticky="ew")
+		
+		# Configurar grid weights
+		list_container.grid_rowconfigure(0, weight=1)
+		list_container.grid_columnconfigure(0, weight=1)
 		
 		# Botões para itens
 		item_buttons = tk.Frame(parent, bg='white')
@@ -830,6 +841,9 @@ class CotacoesModule(BaseModule):
 		modo = self.tipo_cotacao_var.get()
 		if modo != 'Locação':
 			self.item_tipo_var.set("")
+		else:
+			# Para locação, definir tipo operação como Locação
+			self.item_tipo_operacao_var.set("Locação")
 		self.item_nome_var.set("")
 		self.item_desc_var.set("")
 		self.item_qtd_var.set("1")
@@ -837,7 +851,8 @@ class CotacoesModule(BaseModule):
 		self.item_mao_obra_var.set("0.00")
 		self.item_deslocamento_var.set("0.00")
 		self.item_estadia_var.set("0.00")
-		self.item_tipo_operacao_var.set("Compra")
+		if modo != 'Locação':
+			self.item_tipo_operacao_var.set("Compra")
 		self.item_loc_inicio_var.set("")
 		self.item_loc_fim_var.set("")
 		
