@@ -250,47 +250,58 @@ class CotacoesModule(BaseModule):
 		self.contato_cliente_combo.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
 		row += 1
 		
-		# Modelo e Série
-		tk.Label(fields_frame, text="Modelo do Compressor:", 
-				 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
-		tk.Entry(fields_frame, textvariable=self.modelo_var, 
-				 font=('Arial', 10), width=30).grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+		# Modelo e Série (ocultos para locação)
+		self.modelo_label = tk.Label(fields_frame, text="Modelo do Compressor:", 
+				 font=('Arial', 10, 'bold'), bg='white')
+		self.modelo_label.grid(row=row, column=0, sticky="w", pady=5)
+		self.modelo_entry = tk.Entry(fields_frame, textvariable=self.modelo_var, 
+				 font=('Arial', 10), width=30)
+		self.modelo_entry.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
 		row += 1
 		
-		tk.Label(fields_frame, text="Número de Série:", 
-				 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
-		tk.Entry(fields_frame, textvariable=self.serie_var, 
-				 font=('Arial', 10), width=30).grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+		self.serie_label = tk.Label(fields_frame, text="Número de Série:", 
+				 font=('Arial', 10, 'bold'), bg='white')
+		self.serie_label.grid(row=row, column=0, sticky="w", pady=5)
+		self.serie_entry = tk.Entry(fields_frame, textvariable=self.serie_var, 
+				 font=('Arial', 10), width=30)
+		self.serie_entry.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
 		row += 1
 		
-		# Status
-		tk.Label(fields_frame, text="Status:", 
-				 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
-		status_combo = ttk.Combobox(fields_frame, textvariable=self.status_var, 
+		# Status (oculto para locação)
+		self.status_label = tk.Label(fields_frame, text="Status:", 
+				 font=('Arial', 10, 'bold'), bg='white')
+		self.status_label.grid(row=row, column=0, sticky="w", pady=5)
+		self.status_combo = ttk.Combobox(fields_frame, textvariable=self.status_var, 
 							   values=["Em Aberto", "Aprovada", "Rejeitada"], 
 							   width=27, state="readonly")
-		status_combo.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+		self.status_combo.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
 		row += 1
 		
-		# Data de Validade
-		tk.Label(fields_frame, text="Data de Validade:", 
-				 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
-		tk.Entry(fields_frame, textvariable=self.data_validade_var, 
-				 font=('Arial', 10), width=30).grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+		# Data de Validade (oculta para locação)
+		self.data_validade_label = tk.Label(fields_frame, text="Data de Validade:", 
+				 font=('Arial', 10, 'bold'), bg='white')
+		self.data_validade_label.grid(row=row, column=0, sticky="w", pady=5)
+		self.data_validade_entry = tk.Entry(fields_frame, textvariable=self.data_validade_var, 
+				 font=('Arial', 10), width=30)
+		self.data_validade_entry.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
 		row += 1
 		
-		# Condição de Pagamento
-		tk.Label(fields_frame, text="Condição de Pagamento:", 
-				 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
-		tk.Entry(fields_frame, textvariable=self.condicao_pagamento_var, 
-				 font=('Arial', 10), width=30).grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+		# Condição de Pagamento (oculta para locação)
+		self.condicao_pagamento_label = tk.Label(fields_frame, text="Condição de Pagamento:", 
+				 font=('Arial', 10, 'bold'), bg='white')
+		self.condicao_pagamento_label.grid(row=row, column=0, sticky="w", pady=5)
+		self.condicao_pagamento_entry = tk.Entry(fields_frame, textvariable=self.condicao_pagamento_var, 
+				 font=('Arial', 10), width=30)
+		self.condicao_pagamento_entry.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
 		row += 1
 		
-		# Prazo de Entrega
-		tk.Label(fields_frame, text="Prazo de Entrega:", 
-				 font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
-		tk.Entry(fields_frame, textvariable=self.prazo_entrega_var, 
-				 font=('Arial', 10), width=30).grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+		# Prazo de Entrega (oculto para locação)
+		self.prazo_entrega_label = tk.Label(fields_frame, text="Prazo de Entrega:", 
+				 font=('Arial', 10, 'bold'), bg='white')
+		self.prazo_entrega_label.grid(row=row, column=0, sticky="w", pady=5)
+		self.prazo_entrega_entry = tk.Entry(fields_frame, textvariable=self.prazo_entrega_var, 
+				 font=('Arial', 10), width=30)
+		self.prazo_entrega_entry.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
 		row += 1
 		
 		# Seção de Locação (inicialmente oculta)
@@ -513,23 +524,77 @@ class CotacoesModule(BaseModule):
 			else:
 				self.locacao_item_frame.grid_remove()
 		
-		# Ocultar campo tipo quando for locação
-		if hasattr(self, 'tipo_combo'):
-			if modo == "Locação":
+		# Ocultar campos desnecessários para locação
+		if modo == "Locação":
+			# Ocultar campo tipo nos itens
+			if hasattr(self, 'tipo_combo'):
 				self.tipo_combo.grid_remove()
-				# Ocultar label do tipo também
-				if hasattr(self, 'tipo_label'):
-					self.tipo_label.grid_remove()
-				# Alterar label do nome para "Nome do Equipamento"
-				if hasattr(self, 'nome_label'):
-					self.nome_label.config(text="Nome do Equipamento:")
-			else:
+			if hasattr(self, 'tipo_label'):
+				self.tipo_label.grid_remove()
+			
+			# Ocultar campos específicos de compra
+			if hasattr(self, 'modelo_label'):
+				self.modelo_label.grid_remove()
+			if hasattr(self, 'modelo_entry'):
+				self.modelo_entry.grid_remove()
+			if hasattr(self, 'serie_label'):
+				self.serie_label.grid_remove()
+			if hasattr(self, 'serie_entry'):
+				self.serie_entry.grid_remove()
+			if hasattr(self, 'status_label'):
+				self.status_label.grid_remove()
+			if hasattr(self, 'status_combo'):
+				self.status_combo.grid_remove()
+			if hasattr(self, 'data_validade_label'):
+				self.data_validade_label.grid_remove()
+			if hasattr(self, 'data_validade_entry'):
+				self.data_validade_entry.grid_remove()
+			if hasattr(self, 'condicao_pagamento_label'):
+				self.condicao_pagamento_label.grid_remove()
+			if hasattr(self, 'condicao_pagamento_entry'):
+				self.condicao_pagamento_entry.grid_remove()
+			if hasattr(self, 'prazo_entrega_label'):
+				self.prazo_entrega_label.grid_remove()
+			if hasattr(self, 'prazo_entrega_entry'):
+				self.prazo_entrega_entry.grid_remove()
+			
+			# Alterar label do nome para "Nome do Equipamento"
+			if hasattr(self, 'nome_label'):
+				self.nome_label.config(text="Nome do Equipamento:")
+		else:
+			# Restaurar campos para compra
+			if hasattr(self, 'tipo_combo'):
 				self.tipo_combo.grid(row=0, column=1, padx=5)
-				if hasattr(self, 'tipo_label'):
-					self.tipo_label.grid(row=0, column=0, padx=5, sticky="w")
-				# Restaurar label do nome para "Nome"
-				if hasattr(self, 'nome_label'):
-					self.nome_label.config(text="Nome:")
+			if hasattr(self, 'tipo_label'):
+				self.tipo_label.grid(row=0, column=0, padx=5, sticky="w")
+			if hasattr(self, 'modelo_label'):
+				self.modelo_label.grid()
+			if hasattr(self, 'modelo_entry'):
+				self.modelo_entry.grid()
+			if hasattr(self, 'serie_label'):
+				self.serie_label.grid()
+			if hasattr(self, 'serie_entry'):
+				self.serie_entry.grid()
+			if hasattr(self, 'status_label'):
+				self.status_label.grid()
+			if hasattr(self, 'status_combo'):
+				self.status_combo.grid()
+			if hasattr(self, 'data_validade_label'):
+				self.data_validade_label.grid()
+			if hasattr(self, 'data_validade_entry'):
+				self.data_validade_entry.grid()
+			if hasattr(self, 'condicao_pagamento_label'):
+				self.condicao_pagamento_label.grid()
+			if hasattr(self, 'condicao_pagamento_entry'):
+				self.condicao_pagamento_entry.grid()
+			if hasattr(self, 'prazo_entrega_label'):
+				self.prazo_entrega_label.grid()
+			if hasattr(self, 'prazo_entrega_entry'):
+				self.prazo_entrega_entry.grid()
+			
+			# Restaurar label do nome para "Nome"
+			if hasattr(self, 'nome_label'):
+				self.nome_label.config(text="Nome:")
 		
 		# Não usar lista de produtos para Locação; permitir digitar o nome
 		if modo == "Locação":
@@ -612,20 +677,20 @@ class CotacoesModule(BaseModule):
 		self.itens_tree.heading("descricao", text="Descrição")
 		self.itens_tree.heading("tipo_operacao", text="Operação")
 		
-		# Larguras otimizadas para melhor visualização
-		self.itens_tree.column("tipo", width=80, minwidth=60)
-		self.itens_tree.column("nome", width=220, minwidth=180)
+		# Larguras otimizadas para melhor visualização e evitar dados cortados
+		self.itens_tree.column("tipo", width=70, minwidth=60)
+		self.itens_tree.column("nome", width=250, minwidth=200)
 		self.itens_tree.column("qtd", width=50, minwidth=40)
-		self.itens_tree.column("valor_unit", width=120, minwidth=100)
-		self.itens_tree.column("mao_obra", width=90, minwidth=70)
-		self.itens_tree.column("deslocamento", width=90, minwidth=70)
-		self.itens_tree.column("estadia", width=90, minwidth=70)
-		self.itens_tree.column("meses", width=60, minwidth=50)
-		self.itens_tree.column("inicio", width=100, minwidth=80)
-		self.itens_tree.column("fim", width=100, minwidth=80)
-		self.itens_tree.column("valor_total", width=100, minwidth=80)
-		self.itens_tree.column("descricao", width=200, minwidth=150)
-		self.itens_tree.column("tipo_operacao", width=80, minwidth=60)
+		self.itens_tree.column("valor_unit", width=110, minwidth=90)
+		self.itens_tree.column("mao_obra", width=80, minwidth=70)
+		self.itens_tree.column("deslocamento", width=80, minwidth=70)
+		self.itens_tree.column("estadia", width=80, minwidth=70)
+		self.itens_tree.column("meses", width=50, minwidth=40)
+		self.itens_tree.column("inicio", width=90, minwidth=80)
+		self.itens_tree.column("fim", width=90, minwidth=80)
+		self.itens_tree.column("valor_total", width=90, minwidth=80)
+		self.itens_tree.column("descricao", width=180, minwidth=150)
+		self.itens_tree.column("tipo_operacao", width=70, minwidth=60)
 		
 		# Scrollbars vertical e horizontal
 		v_scrollbar = ttk.Scrollbar(list_container, orient="vertical", command=self.itens_tree.yview)
@@ -637,9 +702,12 @@ class CotacoesModule(BaseModule):
 		v_scrollbar.grid(row=0, column=1, sticky="ns")
 		h_scrollbar.grid(row=1, column=0, sticky="ew")
 		
-		# Configurar grid weights
+		# Configurar grid weights para melhor distribuição
 		list_container.grid_rowconfigure(0, weight=1)
 		list_container.grid_columnconfigure(0, weight=1)
+		
+		# Configurar altura da tabela para mostrar mais linhas
+		self.itens_tree.configure(height=12)
 		
 		# Botões para itens
 		item_buttons = tk.Frame(parent, bg='white')
@@ -1016,6 +1084,14 @@ class CotacoesModule(BaseModule):
 			filial_id = int(filial_str.split(' - ')[0]) if ' - ' in filial_str else int(filial_str)
 			# Inserir/atualizar cotação (sem usar campos globais de locação)
 			if self.current_cotacao_id:
+				# Preparar valores baseado no tipo de cotação
+				modelo_valor = self.modelo_var.get() if modo != "Locação" else ""
+				serie_valor = self.serie_var.get() if modo != "Locação" else ""
+				status_valor = self.status_var.get() if modo != "Locação" else "Em Aberto"
+				data_validade_valor = data_validade if modo != "Locação" else None
+				condicao_pagamento_valor = self.condicao_pagamento_var.get() if modo != "Locação" else ""
+				prazo_entrega_valor = self.prazo_entrega_var.get() if modo != "Locação" else ""
+				
 				c.execute("""
 					UPDATE cotacoes SET
 						numero_proposta = ?, modelo_compressor = ?, numero_serie_compressor = ?,
@@ -1024,10 +1100,10 @@ class CotacoesModule(BaseModule):
 						esboco_servico = ?, relacao_pecas_substituir = ?,
 						tipo_cotacao = ?, locacao_nome_equipamento = ?
 					WHERE id = ?
-				""", (numero, self.modelo_var.get(), self.serie_var.get(),
+				""", (numero, modelo_valor, serie_valor,
 					 self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
-					 self.status_var.get(), data_validade,
-					 self.condicao_pagamento_var.get(), self.prazo_entrega_var.get(),
+					 status_valor, data_validade_valor,
+					 condicao_pagamento_valor, prazo_entrega_valor,
 					 filial_id,
 					 self.esboco_servico_text.get("1.0", tk.END).strip(),
 					 self.relacao_pecas_text.get("1.0", tk.END).strip(),
@@ -1036,6 +1112,14 @@ class CotacoesModule(BaseModule):
 				c.execute("DELETE FROM itens_cotacao WHERE cotacao_id = ?", (self.current_cotacao_id,))
 				cotacao_id = self.current_cotacao_id
 			else:
+				# Preparar valores baseado no tipo de cotação para INSERT
+				modelo_valor = self.modelo_var.get() if modo != "Locação" else ""
+				serie_valor = self.serie_var.get() if modo != "Locação" else ""
+				status_valor = self.status_var.get() if modo != "Locação" else "Em Aberto"
+				data_validade_valor = data_validade if modo != "Locação" else None
+				condicao_pagamento_valor = self.condicao_pagamento_var.get() if modo != "Locação" else ""
+				prazo_entrega_valor = self.prazo_entrega_var.get() if modo != "Locação" else ""
+				
 				c.execute("""
 					INSERT INTO cotacoes (numero_proposta, cliente_id, responsavel_id, data_criacao,
 									  modelo_compressor, numero_serie_compressor, observacoes,
@@ -1044,8 +1128,8 @@ class CotacoesModule(BaseModule):
 									  tipo_cotacao, locacao_nome_equipamento)
 					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""", (numero, cliente_id, self.user_id, datetime.now().strftime('%Y-%m-%d'),
-					 self.modelo_var.get(), self.serie_var.get(), self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
-					 self.status_var.get(), data_validade, self.condicao_pagamento_var.get(), self.prazo_entrega_var.get(),
+					 modelo_valor, serie_valor, self.observacoes_text.get("1.0", tk.END).strip(), valor_total,
+					 status_valor, data_validade_valor, condicao_pagamento_valor, prazo_entrega_valor,
 					 filial_id, self.esboco_servico_text.get("1.0", tk.END).strip(), self.relacao_pecas_text.get("1.0", tk.END).strip(), modo, self.locacao_equipamento_var.get()))
 				cotacao_id = c.lastrowid
 				self.current_cotacao_id = cotacao_id
@@ -1257,6 +1341,7 @@ class CotacoesModule(BaseModule):
 					self.cliente_var.set(key)
 					break
 					
+			# Campos específicos de compra (podem estar vazios para locação)
 			self.modelo_var.set(cotacao[6] or "")
 			self.serie_var.set(cotacao[7] or "")
 			self.status_var.set(cotacao[15] or "Em Aberto")
