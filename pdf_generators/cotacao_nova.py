@@ -253,7 +253,7 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
                 cli.id AS cliente_id, cli.nome AS cliente_nome, cli.nome_fantasia, cli.endereco, cli.email, 
                 cli.telefone, cli.site, cli.cnpj, cli.cidade, cli.estado, cli.cep,
                 usr.id AS responsavel_id, usr.nome_completo, usr.email AS usr_email, usr.telefone AS usr_telefone, usr.username,
-                cot.moeda, cot.relacao_pecas, cot.filial_id, cot.esboco_servico, cot.relacao_pecas_substituir
+                cot.moeda, cot.relacao_pecas, cot.filial_id, cot.esboco_servico, cot.relacao_pecas_substituir, cot.tipo_cotacao
             FROM cotacoes AS cot
             JOIN clientes AS cli ON cot.cliente_id = cli.id
             JOIN usuarios AS usr ON cot.responsavel_id = usr.id
@@ -272,7 +272,7 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
             cliente_telefone, cliente_site, cliente_cnpj, cliente_cidade, 
             cliente_estado, cliente_cep,
             responsavel_id, responsavel_nome, responsavel_email, responsavel_telefone, responsavel_username,
-            moeda, relacao_pecas, filial_id, esboco_servico, relacao_pecas_substituir
+            moeda, relacao_pecas, filial_id, esboco_servico, relacao_pecas_substituir, tipo_cotacao
         ) = cotacao_data
 
         # Obter dados da filial
@@ -326,19 +326,24 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
         pdf.contato_nome = contato_nome
         pdf.responsavel_nome = responsavel_nome
 
-        # PÁGINA 1: NOVA CAPA COM FUNDO E SOBREPOSIÇÃO
-        # ============================================
+        # PÁGINA 1: CAPA
+        # ===============
         pdf.add_page()
         
-        # 1. IMAGEM DE FUNDO PADRÃO (nova imagem para capa)
-        fundo_padrao = os.path.join(os.path.dirname(__file__), '..', 'imgfundo.jpg')
-        if os.path.exists(fundo_padrao):
-            pdf.image(fundo_padrao, x=0, y=0, w=210, h=297)
+        # Se for Locação, usar capaloc.jpg na raiz; caso contrário, capa padrão
+        if (tipo_cotacao or '').lower() == 'locação' or (tipo_cotacao or '').lower() == 'locacao':
+            capa_loc_path = os.path.join(os.path.dirname(__file__), '..', 'capaloc.jpg')
+            if os.path.exists(capa_loc_path):
+                pdf.image(capa_loc_path, x=0, y=0, w=210, h=297)
         else:
-            # fallback para fundo antigo da capa se existir
-            fundo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'backgrounds', 'capa_fundo.jpg')
-            if os.path.exists(fundo_path):
-                pdf.image(fundo_path, x=0, y=0, w=210, h=297)
+            fundo_padrao = os.path.join(os.path.dirname(__file__), '..', 'imgfundo.jpg')
+            if os.path.exists(fundo_padrao):
+                pdf.image(fundo_padrao, x=0, y=0, w=210, h=297)
+            else:
+                # fallback para fundo antigo da capa se existir
+                fundo_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'backgrounds', 'capa_fundo.jpg')
+                if os.path.exists(fundo_path):
+                    pdf.image(fundo_path, x=0, y=0, w=210, h=297)
         
         # 2. CAPA PERSONALIZADA SOBREPOSTA (se disponível)
         # 2.1 Tentar template do banco (template_image_path) do usuário
@@ -437,11 +442,24 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
         
         pdf.ln(10)  # Espaço antes do conteúdo
         
-        # Texto de apresentação (como estava antes)
+        # Texto de apresentação
         pdf.set_font("Arial", size=11)
-        modelo_text = f" {modelo_compressor}" if modelo_compressor else ""
-        
-        texto_apresentacao = clean_text(f"""
+        if (tipo_cotacao or '').lower() == 'locação' or (tipo_cotacao or '').lower() == 'locacao':
+            texto_apresentacao = clean_text("""
+Prezados Senhores: 
+Agradecemos por nos conceder a oportunidade de apresentarmos nossa proposta para 
+fornecimento de LOCAÇÃO DE COMPRESSOR DE AR. 
+A World Comp Compressores é especializada em manutenção de compressores de parafuso 
+das principais marcas do mercado, como Atlas Copco, Ingersoll Rand,Chicago. Atuamos também com 
+revisão de equipamentos e unidades compressoras, venda de peças, bem como venda e locação de 
+compressores de parafuso isentos de óleo e lubrificados. 
+Com profissionais altamente qualificados e atendimento especializado, colocamo-nos à 
+disposição para analisar, corrigir e prestar os devidos esclarecimentos, sempre buscando atender às 
+especificações e necessidades dos nossos clientes.
+            """)
+        else:
+            modelo_text = f" {modelo_compressor}" if modelo_compressor else ""
+            texto_apresentacao = clean_text(f"""
 Prezados Senhores,
 
 Agradecemos a sua solicitação e apresentamos nossas condições comerciais para fornecimento de peças para o compressor{modelo_text}.
@@ -450,17 +468,23 @@ A World Comp coloca-se a disposição para analisar, corrigir, prestar esclareci
 
 
 Atenciosamente,
-        """)
+            """)
         pdf.multi_cell(0, 5, texto_apresentacao)
         
         # Assinatura na parte inferior da página 2
         pdf.set_y(240)  # Posiciona mais baixo para garantir que fique na página 2
-        pdf.set_font("Arial", 'B', 11)
-        pdf.cell(0, 6, clean_text(responsavel_nome.upper()), 0, 1, 'L')
-        pdf.set_font("Arial", '', 11)
-        pdf.cell(0, 5, clean_text("Vendas"), 0, 1, 'L')
-        pdf.cell(0, 5, clean_text(f"Fone: {dados_filial.get('telefones', '')}"), 0, 1, 'L')
-        pdf.cell(0, 5, clean_text(dados_filial.get('nome', '')), 0, 1, 'L')
+        if (tipo_cotacao or '').lower() == 'locação' or (tipo_cotacao or '').lower() == 'locacao':
+            pdf.set_font("Arial", '', 11)
+            pdf.cell(0, 5, clean_text("Atenciosamente,"), 0, 1, 'L')
+            pdf.set_font("Arial", 'B', 11)
+            pdf.cell(0, 5, clean_text("WORLD COMP DO BRASIL COMPRESSORES EIRELI"), 0, 1, 'L')
+        else:
+            pdf.set_font("Arial", 'B', 11)
+            pdf.cell(0, 6, clean_text(responsavel_nome.upper()), 0, 1, 'L')
+            pdf.set_font("Arial", '', 11)
+            pdf.cell(0, 5, clean_text("Vendas"), 0, 1, 'L')
+            pdf.cell(0, 5, clean_text(f"Fone: {dados_filial.get('telefones', '')}"), 0, 1, 'L')
+            pdf.cell(0, 5, clean_text(dados_filial.get('nome', '')), 0, 1, 'L')
 
         # PÁGINA 3: SOBRE A EMPRESA (mantendo conteúdo original)
         # =====================================================
