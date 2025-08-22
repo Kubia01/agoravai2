@@ -632,6 +632,105 @@ class CotacoesModule(BaseModule):
 		
 		# Ajustar total
 		self.atualizar_total()
+			
+			# Ocultar campos específicos de compra
+			if hasattr(self, 'modelo_label'):
+				self.modelo_label.grid_remove()
+			if hasattr(self, 'modelo_entry'):
+				self.modelo_entry.grid_remove()
+			if hasattr(self, 'serie_label'):
+				self.serie_label.grid_remove()
+			if hasattr(self, 'serie_entry'):
+				self.serie_entry.grid_remove()
+			if hasattr(self, 'status_label'):
+				self.status_label.grid_remove()
+			if hasattr(self, 'status_combo'):
+				self.status_combo.grid_remove()
+			if hasattr(self, 'data_validade_label'):
+				self.data_validade_label.grid_remove()
+			if hasattr(self, 'data_validade_entry'):
+				self.data_validade_entry.grid_remove()
+			if hasattr(self, 'condicao_pagamento_label'):
+				self.condicao_pagamento_label.grid_remove()
+			if hasattr(self, 'condicao_pagamento_entry'):
+				self.condicao_pagamento_entry.grid_remove()
+			if hasattr(self, 'prazo_entrega_label'):
+				self.prazo_entrega_label.grid_remove()
+			if hasattr(self, 'prazo_entrega_entry'):
+				self.prazo_entrega_entry.grid_remove()
+			
+			# Alterar label do nome para "Nome do Equipamento"
+			if hasattr(self, 'nome_label'):
+				self.nome_label.config(text="Nome do Equipamento:")
+		else:
+			# Restaurar campos para compra
+			if hasattr(self, 'tipo_combo'):
+				self.tipo_combo.grid(row=0, column=1, padx=5)
+			if hasattr(self, 'tipo_label'):
+				self.tipo_label.grid(row=0, column=0, padx=5, sticky="w")
+			if hasattr(self, 'modelo_label'):
+				self.modelo_label.grid()
+			if hasattr(self, 'modelo_entry'):
+				self.modelo_entry.grid()
+			if hasattr(self, 'serie_label'):
+				self.serie_label.grid()
+			if hasattr(self, 'serie_entry'):
+				self.serie_entry.grid()
+			if hasattr(self, 'status_label'):
+				self.status_label.grid()
+			if hasattr(self, 'status_combo'):
+				self.status_combo.grid()
+			if hasattr(self, 'data_validade_label'):
+				self.data_validade_label.grid()
+			if hasattr(self, 'data_validade_entry'):
+				self.data_validade_entry.grid()
+			if hasattr(self, 'condicao_pagamento_label'):
+				self.condicao_pagamento_label.grid()
+			if hasattr(self, 'condicao_pagamento_entry'):
+				self.condicao_pagamento_entry.grid()
+			if hasattr(self, 'prazo_entrega_label'):
+				self.prazo_entrega_label.grid()
+			if hasattr(self, 'prazo_entrega_entry'):
+				self.prazo_entrega_entry.grid()
+			
+			# Restaurar label do nome para "Nome"
+			if hasattr(self, 'nome_label'):
+				self.nome_label.config(text="Nome:")
+		
+		# Ajustar campo nome baseado no tipo de cotação
+		if modo == "Locação":
+			# Para locação, converter combo para Entry (texto livre) com tamanho expandido
+			if hasattr(self, 'item_nome_combo') and not hasattr(self, 'item_nome_entry'):
+				# Criar Entry para substituir o combo com tamanho grande
+				self.item_nome_entry = tk.Entry(self.item_nome_combo.master, textvariable=self.item_nome_var, width=70, font=('Arial', 10))
+				self.item_nome_entry.pack(side="left", fill="x", expand=True)
+				self.item_nome_combo.pack_forget()  # Ocultar combo
+			elif hasattr(self, 'item_nome_entry'):
+				# Se já existe, apenas garantir que está visível com tamanho correto
+				self.item_nome_entry.config(width=70)
+				self.item_nome_entry.pack(side="left", fill="x", expand=True)
+				if hasattr(self, 'item_nome_combo'):
+					self.item_nome_combo.pack_forget()
+			# Limpar tipo selecionado
+			self.item_tipo_var.set("")
+			
+			# Definir tipo de operação como Locação automaticamente
+			if hasattr(self, 'item_tipo_operacao_var'):
+				self.item_tipo_operacao_var.set("Locação")
+		else:
+			# Para compra, usar combo com produtos
+			if hasattr(self, 'item_nome_entry'):
+				self.item_nome_entry.pack_forget()  # Ocultar Entry
+			if hasattr(self, 'item_nome_combo'):
+				self.item_nome_combo.pack(side="left", fill="x", expand=True)  # Mostrar combo
+			self.update_produtos_combo()
+			
+			# Definir tipo de operação como Compra automaticamente
+			if hasattr(self, 'item_tipo_operacao_var'):
+				self.item_tipo_operacao_var.set("Compra")
+		
+		# Ajustar total
+		self.atualizar_total()
 		
 	def update_produtos_combo(self):
 		"""Atualizar combo de produtos baseado no tipo selecionado"""
