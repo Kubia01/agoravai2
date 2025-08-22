@@ -490,47 +490,83 @@ Atenciosamente,
             pdf.cell(0, 5, clean_text(f"Fone: {dados_filial.get('telefones', '')}"), 0, 1, 'L')
             pdf.cell(0, 5, clean_text(dados_filial.get('nome', '')), 0, 1, 'L')
 
-        # PÁGINA 3: SOBRE A EMPRESA (mantendo conteúdo original)
-        # =====================================================
+        # PÁGINA 3: SOBRE A EMPRESA
+        # ==========================
         pdf.add_page()
         pdf.set_y(45)
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 8, clean_text("SOBRE A WORLD COMP"), 0, 1, 'L')
-        pdf.set_font("Arial", '', 11)
-        
-        sobre_empresa = clean_text("Há mais de uma década no mercado de manutenção de compressores de ar de parafuso, de diversas marcas, atendemos clientes em todo território brasileiro.")
-        pdf.multi_cell(0, 5, sobre_empresa)
-        pdf.ln(5)
-        
-        # Seções sobre a empresa
-        secoes = [
-            ("FORNECIMENTO, SERVIÇO E LOCAÇÃO", """
-A World Comp oferece os serviços de Manutenção Preventiva e Corretiva em Compressores e Unidades Compressoras, Venda de peças, Locação de compressores, Recuperação de Unidades Compressoras, Recuperação de Trocadores de Calor e Contrato de Manutenção em compressores de marcas como: Atlas Copco, Ingersoll Rand, Chicago Pneumatic entre outros.
-            """),
-            ("CONTE CONOSCO PARA UMA PARCERIA", """
-Adaptamos nossa oferta para suas necessidades, objetivos e planejamento. Trabalhamos para que seu processo seja eficiente.
-            """),
-            ("MELHORIA CONTÍNUA", """
-Continuamente investindo em comprometimento, competência e eficiência de nossos serviços, produtos e estrutura para garantirmos a máxima eficiência de sua produtividade.
-            """),
-            ("QUALIDADE DE SERVIÇOS", """
-Com uma equipe de técnicos altamente qualificados e constantemente treinados para atendimentos em todos os modelos de compressores de ar, a World Comp oferece garantia de excelente atendimento e produtividade superior com rapidez e eficácia.
-            """)
-        ]
-        
-        for titulo, texto in secoes:
-            pdf.set_text_color(*pdf.baby_blue)
+        if (tipo_cotacao or '').lower() == 'locação' or (tipo_cotacao or '').lower() == 'locacao':
+            # Locação: usar textos específicos fornecidos
+            secoes_loc = [
+                ("SOBRE A WORLD COMP", """
+A World Comp Compressores é uma empresa com mais de uma década de atuação no 
+mercado nacional, especializada na manutenção de compressores de ar do tipo parafuso. Seu 
+atendimento abrange todo o território brasileiro, oferecendo soluções técnicas e comerciais voltadas à 
+maximização do desempenho e da confiabilidade dos sistemas de ar comprimido utilizados por seus 
+clientes. 
+                """),
+                ("NOSSOS SERVIÇOS", """
+A empresa oferece um portfólio completo de serviços, que contempla a manutenção 
+preventiva e corretiva de compressores e unidades compressoras, a venda de peças de reposição 
+para diversas marcas, a locação de compressores de parafuso — incluindo modelos lubrificados e 
+isentos de óleo —, além da recuperação de unidades compressoras e trocadores de calor. 
+A World Comp também disponibiliza contratos de manutenção personalizados, adaptados às 
+necessidades operacionais específicas de cada cliente. Dentre os principais fabricantes atendidos, 
+destacam-se marcas reconhecidas como Atlas Copco, Ingersoll Rand e Chicago Pneumatic.
+                """),
+                ("QUALIDADE DOS SERVIÇOS & MELHORIA CONTÍNUA", """
+A empresa investe continuamente na capacitação de sua equipe, na modernização de 
+processos e no aprimoramento da estrutura de atendimento, assegurando alto padrão de qualidade, 
+agilidade e eficácia nos serviços. Mantém ainda uma política ativa de melhoria contínua, com 
+avaliações periódicas que visam atualizar tecnologias, aperfeiçoar métodos e garantir excelência 
+técnica. 
+                """),
+                ("CONTE CONOSCO PARA UMA PARCERIA!", """
+Nossa missão é ser sua melhor parceria com sinônimo de qualidade, garantia e o melhor 
+custo benefício. 
+                """)
+            ]
+            for titulo, texto in secoes_loc:
+                pdf.set_text_color(*pdf.baby_blue)
+                pdf.set_font("Arial", 'B', 12)
+                pdf.cell(0, 8, titulo, 0, 1, 'L')
+                pdf.set_text_color(0, 0, 0)
+                pdf.set_font("Arial", '', 11)
+                pdf.multi_cell(0, 5, texto)
+                pdf.ln(3)
+            pdf.ln(7)
+        else:
+            # Cotação (padrão): manter conteúdo original
             pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 8, clean_text(titulo), 0, 1, 'L')
-            
-            pdf.set_text_color(0, 0, 0)
+            pdf.cell(0, 8, clean_text("SOBRE A WORLD COMP"), 0, 1, 'L')
             pdf.set_font("Arial", '', 11)
-            pdf.multi_cell(0, 5, clean_text(texto))
-            pdf.ln(3)
-        
-        texto_final = clean_text("Nossa missão é ser sua melhor parceria com sinônimo de qualidade, garantia e o melhor custo benefício.")
-        pdf.multi_cell(0, 5, texto_final)
-        pdf.ln(10)
+            sobre_empresa = clean_text("Há mais de uma década no mercado de manutenção de compressores de ar de parafuso, de diversas marcas, atendemos clientes em todo território brasileiro.")
+            pdf.multi_cell(0, 5, sobre_empresa)
+            pdf.ln(5)
+            secoes = [
+                ("FORNECIMENTO, SERVIÇO E LOCAÇÃO", """
+A World Comp oferece os serviços de Manutenção Preventiva e Corretiva em Compressores e Unidades Compressoras, Venda de peças, Locação de compressores, Recuperação de Unidades Compressoras, Recuperação de Trocadores de Calor e Contrato de Manutenção em compressores de marcas como: Atlas Copco, Ingersoll Rand, Chicago Pneumatic entre outros.
+                """),
+                ("CONTE CONOSCO PARA UMA PARCERIA", """
+Adaptamos nossa oferta para suas necessidades, objetivos e planejamento. Trabalhamos para que seu processo seja eficiente.
+                """),
+                ("MELHORIA CONTÍNUA", """
+Continuamente investindo em comprometimento, competência e eficiência de nossos serviços, produtos e estrutura para garantirmos a máxima eficiência de sua produtividade.
+                """),
+                ("QUALIDADE DE SERVIÇOS", """
+Com uma equipe de técnicos altamente qualificados e constantemente treinados para atendimentos em todos os modelos de compressores de ar, a World Comp oferece garantia de excelente atendimento e produtividade superior com rapidez e eficácia.
+                """)
+            ]
+            for titulo, texto in secoes:
+                pdf.set_text_color(*pdf.baby_blue)
+                pdf.set_font("Arial", 'B', 12)
+                pdf.cell(0, 8, clean_text(titulo), 0, 1, 'L')
+                pdf.set_text_color(0, 0, 0)
+                pdf.set_font("Arial", '', 11)
+                pdf.multi_cell(0, 5, clean_text(texto))
+                pdf.ln(3)
+            texto_final = clean_text("Nossa missão é ser sua melhor parceria com sinônimo de qualidade, garantia e o melhor custo benefício.")
+            pdf.multi_cell(0, 5, texto_final)
+            pdf.ln(10)
         
         # =====================================================
         # PÁGINA 4: ESBOÇO DO SERVIÇO A SER EXECUTADO
