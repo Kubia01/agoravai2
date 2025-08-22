@@ -73,13 +73,12 @@ def clean_text(text):
     for old_char, new_char in replacements.items():
         text = text.replace(old_char, new_char)
     
-    # Remover caracteres não ASCII restantes
+    # Remover caracteres fora do Latin-1 (preservando acentuação comum em PT-BR)
     try:
-        # Tentar encoding/decoding para limpar caracteres problemáticos
-        text = text.encode('ascii', 'ignore').decode('ascii')
+        text = text.encode('latin-1', 'ignore').decode('latin-1')
     except:
-        # Se falhar, usar apenas caracteres básicos
-        text = ''.join(char for char in text if ord(char) < 128)
+        # Fallback simples
+        text = ''.join(ch for ch in text if ord(ch) <= 255)
     
     return text
 
@@ -449,17 +448,17 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
         # Texto de apresentação
         pdf.set_font("Arial", size=11)
         if (tipo_cotacao or '').lower() == 'locação' or (tipo_cotacao or '').lower() == 'locacao':
-            texto_apresentacao = (
+            texto_apresentacao = clean_text(
 "Prezados Senhores:\n\n"
 "Agradecemos por nos conceder a oportunidade de apresentarmos nossa proposta para\n"
-"fornecimento de LOCAÇÃO DE COMPRESSOR DE AR.\n\n"
-"A World Comp Compressores é especializada em manutenção de compressores de parafuso\n"
-"das principais marcas do mercado, como Atlas Copco, Ingersoll Rand, Chicago. Atuamos também com\n"
-"revisão de equipamentos e unidades compressoras, venda de peças, bem como venda e locação de\n"
-"compressores de parafuso isentos de óleo e lubrificados.\n\n"
-"Com profissionais altamente qualificados e atendimento especializado, colocamo-nos à\n"
-"disposição para analisar, corrigir e prestar os devidos esclarecimentos, sempre buscando atender às\n"
-"especificações e necessidades dos nossos clientes."
+"fornecimento de LOCACAO DE COMPRESSOR DE AR.\n\n"
+"A World Comp Compressores e especializada em manutencao de compressores de parafuso\n"
+"das principais marcas do mercado, como Atlas Copco, Ingersoll Rand, Chicago. Atuamos tambem com\n"
+"revisao de equipamentos e unidades compressoras, venda de pecas, bem como venda e locacao de\n"
+"compressores de parafuso isentos de oleo e lubrificados.\n\n"
+"Com profissionais altamente qualificados e atendimento especializado, colocamo-nos a\n"
+"disposicao para analisar, corrigir e prestar os devidos esclarecimentos, sempre buscando atender as\n"
+"especificacoes e necessidades dos nossos clientes."
             )
         else:
             modelo_text = f" {modelo_compressor}" if modelo_compressor else ""
@@ -497,33 +496,33 @@ Atenciosamente,
         if (tipo_cotacao or '').lower() == 'locação' or (tipo_cotacao or '').lower() == 'locacao':
             # Locação: usar textos específicos fornecidos
             secoes_loc = [
-                ("SOBRE A WORLD COMP", """
-A World Comp Compressores é uma empresa com mais de uma década de atuação no 
-mercado nacional, especializada na manutenção de compressores de ar do tipo parafuso. Seu 
-atendimento abrange todo o território brasileiro, oferecendo soluções técnicas e comerciais voltadas à 
-maximização do desempenho e da confiabilidade dos sistemas de ar comprimido utilizados por seus 
-clientes. 
-                """),
-                ("NOSSOS SERVIÇOS", """
-A empresa oferece um portfólio completo de serviços, que contempla a manutenção 
-preventiva e corretiva de compressores e unidades compressoras, a venda de peças de reposição 
-para diversas marcas, a locação de compressores de parafuso — incluindo modelos lubrificados e 
-isentos de óleo —, além da recuperação de unidades compressoras e trocadores de calor. 
-A World Comp também disponibiliza contratos de manutenção personalizados, adaptados às 
-necessidades operacionais específicas de cada cliente. Dentre os principais fabricantes atendidos, 
-destacam-se marcas reconhecidas como Atlas Copco, Ingersoll Rand e Chicago Pneumatic.
-                """),
-                ("QUALIDADE DOS SERVIÇOS & MELHORIA CONTÍNUA", """
-A empresa investe continuamente na capacitação de sua equipe, na modernização de 
-processos e no aprimoramento da estrutura de atendimento, assegurando alto padrão de qualidade, 
-agilidade e eficácia nos serviços. Mantém ainda uma política ativa de melhoria contínua, com 
-avaliações periódicas que visam atualizar tecnologias, aperfeiçoar métodos e garantir excelência 
-técnica. 
-                """),
-                ("CONTE CONOSCO PARA UMA PARCERIA!", """
-Nossa missão é ser sua melhor parceria com sinônimo de qualidade, garantia e o melhor 
-custo benefício. 
-                """)
+                ("SOBRE A WORLD COMP", clean_text(
+"A World Comp Compressores e uma empresa com mais de uma decada de atuacao no\n"
+"mercado nacional, especializada na manutencao de compressores de ar do tipo parafuso. Seu\n"
+"atendimento abrange todo o territorio brasileiro, oferecendo solucoes tecnicas e comerciais voltadas a\n"
+"maximizacao do desempenho e da confiabilidade dos sistemas de ar comprimido utilizados por seus\n"
+"clientes.\n"
+                )),
+                ("NOSSOS SERVICOS", clean_text(
+"A empresa oferece um portfolio completo de servicos, que contempla a manutencao\n"
+"preventiva e corretiva de compressores e unidades compressoras, a venda de pecas de reposicao\n"
+"para diversas marcas, a locacao de compressores de parafuso — incluindo modelos lubrificados e\n"
+"isentos de oleo —, alem da recuperacao de unidades compressoras e trocadores de calor.\n"
+"A World Comp tambem disponibiliza contratos de manutencao personalizados, adaptados as\n"
+"necessidades operacionais especificas de cada cliente. Dentre os principais fabricantes atendidos,\n"
+"destacam-se marcas reconhecidas como Atlas Copco, Ingersoll Rand e Chicago Pneumatic.\n"
+                )),
+                ("QUALIDADE DOS SERVICOS & MELHORIA CONTINUA", clean_text(
+"A empresa investe continuamente na capacitacao de sua equipe, na modernizacao de\n"
+"processos e no aprimoramento da estrutura de atendimento, assegurando alto padrao de qualidade,\n"
+"agilidade e eficacia nos servicos. Mantem ainda uma politica ativa de melhoria continua, com\n"
+"avaliacoes periodicas que visam atualizar tecnologias, aperfeicoar metodos e garantir excelencia\n"
+"tecnica.\n"
+                )),
+                ("CONTE CONOSCO PARA UMA PARCERIA!", clean_text(
+"Nossa missao e ser sua melhor parceria com sinonimo de qualidade, garantia e o melhor\n"
+"custo beneficio.\n"
+                ))
             ]
             for titulo, texto in secoes_loc:
                 pdf.set_text_color(*pdf.baby_blue)
