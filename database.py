@@ -78,6 +78,12 @@ def criar_banco():
 	except sqlite3.OperationalError:
 		pass
 
+	# Migração: Adicionar coluna para imagem da locação
+	try:
+		c.execute("ALTER TABLE cotacoes ADD COLUMN locacao_imagem_path TEXT")
+	except sqlite3.OperationalError:
+		pass  # Coluna já existe
+
 	# Migração: Adicionar colunas de locação por item em itens_cotacao
 	try:
 		c.execute("ALTER TABLE itens_cotacao ADD COLUMN locacao_data_inicio DATE")
@@ -190,6 +196,7 @@ def criar_banco():
 		locacao_data_fim DATE,
 		locacao_qtd_meses INTEGER,
 		locacao_nome_equipamento TEXT,
+		locacao_imagem_path TEXT,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (cliente_id) REFERENCES clientes(id),
 		FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
