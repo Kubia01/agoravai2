@@ -359,6 +359,7 @@ class CotacoesModule(BaseModule):
 		"""Criar seção para esboço do serviço"""
 		section_frame = self.create_section_frame(parent, "Esboço do Serviço a Ser Executado")
 		section_frame.pack(fill="x", pady=(0, 15))
+		self.esboco_servico_section = section_frame
 		
 		# Variáveis
 		self.esboco_servico_var = tk.StringVar()
@@ -371,6 +372,7 @@ class CotacoesModule(BaseModule):
 		"""Criar seção para relação de peças a serem substituídas"""
 		section_frame = self.create_section_frame(parent, "Relação de Peças a Serem Substituídas")
 		section_frame.pack(fill="x", pady=(0, 15))
+		self.relacao_pecas_section = section_frame
 		
 		# Variáveis
 		self.relacao_pecas_var = tk.StringVar()
@@ -408,6 +410,8 @@ class CotacoesModule(BaseModule):
 		# Novos campos por item (locação)
 		self.item_loc_inicio_var = tk.StringVar()
 		self.item_loc_fim_var = tk.StringVar()
+		self.item_loc_meses_var = tk.StringVar(value="0")
+		self.item_loc_total_var = tk.StringVar(value="R$ 0,00")
 		
 		# Grid de campos
 		fields_grid = tk.Frame(parent, bg="white")
@@ -468,13 +472,31 @@ class CotacoesModule(BaseModule):
 		
 		# Quarta linha - Campos de locação por item (mostrados apenas para Locação)
 		self.locacao_item_frame = tk.Frame(fields_grid, bg="white")
-		self.locacao_item_frame.grid(row=3, column=0, columnspan=8, sticky="ew", pady=5)
-		tk.Label(self.locacao_item_frame, text="Início (DD/MM/AAAA):", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=0, padx=5, sticky="w")
+		self.locacao_item_frame.grid(row=3, column=0, columnspan=10, sticky="ew", pady=5)
+		
+		# Primeira linha dos campos de locação
+		tk.Label(self.locacao_item_frame, text="Data Início (DD/MM/AAAA):", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=0, padx=5, sticky="w")
 		tk.Entry(self.locacao_item_frame, textvariable=self.item_loc_inicio_var, width=14).grid(row=0, column=1, padx=5)
-		tk.Label(self.locacao_item_frame, text="Fim (DD/MM/AAAA):", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=2, padx=5, sticky="w")
+		
+		tk.Label(self.locacao_item_frame, text="Data Fim (DD/MM/AAAA):", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=2, padx=5, sticky="w")
 		tk.Entry(self.locacao_item_frame, textvariable=self.item_loc_fim_var, width=14).grid(row=0, column=3, padx=5)
+		
+		# Segunda linha dos campos de locação
+		tk.Label(self.locacao_item_frame, text="Meses:", font=("Arial", 10, "bold"), bg="white").grid(row=1, column=0, padx=5, sticky="w")
+		self.item_loc_meses_entry = tk.Entry(self.locacao_item_frame, textvariable=self.item_loc_meses_var, width=8, state="readonly")
+		self.item_loc_meses_entry.grid(row=1, column=1, padx=5, sticky="w")
+		
+		tk.Label(self.locacao_item_frame, text="Total Item:", font=("Arial", 10, "bold"), bg="white").grid(row=1, column=2, padx=5, sticky="w")
+		self.item_loc_total_entry = tk.Entry(self.locacao_item_frame, textvariable=self.item_loc_total_var, width=15, state="readonly")
+		self.item_loc_total_entry.grid(row=1, column=3, padx=5, sticky="w")
+		
 		# Ocultar inicialmente (será mostrado para Locação)
 		self.locacao_item_frame.grid_remove()
+		
+		# Bindings para calcular meses e total automaticamente
+		self.item_loc_inicio_var.trace_add('write', lambda *args: self.recalcular_locacao_item())
+		self.item_loc_fim_var.trace_add('write', lambda *args: self.recalcular_locacao_item())
+		self.item_valor_var.trace_add('write', lambda *args: self.recalcular_locacao_item())
 		
 		# Inicialmente ocultar campos de serviço
 		self.servico_frame.grid_remove()
@@ -510,12 +532,22 @@ class CotacoesModule(BaseModule):
 		if hasattr(self, 'itens_section'):
 			self.itens_section.pack(fill="both", expand=True, pady=(0, 10))
 		
-		# Mostrar/ocultar seção de locação principal
-		if hasattr(self, 'locacao_frame'):
-			if modo == "Locação":
-				self.locacao_frame.pack(fill="x", pady=(0, 10))
-			else:
+		# Mostrar/ocultar seções baseado no tipo de cotação
+		if modo == "Locação":
+			# Ocultar seções específicas de compra
+			if hasattr(self, 'esboco_servico_section'):
+				self.esboco_servico_section.pack_forget()
+			if hasattr(self, 'relacao_pecas_section'):
+				self.relacao_pecas_section.pack_forget()
+			# Ocultar seção de locação principal (não é mais necessária)
+			if hasattr(self, 'locacao_frame'):
 				self.locacao_frame.pack_forget()
+		else:
+			# Mostrar seções para compra
+			if hasattr(self, 'esboco_servico_section'):
+				self.esboco_servico_section.pack(fill="x", pady=(0, 15))
+			if hasattr(self, 'relacao_pecas_section'):
+				self.relacao_pecas_section.pack(fill="x", pady=(0, 15))
 		
 		# Mostrar campos de locação por item somente em Locação
 		if hasattr(self, 'locacao_item_frame'):
@@ -923,6 +955,8 @@ class CotacoesModule(BaseModule):
 			self.item_tipo_operacao_var.set("Compra")
 		self.item_loc_inicio_var.set("")
 		self.item_loc_fim_var.set("")
+		self.item_loc_meses_var.set("0")
+		self.item_loc_total_var.set("R$ 0,00")
 		
 		# Atualizar total
 		self.atualizar_total()
@@ -984,6 +1018,22 @@ class CotacoesModule(BaseModule):
 		# Atualizar total geral na UI
 		if self.tipo_cotacao_var.get() == 'Locação':
 			self.total_label.config(text=f"Total: {format_currency(total)}")
+	
+	def recalcular_locacao_item(self):
+		"""Recalcular meses e total da locação por item"""
+		if self.tipo_cotacao_var.get() != 'Locação':
+			return
+			
+		valor_mensal = clean_number(self.item_valor_var.get() or "0")
+		inicio_iso = self.parse_date_input(self.item_loc_inicio_var.get())
+		fim_iso = self.parse_date_input(self.item_loc_fim_var.get())
+		
+		meses = self.calculate_months_between(inicio_iso, fim_iso) if inicio_iso and fim_iso else 0
+		self.item_loc_meses_var.set(str(meses))
+		
+		quantidade = float(self.item_qtd_var.get() or "1")
+		total = (valor_mensal or 0) * (meses or 0) * quantidade
+		self.item_loc_total_var.set(format_currency(total))
 		
 	def atualizar_total(self):
 		"""Atualizar valor total da cotação"""
@@ -1022,6 +1072,16 @@ class CotacoesModule(BaseModule):
 		self.locacao_qtd_meses_var.set("0")
 		self.locacao_total_var.set("R$ 0,00")
 		self.locacao_equipamento_var.set("")
+		
+		# Reset campos de locação por item
+		if hasattr(self, 'item_loc_inicio_var'):
+			self.item_loc_inicio_var.set("")
+		if hasattr(self, 'item_loc_fim_var'):
+			self.item_loc_fim_var.set("")
+		if hasattr(self, 'item_loc_meses_var'):
+			self.item_loc_meses_var.set("0")
+		if hasattr(self, 'item_loc_total_var'):
+			self.item_loc_total_var.set("R$ 0,00")
 		if hasattr(self, 'locacao_frame'):
 			self.locacao_frame.pack_forget()
 		if hasattr(self, 'itens_section'):
