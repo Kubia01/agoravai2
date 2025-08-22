@@ -426,23 +426,17 @@ class CotacoesModule(BaseModule):
 		self.tipo_label.grid(row=0, column=0, padx=5, sticky="w")
 		
 		self.tipo_combo = ttk.Combobox(compra_grid, textvariable=self.item_tipo_var, 
-								  values=["Produto", "Serviço", "Kit"], 
-								  width=10, state="readonly")
+							  values=["Produto", "Serviço", "Kit"], 
+							  width=10, state="readonly")
 		self.tipo_combo.grid(row=0, column=1, padx=5)
 		self.tipo_combo.bind("<<ComboboxSelected>>", self.on_tipo_changed)
 		
-		tk.Label(compra_grid, text="Qtd:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=2, padx=5, sticky="w")
-		tk.Entry(compra_grid, textvariable=self.item_qtd_var, width=5).grid(row=0, column=3, padx=5)
-		
-		tk.Label(compra_grid, text="Valor Unit.:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=4, padx=5, sticky="w")
-		tk.Entry(compra_grid, textvariable=self.item_valor_var, width=12).grid(row=0, column=5, padx=5)
-		
-		# Segunda linha - Nome e Descrição para compra
+		# Nome na mesma linha
 		self.nome_label_compra = tk.Label(compra_grid, text="Nome:", font=("Arial", 10, "bold"), bg="white")
-		self.nome_label_compra.grid(row=1, column=0, padx=5, sticky="w")
+		self.nome_label_compra.grid(row=0, column=2, padx=5, sticky="w")
 		
 		nome_frame_compra = tk.Frame(compra_grid, bg='white')
-		nome_frame_compra.grid(row=1, column=1, columnspan=3, padx=5, sticky="ew")
+		nome_frame_compra.grid(row=0, column=3, padx=5, sticky="ew")
 		
 		self.item_nome_combo_compra = ttk.Combobox(nome_frame_compra, textvariable=self.item_nome_var, width=30)
 		self.item_nome_combo_compra.pack(side="left", fill="x", expand=True)
@@ -451,13 +445,21 @@ class CotacoesModule(BaseModule):
 		refresh_produtos_btn_compra = self.create_button(nome_frame_compra, "🔄", self.refresh_produtos, bg='#10b981')
 		refresh_produtos_btn_compra.pack(side="right", padx=(2, 0))
 		
-		# Terceira linha - Descrição para compra
-		tk.Label(compra_grid, text="Descrição:", font=("Arial", 10, "bold"), bg="white").grid(row=2, column=0, padx=5, sticky="w")
-		tk.Entry(compra_grid, textvariable=self.item_desc_var, width=60).grid(row=2, column=1, columnspan=3, padx=5, sticky="ew")
+		# Qtd. e Valor Unit. na mesma linha
+		tk.Label(compra_grid, text="Qtd.:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=4, padx=5, sticky="w")
+		tk.Entry(compra_grid, textvariable=self.item_qtd_var, width=5).grid(row=0, column=5, padx=5)
 		
-		# Quarta linha - Campos de serviço para compra
+		tk.Label(compra_grid, text="Valor Unit:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=6, padx=5, sticky="w")
+		tk.Entry(compra_grid, textvariable=self.item_valor_var, width=12).grid(row=0, column=7, padx=5)
+		
+		# Segunda linha - Descrição
+		tk.Label(compra_grid, text="Descrição:", font=("Arial", 10, "bold"), bg="white").grid(row=1, column=0, padx=5, sticky="w")
+		tk.Entry(compra_grid, textvariable=self.item_desc_var, width=60).grid(row=1, column=1, columnspan=7, padx=5, sticky="ew")
+		
+		# Terceira linha - Campos de serviço (somente quando tipo == "Serviço")
 		self.servico_frame = tk.Frame(compra_grid, bg="white")
-		self.servico_frame.grid(row=3, column=0, columnspan=6, sticky="ew", pady=5)
+		self.servico_frame.grid(row=2, column=0, columnspan=8, sticky="ew", pady=5)
+		self.servico_frame.grid_remove()
 		
 		tk.Label(self.servico_frame, text="Mão de Obra:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=0, padx=5, sticky="w")
 		tk.Entry(self.servico_frame, textvariable=self.item_mao_obra_var, width=10).grid(row=0, column=1, padx=5)
@@ -468,14 +470,13 @@ class CotacoesModule(BaseModule):
 		tk.Label(self.servico_frame, text="Estadia:", font=("Arial", 10, "bold"), bg="white").grid(row=0, column=4, padx=5, sticky="w")
 		tk.Entry(self.servico_frame, textvariable=self.item_estadia_var, width=10).grid(row=0, column=5, padx=5)
 		
-		# Botão adicionar para compra
+		# Botão adicionar
 		adicionar_button_compra = self.create_button(compra_grid, "Adicionar Item", self.adicionar_item)
-		adicionar_button_compra.grid(row=4, column=0, columnspan=6, pady=10)
+		adicionar_button_compra.grid(row=3, column=0, columnspan=8, pady=10)
 		
 		# Configurar grid para compra
-		compra_grid.grid_columnconfigure(1, weight=1)
-		compra_grid.grid_columnconfigure(2, weight=1)
 		compra_grid.grid_columnconfigure(3, weight=1)
+		compra_grid.grid_columnconfigure(7, weight=1)
 		
 		# ===== LAYOUT PARA LOCAÇÃO (NOVO) =====
 		self.locacao_fields_frame = tk.Frame(fields_container, bg="white")
