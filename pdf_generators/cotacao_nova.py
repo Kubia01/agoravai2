@@ -585,6 +585,11 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             bloco_texto = locacao_pagina4_text or "Detalhes técnicos e condições de fornecimento do equipamento conforme abaixo."
             pdf.multi_cell(0, 5, clean_text(bloco_texto))
             pdf.ln(5)
+            # Debug: verificar parâmetros recebidos
+            print(f"DEBUG PDF - Tipo cotação: {tipo_cotacao}")
+            print(f"DEBUG PDF - Texto: {locacao_pagina4_text}")
+            print(f"DEBUG PDF - Imagem: {locacao_pagina4_image}")
+            print(f"DEBUG PDF - Imagem existe: {locacao_pagina4_image and os.path.exists(locacao_pagina4_image) if locacao_pagina4_image else False}")
             # Imagem dinâmica (se fornecida)
             if locacao_pagina4_image and os.path.exists(locacao_pagina4_image):
                 # Calcular tamanho proporcional dentro de uma área (largura ~170mm, altura ~120mm)

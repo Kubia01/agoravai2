@@ -1343,6 +1343,10 @@ class CotacoesModule(BaseModule):
 			if (self.tipo_cotacao_var.get() or '') == 'Locação':
 				loc_text = "Detalhes do equipamento conforme imagem ilustrativa."
 				loc_img = getattr(self, 'locacao_imagem_var', None).get() if hasattr(self, 'locacao_imagem_var') else None
+				# Debug: verificar se a imagem está sendo passada
+				print(f"DEBUG - Tipo de cotação: {self.tipo_cotacao_var.get()}")
+				print(f"DEBUG - Caminho da imagem: {loc_img}")
+				print(f"DEBUG - Imagem existe: {loc_img and os.path.exists(loc_img) if loc_img else False}")
 			# Passar contato selecionado e extras para o gerador
 			sucesso, resultado = gerar_pdf_cotacao_nova(
 				self.current_cotacao_id,
@@ -1485,7 +1489,8 @@ class CotacoesModule(BaseModule):
 					c.caminho_arquivo_pdf, c.relacao_pecas, cl.nome AS cliente_nome,
 					c.esboco_servico, c.relacao_pecas_substituir,
 					c.tipo_cotacao, c.locacao_valor_mensal, c.locacao_data_inicio,
-					c.locacao_data_fim, c.locacao_qtd_meses, c.locacao_nome_equipamento
+					c.locacao_data_fim, c.locacao_qtd_meses, c.locacao_nome_equipamento,
+					c.locacao_imagem_path
 				FROM cotacoes c
 				JOIN clientes cl ON c.cliente_id = cl.id
 				WHERE c.id = ?
@@ -1537,7 +1542,7 @@ class CotacoesModule(BaseModule):
 			self.locacao_equipamento_var.set(cotacao[26] or "")
 			# Recarregar caminho da imagem se existir
 			try:
-				self.locacao_imagem_var.set(cotacao[27] or "")
+				self.locacao_imagem_var.set(cotacao[28] or "")
 			except Exception:
 				pass
 			
@@ -1624,7 +1629,43 @@ class CotacoesModule(BaseModule):
 		cotacao_id = tags[0]
 		# Obter username do usuário atual para template personalizado
 		current_username = self._get_current_username()
-		sucesso, resultado = gerar_pdf_cotacao_nova(cotacao_id, DB_NAME, current_username, contato_nome=self.contato_cliente_var.get())
+		
+		# Carregar dados da cotação para obter informações de locação
+		conn = sqlite3.connect(DB_NAME)
+		c = conn.cursor()
+		try:
+			c.execute("""
+				SELECT tipo_cotacao, locacao_imagem_path
+				FROM cotacoes
+				WHERE id = ?
+			""", (cotacao_id,))
+			cotacao_data = c.fetchone()
+			if cotacao_data:
+				tipo_cotacao, locacao_imagem_path = cotacao_data
+				# Parâmetros extras para Locação - Página 4
+				loc_text = None
+				loc_img = None
+				if (tipo_cotacao or '') == 'Locação':
+					loc_text = "Detalhes do equipamento conforme imagem ilustrativa."
+					loc_img = locacao_imagem_path
+			else:
+				loc_text = None
+				loc_img = None
+		except Exception as e:
+			print(f"Erro ao carregar dados da cotação: {e}")
+			loc_text = None
+			loc_img = None
+		finally:
+			conn.close()
+		
+		sucesso, resultado = gerar_pdf_cotacao_nova(
+			cotacao_id, 
+			DB_NAME, 
+			current_username, 
+			contato_nome=self.contato_cliente_var.get(),
+			locacao_pagina4_text=loc_text,
+			locacao_pagina4_image=loc_img
+		)
 		
 		if sucesso:
 			self.show_success(f"PDF gerado com sucesso!\nLocal: {resultado}")
