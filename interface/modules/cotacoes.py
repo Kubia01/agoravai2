@@ -622,9 +622,10 @@ class CotacoesModule(BaseModule):
 				self.esboco_servico_section.pack_forget()
 			if hasattr(self, 'relacao_pecas_section'):
 				self.relacao_pecas_section.pack_forget()
-			# Ocultar seção de locação principal (não utilizada na edição)
+			
+			# Mostrar seção de locação principal (campos principais)
 			if hasattr(self, 'locacao_frame'):
-				self.locacao_frame.pack_forget()
+				self.locacao_frame.pack(fill="x", pady=(5, 5))
 			
 			# Mostrar layout de locação, ocultar layout de compra
 			self.compra_fields_frame.pack_forget()
@@ -636,6 +637,10 @@ class CotacoesModule(BaseModule):
 				self.esboco_servico_section.pack(fill="x", pady=(5, 5))
 			if hasattr(self, 'relacao_pecas_section'):
 				self.relacao_pecas_section.pack(fill="x", pady=(5, 5))
+			
+			# Ocultar seção de locação principal
+			if hasattr(self, 'locacao_frame'):
+				self.locacao_frame.pack_forget()
 			
 			# Mostrar layout de compra, ocultar layout de locação
 			self.locacao_fields_frame.pack_forget()
