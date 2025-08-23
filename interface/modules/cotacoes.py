@@ -631,6 +631,11 @@ class CotacoesModule(BaseModule):
 			self.compra_fields_frame.pack_forget()
 			self.locacao_fields_frame.pack(fill="x")
 			
+			# Garantir que os campos principais de locação estejam visíveis
+			if hasattr(self, 'locacao_valor_mensal_var') and hasattr(self, 'locacao_data_inicio_var') and hasattr(self, 'locacao_data_fim_var'):
+				# Recalcular total da locação
+				self.recalcular_locacao()
+			
 		else:
 			# Mostrar seções para compra
 			if hasattr(self, 'esboco_servico_section'):
@@ -1525,6 +1530,10 @@ class CotacoesModule(BaseModule):
 			self.condicao_pagamento_var.set(cotacao[12] or "")
 			self.prazo_entrega_var.set(cotacao[13] or "")
 			
+			# Campos de contato (se existir)
+			if hasattr(self, 'contato_cliente_var'):
+				self.contato_cliente_var.set("")
+			
 			# Observações
 			self.observacoes_text.delete("1.0", tk.END)
 			if cotacao[9]:  # observacoes
@@ -1545,11 +1554,16 @@ class CotacoesModule(BaseModule):
 			self.locacao_data_fim_var.set(format_date(cotacao[24]) if cotacao[24] else "")
 			self.locacao_qtd_meses_var.set(str(cotacao[25] or 0))
 			self.locacao_equipamento_var.set(cotacao[26] or "")
+			
 			# Recarregar caminho da imagem se existir
 			try:
 				self.locacao_imagem_var.set(cotacao[28] or "")
 			except Exception:
 				pass
+			
+			# Recalcular total da locação
+			if cotacao[21] == "Locação":
+				self.recalcular_locacao()
 			
 			# Alternar UI conforme tipo de cotação
 			self.on_tipo_cotacao_changed()
