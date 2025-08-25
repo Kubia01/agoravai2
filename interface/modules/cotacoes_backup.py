@@ -1275,7 +1275,6 @@ class CotacoesModule(BaseModule):
 			data_validade = None
 			if data_validade_input:
 				try:
-					from datetime import datetime
 					data_validade = datetime.strptime(data_validade_input, '%d/%m/%Y').strftime('%Y-%m-%d')
 				except ValueError:
 					data_validade = data_validade_input
