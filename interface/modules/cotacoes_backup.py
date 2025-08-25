@@ -529,6 +529,26 @@ class CotacoesModule(BaseModule):
 		tk.Label(locacao_grid, text="Valor Unit./Mensal:", font=("Arial", 10, "bold"), bg="white").grid(row=5, column=2, padx=(30, 5), sticky="w")
 		tk.Entry(locacao_grid, textvariable=self.item_valor_var, width=15).grid(row=5, column=3, padx=5, sticky="w")
 		
+		# Sétima linha - Imagem do Equipamento para locação
+		tk.Label(locacao_grid, text="Imagem do Equipamento:", font=("Arial", 10, "bold"), bg="white").grid(row=6, column=0, padx=5, sticky="w")
+		
+		self.locacao_imagem_var = tk.StringVar()
+		img_frame = tk.Frame(locacao_grid, bg='white')
+		img_frame.grid(row=6, column=1, columnspan=3, sticky="ew", padx=5, pady=5)
+		
+		self.locacao_imagem_entry = tk.Entry(img_frame, textvariable=self.locacao_imagem_var, font=('Arial', 10), width=35)
+		self.locacao_imagem_entry.pack(side="left", fill="x", expand=True)
+		
+		def _pick_image():
+			from tkinter import filedialog
+			path = filedialog.askopenfilename(title="Selecionar Imagem do Equipamento",
+											   filetypes=[("Imagens", "*.jpg *.jpeg *.png *.bmp *.gif"), ("Todos", "*.*")])
+			if path:
+				self.locacao_imagem_var.set(path)
+		
+		picker_btn = self.create_button(img_frame, "Selecionar...", _pick_image, bg='#10b981')
+		picker_btn.pack(side="right", padx=(5, 0))
+		
 		# Configurar grid para locação
 		locacao_grid.grid_columnconfigure(1, weight=1)
 		locacao_grid.grid_columnconfigure(2, weight=1)
@@ -536,7 +556,7 @@ class CotacoesModule(BaseModule):
 		
 		# Botão adicionar para locação
 		adicionar_button_locacao = self.create_button(locacao_grid, "Adicionar Item", self.adicionar_item)
-		adicionar_button_locacao.grid(row=6, column=0, columnspan=4, pady=15)
+		adicionar_button_locacao.grid(row=7, column=0, columnspan=4, pady=15)
 		
 		# Bindings para calcular meses e total automaticamente
 		self.item_loc_inicio_var.trace_add('write', lambda *args: self.recalcular_locacao_item())
