@@ -126,6 +126,8 @@ class MainWindow:
         self.produtos_module = add_module("📦 Produtos", "interface.modules.produtos", "ProdutosModule")
         # Cotações
         self.cotacoes_module = add_module("💰 Cotações", "interface.modules.cotacoes", "CotacoesModule")
+        # Locação (aba separada)
+        self.locacoes_module = add_module("📄 Locação", "interface.modules.locacoes", "LocacoesModule")
         # Relatórios
         self.relatorios_module = add_module("📋 Relatórios", "interface.modules.relatorios", "RelatoriosModule")
         # Consultas
