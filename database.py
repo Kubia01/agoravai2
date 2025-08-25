@@ -84,6 +84,12 @@ def criar_banco():
 	except sqlite3.OperationalError:
 		pass  # Coluna já existe
 
+	# Migração: Adicionar coluna para contato do cliente na cotação
+	try:
+		c.execute("ALTER TABLE cotacoes ADD COLUMN contato_nome TEXT")
+	except sqlite3.OperationalError:
+		pass  # Coluna já existe
+
 	# Migração: Adicionar colunas de locação por item em itens_cotacao
 	try:
 		c.execute("ALTER TABLE itens_cotacao ADD COLUMN locacao_data_inicio DATE")
@@ -183,6 +189,7 @@ def criar_banco():
 		valor_total REAL DEFAULT 0,
 		tipo_frete TEXT DEFAULT 'FOB',
 		condicao_pagamento TEXT,
+		contato_nome TEXT,
 		prazo_entrega TEXT,
 		moeda TEXT DEFAULT 'BRL',
 		status TEXT DEFAULT 'Em Aberto',
