@@ -19,11 +19,27 @@ class LocacoesModule(BaseModule):
 				self._cotacoes.tipo_cotacao_var.set('Locação')
 				if hasattr(self._cotacoes, 'on_tipo_cotacao_changed'):
 					self._cotacoes.on_tipo_cotacao_changed()
-			# Ajustar título da seção
-			if hasattr(self._cotacoes, 'create_header'):
-				pass
+			# Remover widgets do campo "Tipo de Cotação"
+			self._remove_tipo_cotacao_widgets(self._cotacoes.frame)
 		except Exception as e:
 			print(f"LocacoesModule: erro ao configurar modo Locação: {e}")
+
+	def _remove_tipo_cotacao_widgets(self, root_widget):
+		for child in root_widget.winfo_children():
+			try:
+				if isinstance(child, tk.Label):
+					text = child.cget('text') if 'text' in child.keys() else ''
+					if isinstance(text, str) and 'Tipo de Cotação' in text:
+						child.destroy()
+				elif isinstance(child, ttk.Combobox):
+					values = child.cget('values') if 'values' in child.keys() else ()
+					vals = tuple(values) if isinstance(values, (list, tuple)) else ()
+					if ('Compra' in vals and 'Locação' in vals) or ('Locacao' in vals and 'Compra' in vals):
+						child.destroy()
+			except Exception:
+				pass
+			# Recursão
+			self._remove_tipo_cotacao_widgets(child)
 
 	def handle_event(self, event_type, data=None):
 		# Encaminhar para o módulo interno
