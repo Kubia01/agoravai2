@@ -598,7 +598,7 @@ class CotacoesModule(BaseModule):
 			self.locacao_fields_frame.pack_forget()
 			self.compra_fields_frame.pack(fill="x")
 		
-		# Ajustar campo nome baseado no tipo de cotação
+		# Ajustar campo nome baseado no tipo de cotação (garantia extra)
 		if modo == "Locação":
 			# Para locação, converter combo para Entry (texto livre) com tamanho expandido
 			if hasattr(self, 'item_nome_combo_locacao') and not hasattr(self, 'item_nome_entry'):
@@ -632,7 +632,9 @@ class CotacoesModule(BaseModule):
 		
 		# Ajustar total
 		self.atualizar_total()
-			
+		
+		# Ocultar/mostrar campos específicos conforme o modo de cotação
+		if modo == "Locação":
 			# Ocultar campos específicos de compra
 			if hasattr(self, 'modelo_label'):
 				self.modelo_label.grid_remove()
