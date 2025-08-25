@@ -103,6 +103,11 @@ def criar_banco():
 		c.execute("ALTER TABLE itens_cotacao ADD COLUMN locacao_qtd_meses INTEGER")
 	except sqlite3.OperationalError:
 		pass
+	# Migração: Imagem por item de locação
+	try:
+		c.execute("ALTER TABLE itens_cotacao ADD COLUMN locacao_imagem_path TEXT")
+	except sqlite3.OperationalError:
+		pass
 
 	# Tabela Clientes - ATUALIZADA
 	c.execute('''CREATE TABLE IF NOT EXISTS clientes (
@@ -229,6 +234,7 @@ def criar_banco():
 		locacao_data_inicio DATE,
 		locacao_data_fim DATE,
 		locacao_qtd_meses INTEGER,
+		locacao_imagem_path TEXT,
 		FOREIGN KEY (cotacao_id) REFERENCES cotacoes(id),
 		FOREIGN KEY (produto_id) REFERENCES produtos(id),
 		FOREIGN KEY (kit_id) REFERENCES itens_cotacao(id)
