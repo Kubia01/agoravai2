@@ -2,6 +2,7 @@ import sqlite3
 import os
 import datetime
 import sys
+import re
 from fpdf import FPDF
 from database import DB_NAME
 from utils.formatters import format_cep, format_phone, format_currency, format_date, format_cnpj
@@ -575,12 +576,32 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             # Página 4 específica de Locação
             pdf.add_page()
             pdf.set_y(35)
-            # Título pequeno (consistente com identidade visual)
+
+            # Determinar título dinâmico a partir do "Modelo do Compressor" informado na Locação
+            modelo_titulo = None
+            try:
+                for it in itens_cotacao or []:
+                    # (id, tipo, item_nome, quantidade, descricao, valor_unitario, valor_total_item, mao_obra, deslocamento, estadia, produto_id, tipo_operacao)
+                    desc = it[4] if len(it) > 4 else None
+                    tipo_oper = (it[11] if len(it) > 11 else '') or ''
+                    if 'loca' in tipo_oper.lower() and desc:
+                        m = re.search(r"(?i)modelo\s*:\s*(.+)$", str(desc))
+                        if m:
+                            modelo_titulo = m.group(1).strip()
+                            break
+            except Exception:
+                pass
+            if not modelo_titulo and modelo_compressor:
+                modelo_titulo = modelo_compressor
+
+            # Título da página 4: usar o Modelo do Compressor (dinâmico) ou fallback
             pdf.set_text_color(*pdf.baby_blue)
             pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 8, clean_text("DETALHES DO EQUIPAMENTO"), 0, 1, 'L')
+            titulo_pagina4 = modelo_titulo if (modelo_titulo and str(modelo_titulo).strip()) else "DETALHES DO EQUIPAMENTO"
+            pdf.cell(0, 8, clean_text(titulo_pagina4), 0, 1, 'L')
             pdf.set_text_color(0, 0, 0)
             pdf.set_font("Arial", '', 11)
+
             # Texto dinâmico com fallback
             bloco_texto = locacao_pagina4_text or "Detalhes técnicos e condições de fornecimento do equipamento conforme abaixo."
             pdf.multi_cell(0, 5, clean_text(bloco_texto))
@@ -613,6 +634,22 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                     y = 35
                 pdf.image(locacao_pagina4_image, x=x, y=y, w=w, h=h)
                 pdf.set_y(y + h + 6)
+
+            # Bloco COBERTURA TOTAL (texto fixo solicitado)
+            pdf.ln(8)
+            pdf.set_text_color(*pdf.baby_blue)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 8, clean_text("COBERTURA TOTAL"), 0, 1, 'L')
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Arial", '', 11)
+            texto_cobertura = (
+                "O Contrato de Locação cobre todos os serviços e manutenções, isso significa que não existe custos\n"
+                "inesperados com o seu sistema de ar comprimido. O cronograma de manutenções preventivas é\n"
+                "seguido à risca e gerenciado por um time de engenheiros especializados para garantir o mais alto nível\n"
+                "de eficiência. Além de você contar com a cobertura completa para reparos, intervenções emergenciais\n"
+                "e atendimento proativo."
+            )
+            pdf.multi_cell(0, 5, clean_text(texto_cobertura))
         else:
             # Compra: manter comportamento existente
             if esboco_servico:
