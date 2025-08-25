@@ -6,7 +6,10 @@ from datetime import datetime
 from .base_module import BaseModule
 from database import DB_NAME
 from utils.formatters import format_date
-from pdf_generators.relatorio_tecnico import gerar_pdf_relatorio
+# Import adiado para evitar falhas na importação do módulo quando bibliotecas de PDF não estiverem presentes
+def _lazy_gerar_pdf_relatorio():
+    from pdf_generators.relatorio_tecnico import gerar_pdf_relatorio as _gpr
+    return _gpr
 
 class RelatoriosModule(BaseModule):
     def setup_ui(self):
@@ -1286,6 +1289,7 @@ class RelatoriosModule(BaseModule):
             self.show_warning("Salve o relatório antes de gerar o PDF.")
             return
             
+        gerar_pdf_relatorio = _lazy_gerar_pdf_relatorio()
         sucesso, resultado = gerar_pdf_relatorio(self.current_relatorio_id, DB_NAME)
         
         if sucesso:
@@ -1306,6 +1310,7 @@ class RelatoriosModule(BaseModule):
             return
             
         relatorio_id = tags[0]
+        gerar_pdf_relatorio = _lazy_gerar_pdf_relatorio()
         sucesso, resultado = gerar_pdf_relatorio(relatorio_id, DB_NAME)
         
         if sucesso:
