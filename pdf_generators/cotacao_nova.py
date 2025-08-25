@@ -317,7 +317,7 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
 
         # Criar o PDF
         pdf = PDFCotacao(dados_filial, dados_usuario, orientation='P', unit='mm', format='A4')
-        pdf.set_auto_page_break(auto=True, margin=25)  # Aumenta margem inferior para evitar sobreposição
+        pdf.set_auto_page_break(auto=True, margin=30)
         
         # Configurar dados para cabeçalho/footer (como modelo antigo)
         pdf.numero_proposta = numero_proposta
@@ -815,8 +815,11 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             # PÁGINAS 7 A 13: TERMOS E CONDIÇÕES GERAIS (LOCAÇÃO)
             # =====================================================
             # Página 7: imagem do equipamento novamente e título
+            # Ajustar margens para corpo do contrato
+            pdf.set_top_margin(45)
+            pdf.set_auto_page_break(auto=True, margin=35)
             pdf.add_page()
-            pdf.set_y(20)
+            pdf.set_y(45)
             imagem_p7 = None
             try:
                 # Reaproveitar a imagem do primeiro item de locação, se houver
@@ -831,20 +834,20 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             if imagem_p7:
                 try:
                     from PIL import Image
-                    max_w, max_h = 180, 80
+                    max_w, max_h = 160, 60
                     img = Image.open(imagem_p7)
                     iw, ih = img.size
                     ratio = min(max_w / iw, max_h / ih)
                     w = iw * ratio
                     h = ih * ratio
                 except Exception:
-                    w, h = 160, 70
+                    w, h = 140, 55
                 x = (210 - w) / 2
-                y = 20
+                y = 45
                 pdf.image(imagem_p7, x=x, y=y, w=w, h=h)
                 pdf.set_y(y + h + 8)
             else:
-                pdf.set_y(35)
+                pdf.set_y(50)
             pdf.set_text_color(*pdf.baby_blue)
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(0, 8, clean_text("TERMOS E CONDIÇÕES GERAIS DE LOCAÇÃO DE EQUIPAMENTO"), 0, 1, 'L')
