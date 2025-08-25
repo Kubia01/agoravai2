@@ -21,6 +21,13 @@ class LocacoesModule(BaseModule):
 					self._cotacoes.on_tipo_cotacao_changed()
 			# Remover widgets do campo "Tipo de Cotação"
 			self._remove_tipo_cotacao_widgets(self._cotacoes.frame)
+			# Destruir explicitamente a Combobox ligada à variável tipo_cotacao_var
+			try:
+				var_name = getattr(self._cotacoes.tipo_cotacao_var, '_name', None)
+				if var_name:
+					self._destroy_combobox_by_textvariable(self._cotacoes.frame, var_name)
+			except Exception:
+				pass
 		except Exception as e:
 			print(f"LocacoesModule: erro ao configurar modo Locação: {e}")
 
@@ -40,6 +47,17 @@ class LocacoesModule(BaseModule):
 				pass
 			# Recursão
 			self._remove_tipo_cotacao_widgets(child)
+
+	def _destroy_combobox_by_textvariable(self, root_widget, tcl_var_name: str):
+		for child in root_widget.winfo_children():
+			try:
+				if isinstance(child, ttk.Combobox):
+					tv = child.cget('textvariable') if 'textvariable' in child.keys() else ''
+					if isinstance(tv, str) and tv == tcl_var_name:
+						child.destroy()
+			except Exception:
+				pass
+			self._destroy_combobox_by_textvariable(child, tcl_var_name)
 
 	def handle_event(self, event_type, data=None):
 		# Encaminhar para o módulo interno
