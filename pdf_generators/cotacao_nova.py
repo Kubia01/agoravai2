@@ -253,7 +253,8 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
                 cli.id AS cliente_id, cli.nome AS cliente_nome, cli.nome_fantasia, cli.endereco, cli.email, 
                 cli.telefone, cli.site, cli.cnpj, cli.cidade, cli.estado, cli.cep,
                 usr.id AS responsavel_id, usr.nome_completo, usr.email AS usr_email, usr.telefone AS usr_telefone, usr.username,
-                cot.moeda, cot.relacao_pecas, cot.filial_id, cot.esboco_servico, cot.relacao_pecas_substituir, cot.tipo_cotacao
+                cot.moeda, cot.relacao_pecas, cot.filial_id, cot.esboco_servico, cot.relacao_pecas_substituir, cot.tipo_cotacao,
+                cot.locacao_nome_equipamento, cot.locacao_imagem_path
             FROM cotacoes AS cot
             JOIN clientes AS cli ON cot.cliente_id = cli.id
             JOIN usuarios AS usr ON cot.responsavel_id = usr.id
@@ -272,7 +273,8 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
             cliente_telefone, cliente_site, cliente_cnpj, cliente_cidade, 
             cliente_estado, cliente_cep,
             responsavel_id, responsavel_nome, responsavel_email, responsavel_telefone, responsavel_username,
-            moeda, relacao_pecas, filial_id, esboco_servico, relacao_pecas_substituir, tipo_cotacao
+            moeda, relacao_pecas, filial_id, esboco_servico, relacao_pecas_substituir, tipo_cotacao,
+            locacao_nome_equipamento_db, locacao_imagem_path_db
         ) = cotacao_data
 
         # Obter dados da filial
@@ -601,6 +603,12 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             pdf.cell(0, 8, clean_text(titulo_pagina4), 0, 1, 'L')
             pdf.set_text_color(0, 0, 0)
             pdf.set_font("Arial", '', 11)
+            # Mostrar nome do equipamento (se houver) abaixo do título
+            equip_name = (locacao_nome_equipamento_db or '').strip() if 'locacao_nome_equipamento_db' in locals() else ''
+            if equip_name:
+                pdf.set_font("Arial", 'B', 11)
+                pdf.cell(0, 6, clean_text(f"Equipamento: {equip_name}"), 0, 1, 'L')
+                pdf.set_font("Arial", '', 11)
 
             # Texto dinâmico com fallback
             bloco_texto = locacao_pagina4_text or "Detalhes técnicos e condições de fornecimento do equipamento conforme abaixo."
@@ -611,13 +619,19 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             print(f"DEBUG PDF - Texto: {locacao_pagina4_text}")
             print(f"DEBUG PDF - Imagem: {locacao_pagina4_image}")
             print(f"DEBUG PDF - Imagem existe: {locacao_pagina4_image and os.path.exists(locacao_pagina4_image) if locacao_pagina4_image else False}")
-            # Imagem dinâmica (se fornecida)
+            # Imagem dinâmica (se fornecida) ou fallback do banco de dados
+            imagem_pagina4 = None
             if locacao_pagina4_image and os.path.exists(locacao_pagina4_image):
+                imagem_pagina4 = locacao_pagina4_image
+            elif 'locacao_imagem_path_db' in locals() and locacao_imagem_path_db and os.path.exists(locacao_imagem_path_db):
+                imagem_pagina4 = locacao_imagem_path_db
+
+            if imagem_pagina4:
                 # Calcular tamanho proporcional dentro de uma área (largura ~170mm, altura ~120mm)
                 max_w, max_h = 170, 120
                 try:
                     from PIL import Image
-                    img = Image.open(locacao_pagina4_image)
+                    img = Image.open(imagem_pagina4)
                     iw, ih = img.size
                     ratio = min(max_w / iw, max_h / ih)
                     w = iw * ratio
@@ -632,7 +646,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 if y + h > 270:
                     pdf.add_page()
                     y = 35
-                pdf.image(locacao_pagina4_image, x=x, y=y, w=w, h=h)
+                pdf.image(imagem_pagina4, x=x, y=y, w=w, h=h)
                 pdf.set_y(y + h + 6)
 
             # Bloco COBERTURA TOTAL (texto fixo solicitado)
