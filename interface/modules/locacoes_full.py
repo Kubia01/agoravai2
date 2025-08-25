@@ -1,0 +1,783 @@
+import tkinter as tk
+from tkinter import ttk, messagebox, scrolledtext, filedialog
+import sqlite3
+from datetime import datetime
+
+from .base_module import BaseModule
+from database import DB_NAME
+from utils.formatters import format_currency, format_date, clean_number
+from pdf_generators.cotacao_nova import gerar_pdf_cotacao_nova
+
+
+class LocacoesModule(BaseModule):
+    def setup_ui(self):
+        self.current_cotacao_id = None
+
+        container = tk.Frame(self.frame, bg='#f8fafc')
+        container.pack(fill="both", expand=True, padx=10, pady=10)
+
+        # Header
+        header = tk.Frame(container, bg='#f8fafc')
+        header.pack(fill="x")
+        tk.Label(header, text="Gestão de Locações", font=('Arial', 16, 'bold'), bg='#f8fafc', fg='#1e293b').pack(side="left")
+
+        # Main split
+        main_frame = tk.Frame(container, bg='#f8fafc')
+        main_frame.pack(fill="both", expand=True)
+        main_frame.grid_columnconfigure(0, weight=1, uniform="cols")
+        main_frame.grid_columnconfigure(1, weight=1, uniform="cols")
+        main_frame.grid_rowconfigure(0, weight=1)
+
+        # Form panel
+        form_panel = tk.Frame(main_frame, bg='#f8fafc')
+        form_panel.grid(row=0, column=0, sticky="nsew", padx=(10, 10), pady=(10, 10))
+        form_panel.grid_columnconfigure(0, weight=1)
+
+        # Buttons footer
+        self._create_buttons(form_panel)
+
+        # Scrollable form
+        scroll_container = tk.Frame(form_panel, bg='#f8fafc')
+        scroll_container.pack(side="top", fill="both", expand=True)
+        form_canvas = tk.Canvas(scroll_container, bg='#f8fafc', highlightthickness=0)
+        form_scrollbar = ttk.Scrollbar(scroll_container, orient="vertical", command=form_canvas.yview)
+        form_canvas.configure(yscrollcommand=form_scrollbar.set)
+        form_scrollbar.pack(side="right", fill="y")
+        form_canvas.pack(side="left", fill="both", expand=True)
+        form_inner = tk.Frame(form_canvas, bg='#f8fafc')
+        form_window = form_canvas.create_window((0, 0), window=form_inner, anchor="nw")
+        form_inner.bind("<Configure>", lambda e: form_canvas.configure(scrollregion=form_canvas.bbox("all")))
+        form_canvas.bind("<Configure>", lambda e: form_canvas.itemconfigure(form_window, width=e.width))
+
+        # Content
+        self._create_form_content(form_inner)
+
+        # List panel (right)
+        list_panel = tk.Frame(main_frame, bg='#f8fafc')
+        list_panel.grid(row=0, column=1, sticky="nsew", padx=(10, 10), pady=(10, 10))
+        list_panel.grid_columnconfigure(0, weight=1)
+        list_panel.grid_rowconfigure(2, weight=1)
+
+        lista_card = tk.Frame(list_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        lista_card.pack(fill="both", expand=True)
+        tk.Label(lista_card, text="📄 Locações", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(fill="x", padx=12, pady=(12, 8))
+        lista_inner = tk.Frame(lista_card, bg='white')
+        lista_inner.pack(fill="both", expand=True, padx=12, pady=(0, 12))
+
+        search_frame, self.search_var = self.create_search_frame(lista_inner, command=self.buscar)
+        search_frame.pack(fill="x", pady=(0, 10))
+
+        lista_buttons = tk.Frame(lista_inner, bg='white')
+        lista_buttons.pack(side="bottom", fill="x", pady=(10, 0))
+        editar_btn = self.create_button(lista_buttons, "Editar", self.editar)
+        editar_btn.pack(side="left", padx=(0, 10))
+        gerar_pdf_lista_btn = self.create_button(lista_buttons, "Gerar PDF", self.gerar_pdf, bg='#10b981')
+        gerar_pdf_lista_btn.pack(side="right")
+
+        columns = ("numero", "cliente", "data", "valor", "status")
+        self.tree = ttk.Treeview(lista_inner, columns=columns, show="headings")
+        self.tree.heading("numero", text="Número")
+        self.tree.heading("cliente", text="Cliente")
+        self.tree.heading("data", text="Data")
+        self.tree.heading("valor", text="Valor")
+        self.tree.heading("status", text="Status")
+        self.tree.column("numero", width=150)
+        self.tree.column("cliente", width=250)
+        self.tree.column("data", width=100)
+        self.tree.column("valor", width=120)
+        self.tree.column("status", width=100)
+        lista_scrollbar = ttk.Scrollbar(lista_inner, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=lista_scrollbar.set)
+        self.tree.pack(side="left", fill="both", expand=True)
+        lista_scrollbar.pack(side="right", fill="y")
+
+        self._refresh_clientes()
+        self._carregar_lista()
+
+    def _create_buttons(self, parent):
+        buttons_frame = tk.Frame(parent, bg='white')
+        buttons_frame.pack(fill="x", pady=(20, 0))
+        nova_btn = self.create_button(buttons_frame, "Nova Locação", self.nova, bg='#e2e8f0', fg='#475569')
+        nova_btn.pack(side="left", padx=(0, 10))
+        salvar_btn = self.create_button(buttons_frame, "Salvar Locação", self.salvar)
+        salvar_btn.pack(side="left", padx=(0, 10))
+        gerar_pdf_btn = self.create_button(buttons_frame, "Gerar PDF", self.gerar_pdf, bg='#10b981')
+        gerar_pdf_btn.pack(side="right")
+
+    def _create_form_content(self, parent):
+        main_grid = tk.Frame(parent, bg='white')
+        main_grid.pack(fill="both", expand=True)
+        main_grid.grid_columnconfigure(0, weight=1)
+        main_grid.grid_rowconfigure(0, weight=0)
+        main_grid.grid_rowconfigure(1, weight=1)
+
+        # Dados
+        dados = tk.LabelFrame(main_grid, text="Dados da Locação", font=('Arial', 11, 'bold'), bg='white')
+        dados.grid(row=0, column=0, sticky="nsew", padx=2, pady=2)
+
+        row = 0
+        self.numero_var = tk.StringVar()
+        self.cliente_var = tk.StringVar()
+        self.contato_cliente_var = tk.StringVar()
+        self.filial_var = tk.StringVar(value="2")
+        self.modelo_var = tk.StringVar()
+        self.observacoes_var = tk.StringVar()
+
+        tk.Label(dados, text="Número da Proposta *:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
+        tk.Entry(dados, textvariable=self.numero_var, font=('Arial', 10), width=30).grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+        row += 1
+
+        tk.Label(dados, text="Filial *:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
+        filial_combo = ttk.Combobox(dados, textvariable=self.filial_var, values=["1 - WORLD COMP COMPRESSORES LTDA", "2 - WORLD COMP DO BRASIL COMPRESSORES LTDA"], width=45, state="readonly")
+        filial_combo.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+        row += 1
+
+        tk.Label(dados, text="Cliente *:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
+        cliente_frame = tk.Frame(dados, bg='white')
+        cliente_frame.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+        self.cliente_combo = ttk.Combobox(cliente_frame, textvariable=self.cliente_var, width=25)
+        self.cliente_combo.pack(side="left", fill="x", expand=True)
+        self.cliente_combo.bind("<<ComboboxSelected>>", self._on_cliente_selected)
+        refresh_clientes_btn = self.create_button(cliente_frame, "🔄", self._refresh_clientes, bg='#10b981')
+        refresh_clientes_btn.pack(side="right", padx=(5, 0))
+        row += 1
+
+        tk.Label(dados, text="Contato:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
+        self.contato_cliente_combo = ttk.Combobox(dados, textvariable=self.contato_cliente_var, width=27, state="readonly")
+        self.contato_cliente_combo.grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+        row += 1
+
+        tk.Label(dados, text="Modelo do Compressor:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
+        tk.Entry(dados, textvariable=self.modelo_var, font=('Arial', 10), width=50).grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+        row += 1
+
+        # Seção Locação
+        loc = tk.LabelFrame(main_grid, text="Dados da Locação", font=('Arial', 11, 'bold'), bg='white')
+        loc.grid(row=1, column=0, sticky="nsew", padx=2, pady=(0, 2))
+        loc.grid_columnconfigure(1, weight=1)
+
+        lrow = 0
+        self.locacao_equipamento_var = tk.StringVar()
+        tk.Label(loc, text="Nome do Equipamento *:", font=('Arial', 10, 'bold'), bg='white').grid(row=lrow, column=0, sticky="w", pady=5)
+        tk.Entry(loc, textvariable=self.locacao_equipamento_var, font=('Arial', 10), width=40).grid(row=lrow, column=1, sticky="ew", padx=(10, 0), pady=5)
+        lrow += 1
+
+        self.locacao_valor_mensal_var = tk.StringVar(value="0.00")
+        tk.Label(loc, text="Valor Mensal (R$) *:", font=('Arial', 10, 'bold'), bg='white').grid(row=lrow, column=0, sticky="w", pady=5)
+        tk.Entry(loc, textvariable=self.locacao_valor_mensal_var, font=('Arial', 10), width=15).grid(row=lrow, column=1, sticky="w", padx=(10, 0), pady=5)
+        lrow += 1
+
+        self.item_loc_inicio_var = tk.StringVar()
+        self.item_loc_fim_var = tk.StringVar()
+        tk.Label(loc, text="Data Início (DD/MM/AAAA) *:", font=('Arial', 10, 'bold'), bg='white').grid(row=lrow, column=0, sticky="w", pady=5)
+        tk.Entry(loc, textvariable=self.item_loc_inicio_var, font=('Arial', 10), width=15).grid(row=lrow, column=1, sticky="w", padx=(10, 0), pady=5)
+        lrow += 1
+        tk.Label(loc, text="Data Fim (DD/MM/AAAA) *:", font=('Arial', 10, 'bold'), bg='white').grid(row=lrow, column=0, sticky="w", pady=5)
+        tk.Entry(loc, textvariable=self.item_loc_fim_var, font=('Arial', 10), width=15).grid(row=lrow, column=1, sticky="w", padx=(10, 0), pady=5)
+        lrow += 1
+
+        self.locacao_qtd_meses_var = tk.StringVar(value="0")
+        self.locacao_total_var = tk.StringVar(value="R$ 0,00")
+        tk.Label(loc, text="Meses:", font=('Arial', 10, 'bold'), bg='white').grid(row=lrow, column=0, sticky="w", pady=5)
+        tk.Entry(loc, textvariable=self.locacao_qtd_meses_var, font=('Arial', 10), width=8, state="readonly").grid(row=lrow, column=1, sticky="w", padx=(10, 0), pady=5)
+        lrow += 1
+        tk.Label(loc, text="Total Locação:", font=('Arial', 10, 'bold'), bg='white').grid(row=lrow, column=0, sticky="w", pady=5)
+        tk.Entry(loc, textvariable=self.locacao_total_var, font=('Arial', 10), width=15, state="readonly").grid(row=lrow, column=1, sticky="w", padx=(10, 0), pady=5)
+        lrow += 1
+
+        self.locacao_imagem_var = tk.StringVar()
+        tk.Label(loc, text="Imagem do Equipamento:", font=('Arial', 10, 'bold'), bg='white').grid(row=lrow, column=0, sticky="w", pady=5)
+        img_frame = tk.Frame(loc, bg='white')
+        img_frame.grid(row=lrow, column=1, sticky="ew", padx=(10, 0), pady=5)
+        tk.Entry(img_frame, textvariable=self.locacao_imagem_var, font=('Arial', 10), width=40).pack(side="left", fill="x", expand=True)
+        self.create_button(img_frame, "Selecionar...", self._pick_image, bg='#10b981').pack(side="right", padx=(5, 0))
+
+        # Observações
+        obs = tk.LabelFrame(main_grid, text="Observações", font=('Arial', 11, 'bold'), bg='white')
+        obs.grid(row=2, column=0, sticky="nsew", padx=2, pady=(0, 2))
+        self.observacoes_text = scrolledtext.ScrolledText(obs, height=3, width=80, wrap=tk.WORD)
+        self.observacoes_text.pack(fill="both", expand=True, padx=10, pady=5)
+
+        # Itens
+        itens_section = tk.LabelFrame(main_grid, text="Itens da Locação", font=('Arial', 11, 'bold'), bg='white')
+        itens_section.grid(row=3, column=0, sticky="nsew", padx=2, pady=(0, 2))
+        self._create_items_ui(itens_section)
+
+        # Bind recalcs
+        self.locacao_valor_mensal_var.trace_add('write', lambda *a: self._recalc_locacao_header())
+        self.item_loc_inicio_var.trace_add('write', lambda *a: self._recalc_locacao_header())
+        self.item_loc_fim_var.trace_add('write', lambda *a: self._recalc_locacao_header())
+
+        # Set initial number
+        if not self.current_cotacao_id:
+            try:
+                self.numero_var.set(self._gerar_numero_sequencial())
+            except Exception:
+                pass
+
+    def _create_items_ui(self, parent):
+        add_frame = tk.Frame(parent, bg='white')
+        add_frame.pack(fill="x", pady=(0, 10))
+
+        self.item_nome_var = tk.StringVar()
+        self.item_desc_var = tk.StringVar()
+        self.item_qtd_var = tk.StringVar(value="1")
+        self.item_valor_var = tk.StringVar(value="0.00")
+
+        row = 0
+        tk.Label(add_frame, text="Nome do Equipamento:", font=("Arial", 10, "bold"), bg="white").grid(row=row, column=0, padx=5, sticky="w")
+        tk.Entry(add_frame, textvariable=self.item_nome_var, width=40).grid(row=row, column=1, padx=5, sticky="ew")
+        row += 1
+
+        tk.Label(add_frame, text="Descrição:", font=("Arial", 10, "bold"), bg="white").grid(row=row, column=0, padx=5, sticky="w")
+        tk.Entry(add_frame, textvariable=self.item_desc_var, width=60).grid(row=row, column=1, padx=5, sticky="ew")
+        row += 1
+
+        tk.Label(add_frame, text="Qtd.:", font=("Arial", 10, "bold"), bg="white").grid(row=row, column=0, padx=5, sticky="w")
+        tk.Entry(add_frame, textvariable=self.item_qtd_var, width=8).grid(row=row, column=1, padx=5, sticky="w")
+        row += 1
+
+        tk.Label(add_frame, text="Valor Unit./Mensal:", font=("Arial", 10, "bold"), bg="white").grid(row=row, column=0, padx=5, sticky="w")
+        tk.Entry(add_frame, textvariable=self.item_valor_var, width=15).grid(row=row, column=1, padx=5, sticky="w")
+        row += 1
+
+        add_btn = self.create_button(add_frame, "Adicionar Item", self._adicionar_item)
+        add_btn.grid(row=row, column=0, columnspan=2, pady=10)
+
+        # Tree
+        list_container = tk.Frame(parent, bg='white')
+        list_container.pack(fill="both", expand=True)
+        columns = ("nome", "qtd", "valor_unit", "meses", "inicio", "fim", "valor_total", "descricao")
+        self.itens_tree = ttk.Treeview(list_container, columns=columns, show="headings", height=8)
+        for col, text, width in [
+            ("nome", "Nome/Equipamento", 250),
+            ("qtd", "Qtd", 60),
+            ("valor_unit", "Valor Unit./Mensal", 120),
+            ("meses", "Meses", 60),
+            ("inicio", "Início", 90),
+            ("fim", "Fim", 90),
+            ("valor_total", "Total", 100),
+            ("descricao", "Descrição", 200)
+        ]:
+            self.itens_tree.heading(col, text=text)
+            self.itens_tree.column(col, width=width, minwidth=width)
+        v_scroll = ttk.Scrollbar(list_container, orient="vertical", command=self.itens_tree.yview)
+        h_scroll = ttk.Scrollbar(list_container, orient="horizontal", command=self.itens_tree.xview)
+        self.itens_tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+        self.itens_tree.grid(row=0, column=0, sticky="nsew")
+        v_scroll.grid(row=0, column=1, sticky="ns")
+        h_scroll.grid(row=1, column=0, sticky="ew")
+        list_container.grid_rowconfigure(0, weight=1)
+        list_container.grid_columnconfigure(0, weight=1)
+
+        # Footer total
+        item_buttons = tk.Frame(parent, bg='white')
+        item_buttons.pack(fill="x", pady=(10, 0))
+        remove_btn = self.create_button(item_buttons, "Remover Item", self._remover_item, bg='#dc2626')
+        remove_btn.pack(side="left", padx=5)
+        self.total_label = tk.Label(item_buttons, text="Total: R$ 0,00", font=('Arial', 12, 'bold'), bg='white', fg='#1e293b')
+        self.total_label.pack(side="right")
+
+    # --- Actions ---
+    def _pick_image(self):
+        path = filedialog.askopenfilename(title="Selecionar Imagem do Equipamento",
+                                          filetypes=[("Imagens", "*.jpg *.jpeg *.png *.bmp *.gif"), ("Todos", "*.*")])
+        if path:
+            self.locacao_imagem_var.set(path)
+
+    def _recalc_locacao_header(self):
+        try:
+            inicio_iso = self._parse_date(self.item_loc_inicio_var.get())
+            fim_iso = self._parse_date(self.item_loc_fim_var.get())
+            meses = self._calculate_months_between(inicio_iso, fim_iso) if inicio_iso and fim_iso else 0
+            self.locacao_qtd_meses_var.set(str(meses))
+            valor_mensal = clean_number(self.locacao_valor_mensal_var.get() or "0")
+            total = (valor_mensal or 0) * (meses or 0)
+            self.locacao_total_var.set(format_currency(total))
+        except Exception:
+            pass
+
+    def _adicionar_item(self):
+        nome = self.item_nome_var.get().strip()
+        qtd = self.item_qtd_var.get().strip() or "1"
+        valor = self.item_valor_var.get().strip() or "0.00"
+        desc = self.item_desc_var.get().strip()
+        inicio_iso = self._parse_date(self.item_loc_inicio_var.get())
+        fim_iso = self._parse_date(self.item_loc_fim_var.get())
+        if not nome:
+            self.show_warning("Informe o nome do equipamento do item.")
+            return
+        if not (inicio_iso and fim_iso):
+            self.show_warning("Informe datas início e fim válidas para o item.")
+            return
+        try:
+            quantidade = float(qtd)
+            valor_unit = clean_number(valor)
+        except ValueError:
+            self.show_error("Valores numéricos inválidos para item.")
+            return
+        meses = self._calculate_months_between(inicio_iso, fim_iso)
+        total = (valor_unit or 0) * (meses or 0) * quantidade
+        self.itens_tree.insert("", "end", values=(
+            nome,
+            f"{quantidade:.2f}",
+            format_currency(valor_unit),
+            str(meses),
+            format_date(inicio_iso),
+            format_date(fim_iso),
+            format_currency(total),
+            desc
+        ))
+        self._update_total()
+        # clear item inputs
+        self.item_nome_var.set("")
+        self.item_desc_var.set("")
+        self.item_qtd_var.set("1")
+        self.item_valor_var.set("0.00")
+
+    def _remover_item(self):
+        sel = self.itens_tree.selection()
+        for s in sel:
+            self.itens_tree.delete(s)
+        self._update_total()
+
+    def _update_total(self):
+        total = 0
+        for iid in self.itens_tree.get_children():
+            values = self.itens_tree.item(iid)['values']
+            if len(values) >= 7:
+                valor_total_str = str(values[6]).replace('R$ ', '').replace('.', '').replace(',', '.')
+                try:
+                    total += float(valor_total_str)
+                except ValueError:
+                    pass
+        self.total_label.config(text=f"Total: {format_currency(total)}")
+
+    # --- DB helpers ---
+    def _refresh_clientes(self):
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            c.execute("SELECT id, nome FROM clientes ORDER BY nome")
+            clientes = c.fetchall()
+            self.clientes_dict = {f"{nome} (ID: {id})": id for id, nome in clientes}
+            self.cliente_combo['values'] = list(self.clientes_dict.keys())
+        except Exception as e:
+            print(f"Erro ao carregar clientes: {e}")
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def _on_cliente_selected(self, event=None):
+        cliente_str = self.cliente_var.get().strip()
+        if not cliente_str:
+            return
+        cliente_id = self.clientes_dict.get(cliente_str)
+        if not cliente_id:
+            return
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            c.execute("SELECT nome FROM contatos WHERE cliente_id = ? ORDER BY nome", (cliente_id,))
+            contatos = [row[0] for row in c.fetchall()]
+            self.contato_cliente_combo['values'] = contatos
+            if contatos:
+                self.contato_cliente_var.set(contatos[0])
+            else:
+                self.contato_cliente_var.set("")
+        except Exception as e:
+            print(f"Erro ao carregar contatos: {e}")
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def _gerar_numero_sequencial(self) -> str:
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            c.execute("SELECT MAX(CAST(SUBSTR(numero_proposta, 6) AS INTEGER)) FROM cotacoes WHERE numero_proposta LIKE 'PROP-%'")
+            result = c.fetchone()
+            proximo = (result[0] + 1) if (result and result[0]) else 1
+            return f"PROP-{proximo:06d}"
+        except Exception:
+            return f"PROP-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    # --- Persistência ---
+    def salvar(self):
+        numero = self.numero_var.get().strip()
+        cliente_str = self.cliente_var.get().strip()
+        if not numero:
+            self.show_warning("Informe o número da proposta.")
+            return
+        if not cliente_str:
+            self.show_warning("Selecione um cliente.")
+            return
+        cliente_id = self.clientes_dict.get(cliente_str)
+        if not cliente_id:
+            self.show_warning("Cliente inválido.")
+            return
+
+        # Somar total
+        total = 0
+        for iid in self.itens_tree.get_children():
+            values = self.itens_tree.item(iid)['values']
+            if len(values) >= 7:
+                try:
+                    total += float(str(values[6]).replace('R$ ', '').replace('.', '').replace(',', '.'))
+                except ValueError:
+                    pass
+
+        # Outros campos
+        data_validade = None
+        filial_str = self.filial_var.get()
+        filial_id = int(filial_str.split(' - ')[0]) if ' - ' in filial_str else int(filial_str)
+
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+
+            if self.current_cotacao_id:
+                c.execute(
+                    """
+                    UPDATE cotacoes
+                    SET numero_proposta=?, cliente_id=?, responsavel_id=?, filial_id=?, data_criacao=?,
+                        data_validade=?, modelo_compressor=?, observacoes=?, valor_total=?, status=?,
+                        condicao_pagamento=?, prazo_entrega=?, esboco_servico=?, relacao_pecas_substituir=?,
+                        tipo_cotacao=?, locacao_nome_equipamento=?, locacao_valor_mensal=?, locacao_data_inicio=?,
+                        locacao_data_fim=?, locacao_qtd_meses=?, locacao_imagem_path=?, contato_nome=?
+                    WHERE id=?
+                    """,
+                    (
+                        numero, cliente_id, self.user_id, filial_id, datetime.now().strftime('%Y-%m-%d'),
+                        data_validade, self.modelo_var.get().strip(), self.observacoes_text.get("1.0", tk.END).strip(), total, "Em Aberto",
+                        "", "", "", "",
+                        "Locação", self.locacao_equipamento_var.get().strip(), clean_number(self.locacao_valor_mensal_var.get() or "0"),
+                        self._parse_date(self.item_loc_inicio_var.get()), self._parse_date(self.item_loc_fim_var.get()),
+                        int(self.locacao_qtd_meses_var.get() or "0"), self.locacao_imagem_var.get().strip(), self.contato_cliente_var.get().strip(),
+                        self.current_cotacao_id,
+                    ),
+                )
+                c.execute("DELETE FROM itens_cotacao WHERE cotacao_id = ?", (self.current_cotacao_id,))
+                cotacao_id = self.current_cotacao_id
+            else:
+                c.execute(
+                    """
+                    INSERT INTO cotacoes (
+                        numero_proposta, cliente_id, responsavel_id, data_criacao, data_validade,
+                        modelo_compressor, observacoes, valor_total, status, condicao_pagamento, prazo_entrega,
+                        filial_id, esboco_servico, relacao_pecas_substituir, tipo_cotacao,
+                        locacao_nome_equipamento, locacao_valor_mensal, locacao_data_inicio, locacao_data_fim,
+                        locacao_qtd_meses, locacao_imagem_path, contato_nome
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        numero, cliente_id, self.user_id, datetime.now().strftime('%Y-%m-%d'), None,
+                        self.modelo_var.get().strip(), self.observacoes_text.get("1.0", tk.END).strip(), total, "Em Aberto", "", "",
+                        filial_id, "", "", "Locação",
+                        self.locacao_equipamento_var.get().strip(), clean_number(self.locacao_valor_mensal_var.get() or "0"),
+                        self._parse_date(self.item_loc_inicio_var.get()), self._parse_date(self.item_loc_fim_var.get()),
+                        int(self.locacao_qtd_meses_var.get() or "0"), self.locacao_imagem_var.get().strip(), self.contato_cliente_var.get().strip(),
+                    ),
+                )
+                cotacao_id = c.lastrowid
+                self.current_cotacao_id = cotacao_id
+
+            # Inserir itens (como locação)
+            for iid in self.itens_tree.get_children():
+                (nome, qtd, valor_unit_fmt, meses, inicio_fmt, fim_fmt, total_fmt, desc) = self.itens_tree.item(iid)['values']
+                quantidade = float(qtd)
+                valor_unit = clean_number(valor_unit_fmt)
+                valor_total_item = clean_number(total_fmt)
+                inicio_iso = self._parse_date(inicio_fmt)
+                fim_iso = self._parse_date(fim_fmt)
+                meses_int = int(meses) if str(meses).isdigit() else None
+                c.execute(
+                    """
+                    INSERT INTO itens_cotacao (
+                        cotacao_id, tipo, item_nome, quantidade, valor_unitario, valor_total_item, descricao,
+                        mao_obra, deslocamento, estadia, tipo_operacao, locacao_data_inicio, locacao_data_fim, locacao_qtd_meses
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        cotacao_id, "Produto", nome, quantidade, valor_unit, valor_total_item, desc,
+                        0, 0, 0, "Locação", inicio_iso, fim_iso, meses_int,
+                    ),
+                )
+
+            conn.commit()
+            self.show_success("Locação salva com sucesso!")
+            self._carregar_lista()
+        except sqlite3.Error as e:
+            self.show_error(f"Erro ao salvar locação: {e}")
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def nova(self):
+        self.current_cotacao_id = None
+        self.numero_var.set("")
+        self.cliente_var.set("")
+        self.contato_cliente_var.set("")
+        self.filial_var.set("2")
+        self.modelo_var.set("")
+        self.observacoes_text.delete("1.0", tk.END)
+        self.locacao_equipamento_var.set("")
+        self.locacao_valor_mensal_var.set("0.00")
+        self.item_loc_inicio_var.set("")
+        self.item_loc_fim_var.set("")
+        self.locacao_qtd_meses_var.set("0")
+        self.locacao_total_var.set("R$ 0,00")
+        self.locacao_imagem_var.set("")
+        for iid in self.itens_tree.get_children():
+            self.itens_tree.delete(iid)
+        try:
+            self.numero_var.set(self._gerar_numero_sequencial())
+        except Exception:
+            pass
+
+    def gerar_pdf(self):
+        if not self.current_cotacao_id:
+            self.show_warning("Salve a locação antes de gerar o PDF.")
+            return
+        try:
+            current_username = self._get_current_username()
+            sucesso, resultado = gerar_pdf_cotacao_nova(
+                self.current_cotacao_id,
+                DB_NAME,
+                current_username,
+                contato_nome=self.contato_cliente_var.get(),
+                locacao_pagina4_text=None,
+                locacao_pagina4_image=(self.locacao_imagem_var.get().strip() or None),
+            )
+            if sucesso:
+                self.show_success(f"PDF gerado com sucesso!\nLocal: {resultado}")
+            else:
+                self.show_error(f"Erro ao gerar PDF: {resultado}")
+        except Exception as e:
+            self.show_error(f"Erro ao gerar PDF: {e}")
+
+    def _get_current_username(self):
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            c.execute("SELECT username FROM usuarios WHERE id = ?", (self.user_id,))
+            r = c.fetchone()
+            return r[0] if r else None
+        except Exception:
+            return None
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    # --- List/Load ---
+    def _carregar_lista(self):
+        for iid in self.tree.get_children():
+            self.tree.delete(iid)
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            c.execute(
+                """
+                SELECT id, numero_proposta, (SELECT nome FROM clientes WHERE id=cliente_id) AS cliente,
+                       data_criacao, valor_total, status
+                FROM cotacoes
+                WHERE tipo_cotacao = 'Locação'
+                ORDER BY created_at DESC
+                """
+            )
+            for (cid, numero, cliente, data, valor, status) in c.fetchall():
+                self.tree.insert("", "end", values=(
+                    numero,
+                    cliente,
+                    format_date(data),
+                    format_currency(valor) if valor else "R$ 0,00",
+                    status or "Em Aberto",
+                ), tags=(cid,))
+        except sqlite3.Error as e:
+            self.show_error(f"Erro ao carregar locações: {e}")
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def buscar(self):
+        termo = self.search_var.get().strip()
+        for iid in self.tree.get_children():
+            self.tree.delete(iid)
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            if termo:
+                c.execute(
+                    """
+                    SELECT id, numero_proposta, (SELECT nome FROM clientes WHERE id=cliente_id) AS cliente,
+                           data_criacao, valor_total, status
+                    FROM cotacoes
+                    WHERE tipo_cotacao = 'Locação' AND (numero_proposta LIKE ? OR cliente IN (
+                        SELECT nome FROM clientes WHERE nome LIKE ?
+                    ))
+                    ORDER BY created_at DESC
+                    """,
+                    (f"%{termo}%", f"%{termo}%"),
+                )
+            else:
+                c.execute(
+                    """
+                    SELECT id, numero_proposta, (SELECT nome FROM clientes WHERE id=cliente_id) AS cliente,
+                           data_criacao, valor_total, status
+                    FROM cotacoes
+                    WHERE tipo_cotacao = 'Locação'
+                    ORDER BY created_at DESC
+                    """
+                )
+            for (cid, numero, cliente, data, valor, status) in c.fetchall():
+                self.tree.insert("", "end", values=(
+                    numero,
+                    cliente,
+                    format_date(data),
+                    format_currency(valor) if valor else "R$ 0,00",
+                    status or "Em Aberto",
+                ), tags=(cid,))
+        except sqlite3.Error as e:
+            self.show_error(f"Erro ao buscar: {e}")
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def editar(self):
+        sel = self.tree.selection()
+        if not sel:
+            self.show_warning("Selecione uma locação para editar.")
+            return
+        cotacao_id = self.tree.item(sel[0])['tags'][0]
+        self._carregar_cotacao(cotacao_id)
+
+    def _carregar_cotacao(self, cotacao_id):
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            c = conn.cursor()
+            c.execute(
+                """
+                SELECT id, numero_proposta, cliente_id, responsavel_id, filial_id, data_validade, modelo_compressor,
+                       observacoes, valor_total, status, contato_nome,
+                       locacao_nome_equipamento, locacao_valor_mensal, locacao_data_inicio, locacao_data_fim,
+                       locacao_qtd_meses, locacao_imagem_path
+                FROM cotacoes
+                WHERE id = ? AND tipo_cotacao = 'Locação'
+                """,
+                (cotacao_id,),
+            )
+            row = c.fetchone()
+            if not row:
+                self.show_error("Locação não encontrada.")
+                return
+            (
+                cid, numero, cliente_id, responsavel_id, filial_id, data_validade, modelo_compressor,
+                observacoes, valor_total, status, contato_nome,
+                loc_nome_equip, loc_valor_mensal, loc_inicio, loc_fim, loc_meses, loc_img
+            ) = row
+            self.current_cotacao_id = cid
+            self.numero_var.set(numero)
+            # set cliente in combo
+            for display, _id in self.clientes_dict.items():
+                if _id == cliente_id:
+                    self.cliente_var.set(display)
+                    break
+            # contato
+            self._on_cliente_selected()
+            if contato_nome:
+                try:
+                    self.contato_cliente_var.set(contato_nome)
+                except Exception:
+                    pass
+            # filial
+            self.filial_var.set(str(filial_id))
+            self.modelo_var.set(modelo_compressor or "")
+            self.observacoes_text.delete("1.0", tk.END)
+            if observacoes:
+                self.observacoes_text.insert("1.0", observacoes)
+            self.locacao_equipamento_var.set(loc_nome_equip or "")
+            self.locacao_valor_mensal_var.set(f"{(loc_valor_mensal or 0):.2f}")
+            self.item_loc_inicio_var.set(format_date(loc_inicio) if loc_inicio else "")
+            self.item_loc_fim_var.set(format_date(loc_fim) if loc_fim else "")
+            self.locacao_qtd_meses_var.set(str(loc_meses or 0))
+            self.locacao_imagem_var.set(loc_img or "")
+
+            # itens
+            for iid in self.itens_tree.get_children():
+                self.itens_tree.delete(iid)
+            c.execute(
+                """
+                SELECT item_nome, quantidade, valor_unitario, locacao_qtd_meses, locacao_data_inicio,
+                       locacao_data_fim, valor_total_item, descricao
+                FROM itens_cotacao
+                WHERE cotacao_id = ?
+                ORDER BY id
+                """,
+                (cid,),
+            )
+            for (nome, qtd, valor_unit, meses, inicio, fim, total_item, desc) in c.fetchall():
+                self.itens_tree.insert(
+                    "", "end",
+                    values=(
+                        nome,
+                        f"{qtd:.2f}",
+                        format_currency(valor_unit),
+                        str(meses or ""),
+                        format_date(inicio) if inicio else "",
+                        format_date(fim) if fim else "",
+                        format_currency(total_item),
+                        desc or "",
+                    ),
+                )
+            self._update_total()
+        except sqlite3.Error as e:
+            self.show_error(f"Erro ao carregar locação: {e}")
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    # --- Utils ---
+    def _parse_date(self, s):
+        s = (s or "").strip()
+        if not s:
+            return None
+        try:
+            return datetime.strptime(s, '%d/%m/%Y').strftime('%Y-%m-%d')
+        except ValueError:
+            try:
+                datetime.strptime(s, '%Y-%m-%d')
+                return s
+            except ValueError:
+                return None
+
+    def _calculate_months_between(self, start_iso, end_iso):
+        if not start_iso or not end_iso:
+            return 0
+        start = datetime.strptime(start_iso, '%Y-%m-%d').date()
+        end = datetime.strptime(end_iso, '%Y-%m-%d').date()
+        if end < start:
+            return 0
+        months = (end.year - start.year) * 12 + (end.month - start.month)
+        if end.day >= start.day:
+            months += 1
+        return months if months > 0 else 1
+
