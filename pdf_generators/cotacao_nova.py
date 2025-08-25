@@ -680,6 +680,68 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 pdf.set_y(y + h + 6)
 
             # (Cobertura já adicionada acima)
+
+            # =====================================================
+            # PÁGINA 5: TABELA DE ITENS VENDIDOS (EQUIPAMENTOS DA LOCAÇÃO)
+            # =====================================================
+            pdf.add_page()
+            pdf.set_y(35)
+            pdf.set_text_color(*pdf.baby_blue)
+            pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 10, clean_text("ITENS VENDIDOS - EQUIPAMENTOS DA LOCAÇÃO"), 0, 1, 'L')
+            pdf.ln(2)
+
+            # Buscar itens de locação com meses
+            c.execute(
+                """
+                SELECT item_nome, quantidade, valor_unitario, COALESCE(locacao_qtd_meses, 0) AS meses
+                FROM itens_cotacao
+                WHERE cotacao_id = ? AND (tipo_operacao = 'Locação' OR (tipo_operacao IS NULL AND ? IN ('locação','locacao')))
+                ORDER BY id
+                """,
+                (cot_id, (tipo_cotacao or '').lower(),)
+            )
+            itens_loc = c.fetchall() or []
+
+            # Cabeçalho da tabela
+            pdf.set_x(10)
+            pdf.set_fill_color(50, 100, 150)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Arial", 'B', 11)
+            # Larguras: Nome 105, Qtd 20, Valor Mensal 35, Período 35 (total ~195)
+            col_w = [105, 20, 35, 35]
+            pdf.cell(col_w[0], 8, clean_text("Nome do Equipamento"), 1, 0, 'L', 1)
+            pdf.cell(col_w[1], 8, clean_text("Qtd"), 1, 0, 'C', 1)
+            pdf.cell(col_w[2], 8, clean_text("Valor Mensal"), 1, 0, 'R', 1)
+            pdf.cell(col_w[3], 8, clean_text("Período (meses)"), 1, 1, 'C', 1)
+
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Arial", '', 11)
+            total_geral = 0.0
+            for (nome_eq, qtd, valor_mensal, meses) in itens_loc:
+                qtd_num = float(qtd or 0)
+                vm_num = float(valor_mensal or 0)
+                meses_num = int(meses or 0)
+                total_geral += (vm_num * meses_num * qtd_num)
+
+                # Nome com quebra automática
+                x0 = pdf.get_x()
+                y0 = pdf.get_y()
+                pdf.multi_cell(col_w[0], 6, clean_text(str(nome_eq or '')), 1, 'L')
+                y1 = pdf.get_y()
+                h = max(6, y1 - y0)
+                pdf.set_xy(x0 + col_w[0], y0)
+                pdf.cell(col_w[1], h, clean_text(f"{int(qtd_num)}"), 1, 0, 'C')
+                pdf.cell(col_w[2], h, clean_text(f"R$ {vm_num:.2f}"), 1, 0, 'R')
+                pdf.cell(col_w[3], h, clean_text(str(meses_num)), 1, 1, 'C')
+
+            pdf.ln(6)
+            pdf.set_x(10)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.set_fill_color(200, 200, 200)
+            pdf.set_text_color(0, 0, 0)
+            pdf.cell(sum(col_w[:-1]), 10, clean_text("TOTAL GERAL:"), 1, 0, 'R', 1)
+            pdf.cell(col_w[-1], 10, clean_text(f"R$ {total_geral:.2f}"), 1, 1, 'R', 1)
         else:
             # Compra: manter comportamento existente
             if esboco_servico:
