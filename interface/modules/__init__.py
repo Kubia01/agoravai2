@@ -11,7 +11,7 @@ __all__ = [
     'DashboardModule',
     'ClientesModule',
     'ProdutosModule',
-        'CotacoesModule',
+    'CotacoesModule',
     'RelatoriosModule',
     'UsuariosModule',
     'PermissoesModule',
