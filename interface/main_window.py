@@ -124,10 +124,10 @@ class MainWindow:
         self.clientes_module = add_module("👥 Clientes", "interface.modules.clientes", "ClientesModule")
         # Produtos
         self.produtos_module = add_module("📦 Produtos", "interface.modules.produtos", "ProdutosModule")
-        # Cotações
-        self.cotacoes_module = add_module("💰 Cotações", "interface.modules.cotacoes", "CotacoesModule")
-        # Locação (aba separada)
-        self.locacoes_module = add_module("📄 Locação", "interface.modules.locacoes", "LocacoesModule")
+        # Compras (Cotações de compra)
+        self.cotacoes_module = add_module("💰 Compras", "interface.modules.cotacoes", "CotacoesModule")
+        # Locações (aba separada)
+        self.locacoes_module = add_module("📄 Locações", "interface.modules.locacoes", "LocacoesModule")
         # Relatórios
         self.relatorios_module = add_module("📋 Relatórios", "interface.modules.relatorios", "RelatoriosModule")
         # Consultas
