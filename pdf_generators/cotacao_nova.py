@@ -610,10 +610,40 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 pdf.cell(0, 6, clean_text(f"Equipamento: {equip_name}"), 0, 1, 'L')
                 pdf.set_font("Arial", '', 11)
 
-            # Texto dinâmico com fallback
-            bloco_texto = locacao_pagina4_text or "Detalhes técnicos e condições de fornecimento do equipamento conforme abaixo."
-            pdf.multi_cell(0, 5, clean_text(bloco_texto))
-            pdf.ln(5)
+            # Bloco de cobertura total conforme especificação
+            pdf.set_text_color(*pdf.baby_blue)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 8, clean_text("COBERTURA TOTAL"), 0, 1, 'L')
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Arial", '', 11)
+            texto_cobertura = (
+                "O Contrato de Locação cobre todos os serviços e manutenções, isso significa que não existe custos \n"
+                "inesperados com o seu sistema de ar comprimido. O cronograma de manutenções preventivas é \n"
+                "seguido à risca e gerenciado por um time de engenheiros especializados para garantir o mais alto nível \n"
+                "de eficiência. Além de você contar com a cobertura completa para reparos, intervenções emergenciais \n"
+                "e atendimento proativo completa para reparos, intervenções emergenciais e atendimento proativo. "
+            )
+            pdf.multi_cell(0, 5, clean_text(texto_cobertura))
+            pdf.ln(4)
+            pdf.set_text_color(*pdf.baby_blue)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 8, clean_text("EQUIPAMENTO A SER OFERTADO:"), 0, 1, 'L')
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Arial", 'B', 12)
+            equipamento_nome = None
+            # Tentar obter do primeiro item de locação
+            try:
+                c.execute("SELECT item_nome, locacao_imagem_path FROM itens_cotacao WHERE cotacao_id = ? AND tipo_operacao = 'Locação' ORDER BY id LIMIT 1", (cot_id,))
+                row_first = c.fetchone()
+                if row_first:
+                    equipamento_nome = row_first[0]
+                    locacao_imagem_path_db = locacao_imagem_path_db or row_first[1]
+            except Exception:
+                pass
+            if not equipamento_nome:
+                equipamento_nome = locacao_nome_equipamento_db or modelo_titulo or "COMPRESSOR DE PARAFUSO LUBRIFICADO REFRIGERADO À AR"
+            pdf.multi_cell(0, 6, clean_text(equipamento_nome))
+            pdf.ln(3)
             # Debug: verificar parâmetros recebidos
             print(f"DEBUG PDF - Tipo cotação: {tipo_cotacao}")
             print(f"DEBUG PDF - Texto: {locacao_pagina4_text}")
@@ -649,21 +679,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 pdf.image(imagem_pagina4, x=x, y=y, w=w, h=h)
                 pdf.set_y(y + h + 6)
 
-            # Bloco COBERTURA TOTAL (texto fixo solicitado)
-            pdf.ln(8)
-            pdf.set_text_color(*pdf.baby_blue)
-            pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 8, clean_text("COBERTURA TOTAL"), 0, 1, 'L')
-            pdf.set_text_color(0, 0, 0)
-            pdf.set_font("Arial", '', 11)
-            texto_cobertura = (
-                "O Contrato de Locação cobre todos os serviços e manutenções, isso significa que não existe custos\n"
-                "inesperados com o seu sistema de ar comprimido. O cronograma de manutenções preventivas é\n"
-                "seguido à risca e gerenciado por um time de engenheiros especializados para garantir o mais alto nível\n"
-                "de eficiência. Além de você contar com a cobertura completa para reparos, intervenções emergenciais\n"
-                "e atendimento proativo."
-            )
-            pdf.multi_cell(0, 5, clean_text(texto_cobertura))
+            # (Cobertura já adicionada acima)
         else:
             # Compra: manter comportamento existente
             if esboco_servico:
