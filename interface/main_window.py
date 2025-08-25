@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from interface.modules import CotacoesModule, RelatoriosModule, ClientesModule, ProdutosModule, UsuariosModule, DashboardModule, PermissoesModule, ConsultasModule
 
 class MainWindow:
     def __init__(self, root, user_id, role, nome_completo):
@@ -106,47 +105,35 @@ class MainWindow:
         logout_btn.pack(anchor="e", pady=(5, 0))
         
     def create_modules(self):
-        """Criar todos os módulos do sistema"""
-        
+        """Criar todos os módulos do sistema com importação isolada e tolerante a falhas"""
+        def add_module(tab_text, module_path, class_name):
+            frame = tk.Frame(self.notebook)
+            self.notebook.add(frame, text=tab_text)
+            try:
+                mod = __import__(module_path, fromlist=[class_name])
+                cls = getattr(mod, class_name)
+                instance = cls(frame, self.user_id, self.role, self)
+                return instance
+            except Exception as e:
+                messagebox.showerror("Erro ao carregar módulo", f"Falha ao carregar {tab_text}:\n\n{e}")
+                return None
+
         # Dashboard
-        dashboard_frame = tk.Frame(self.notebook)
-        self.notebook.add(dashboard_frame, text="📊 Dashboard")
-        self.dashboard_module = DashboardModule(dashboard_frame, self.user_id, self.role, self)
-        
+        self.dashboard_module = add_module("📊 Dashboard", "interface.modules.dashboard", "DashboardModule")
         # Clientes
-        clientes_frame = tk.Frame(self.notebook)
-        self.notebook.add(clientes_frame, text="👥 Clientes")
-        self.clientes_module = ClientesModule(clientes_frame, self.user_id, self.role, self)
-        
+        self.clientes_module = add_module("👥 Clientes", "interface.modules.clientes", "ClientesModule")
         # Produtos
-        produtos_frame = tk.Frame(self.notebook)
-        self.notebook.add(produtos_frame, text="📦 Produtos")
-        self.produtos_module = ProdutosModule(produtos_frame, self.user_id, self.role, self)
-        
+        self.produtos_module = add_module("📦 Produtos", "interface.modules.produtos", "ProdutosModule")
         # Cotações
-        cotacoes_frame = tk.Frame(self.notebook)
-        self.notebook.add(cotacoes_frame, text="💰 Cotações")
-        self.cotacoes_module = CotacoesModule(cotacoes_frame, self.user_id, self.role, self)
-        
-        # Relatórios Técnicos
-        relatorios_frame = tk.Frame(self.notebook)
-        self.notebook.add(relatorios_frame, text="📋 Relatórios")
-        self.relatorios_module = RelatoriosModule(relatorios_frame, self.user_id, self.role, self)
-        
-        # Consultas Avançadas
-        consultas_frame = tk.Frame(self.notebook)
-        self.notebook.add(consultas_frame, text="🔍 Consultas")
-        self.consultas_module = ConsultasModule(consultas_frame, self.user_id, self.role, self)
-        
-        # Usuários e Permissões (apenas para admins)
+        self.cotacoes_module = add_module("💰 Cotações", "interface.modules.cotacoes", "CotacoesModule")
+        # Relatórios
+        self.relatorios_module = add_module("📋 Relatórios", "interface.modules.relatorios", "RelatoriosModule")
+        # Consultas
+        self.consultas_module = add_module("🔍 Consultas", "interface.modules.consultas", "ConsultasModule")
+        # Usuários e Permissões (apenas admin)
         if self.has_role('admin'):
-            usuarios_frame = tk.Frame(self.notebook)
-            self.notebook.add(usuarios_frame, text="👤 Usuários")
-            self.usuarios_module = UsuariosModule(usuarios_frame, self.user_id, self.role, self)
-            
-            permissoes_frame = tk.Frame(self.notebook)
-            self.notebook.add(permissoes_frame, text="🔐 Permissões")
-            self.permissoes_module = PermissoesModule(permissoes_frame, self.user_id, self.role, self)
+            self.usuarios_module = add_module("👤 Usuários", "interface.modules.usuarios", "UsuariosModule")
+            self.permissoes_module = add_module("🔐 Permissões", "interface.modules.permissoes", "PermissoesModule")
         
     def logout(self):
         """Fazer logout e voltar para tela de login"""
