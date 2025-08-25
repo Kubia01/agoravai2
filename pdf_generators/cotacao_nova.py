@@ -810,6 +810,172 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 "equipamentos que sofrerão manutenção."
             )
             pdf.multi_cell(0, 5, clean_text(condicoes_texto))
+
+            # =====================================================
+            # PÁGINAS 7 A 13: TERMOS E CONDIÇÕES GERAIS (LOCAÇÃO)
+            # =====================================================
+            # Página 7: imagem do equipamento novamente e título
+            pdf.add_page()
+            pdf.set_y(20)
+            imagem_p7 = None
+            try:
+                # Reaproveitar a imagem do primeiro item de locação, se houver
+                c.execute("SELECT locacao_imagem_path FROM itens_cotacao WHERE cotacao_id=? AND (tipo_operacao='Locação' OR tipo_operacao IS NULL) AND locacao_imagem_path IS NOT NULL AND TRIM(locacao_imagem_path)<>'' ORDER BY id LIMIT 1", (cot_id,))
+                row_img = c.fetchone()
+                if row_img and row_img[0] and os.path.exists(row_img[0]):
+                    imagem_p7 = row_img[0]
+                elif locacao_imagem_path_db and os.path.exists(locacao_imagem_path_db):
+                    imagem_p7 = locacao_imagem_path_db
+            except Exception:
+                pass
+            if imagem_p7:
+                try:
+                    from PIL import Image
+                    max_w, max_h = 180, 80
+                    img = Image.open(imagem_p7)
+                    iw, ih = img.size
+                    ratio = min(max_w / iw, max_h / ih)
+                    w = iw * ratio
+                    h = ih * ratio
+                except Exception:
+                    w, h = 160, 70
+                x = (210 - w) / 2
+                y = 20
+                pdf.image(imagem_p7, x=x, y=y, w=w, h=h)
+                pdf.set_y(y + h + 8)
+            else:
+                pdf.set_y(35)
+            pdf.set_text_color(*pdf.baby_blue)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 8, clean_text("TERMOS E CONDIÇÕES GERAIS DE LOCAÇÃO DE EQUIPAMENTO"), 0, 1, 'L')
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Arial", '', 11)
+
+            # Montar texto do contrato com substituições dinâmicas
+            locadora_nome = dados_filial.get('nome', 'WORLD COMP')
+            locadora_endereco = dados_filial.get('endereco', '')
+            locadora_cnpj = dados_filial.get('cnpj', 'N/A')
+            locataria_nome = cliente_nome
+            proposta_num = numero_proposta
+            proposta_data = format_date(data_criacao)
+
+            intro_dyn = (
+                f"Pelo presente instrumento particular,\n"
+                f"LOCADORA: {locadora_nome}, com sede em {locadora_endereco}, inscrita no CNPJ/MF sob nº {locadora_cnpj}.\n"
+                f"LOCATÁRIA: {locataria_nome}\n"
+                f"{locadora_nome} e CONTRATANTE serão referidas individualmente como Parte e, em conjunto, Partes.\n"
+                f"As partes qualificadas, por seus representantes legais ao final assinados, têm entre si justo e acertado os presentes Termos e Condições Gerais de Locação de Equipamento, denominado simplesmente Contrato, que se regerá pelas cláusulas e condições seguintes, com efeitos a partir da data {proposta_data} da Proposta Comercial nº {proposta_num}.\n\n"
+            )
+
+            contrato_base = (
+                "1 -CLÁUSULA PRIMEIRA – DO OBJETO\n"
+                "O presente Contrato consiste na locação do(s) Equipamento(s) mencionado(s) NA Proposta Comercial Preço anexa, denominados simplesmente Equipamento(s), de propriedade da World Comp, como parte da Locação de Compressores oferecida ao CONTRATANTE, para uso em suas atividades industriais, sendo proibido o uso para outros fins.\n"
+                "Caberá ao CONTRATANTE a obrigação de manter o(s) Equipamento(s) em suas dependências, em endereço descrito como sua sede no preâmbulo do presente instrumento, obrigando-se a solicitar previamente e por escrito à World Comp eventual alteração de sua localização, sob pena de expressa e inequívoca violação do presente instrumento, o que autorizará a incidência de multa de 10% (dez por cento), em caráter não compensatório, sobre o valor do Contrato, bem como facultará à World Comp a rescisão do presente instrumento, com a imediata retomada liminar do(s) Equipamento(s).\n"
+                "Referida Proposta Comercial dispõe as descrições e especificações técnicas do(s) equipamento(s) locado(s), bem como as condições comerciais para a presente locação.\n"
+                "Caso ocorra qualquer alteração relevante nas condições de operação dos Equipamento(s) (tais como condições de operação, escopo do trabalho, ou ainda nas condições ambientais, qualidade do ar, ventilação, temperatura, fornecimento de água e energia elétrica) ou do local ou regime de trabalho do equipamento, a World Comp deverá ser notificada previamente, por escrito.\n"
+                "Nessa hipótese, o presente Contrato deverá ser revisto pelas Partes, a fim de adaptá-lo à nova realidade, assumindo a CONTRATANTE integral responsabilidade antes da avaliação pela World Comp das novas condições e/ou da celebração de termo aditivo que reflita as novas condições.\n"
+                "Estão incluídos no objeto deste instrumento:\n"
+                "Equipamento(s): Equipamentos listados de acordo com relação descrita na Proposta Comercial Preço.\n"
+                "Partida técnica dos Equipamento(s), sendo obrigatório sua realização somente, e exclusivamente, por funcionários especializados da World Comp, em horário comercial, sendo de responsabilidade do CONTRATANTE a instalação do(s) equipamento(s) contratados de acordo com o manual de instalação.\n"
+                "Peças, componentes e insumos específicos para cada visita de manutenção preventiva ou corretiva\n"
+                "A World Comp, reserva o direito realizar as intervenções técnicas que entender necessárias para o bom funcionamento e manutenção do(s) Equipamento(s), incluindo substituição de peças e produtos utilizados nas manutenções preventivas e/ou corretivas, em especial alterando o lubrificante utilizado conforme recomendação para melhor desempenho, consumo energético e extensão da vida útil do(s) Equipamento(s) e seus componentes.\n"
+                "Estão excluídos do objeto deste instrumento:\n"
+                "Atendimento para manutenções preventivas e/ou corretivas fora do horário comercial entendido como das 8:00h às 17:00h, de segunda a sexta-feira, salvo especificação em contrário na Proposta.\n"
+                "Custos com componentes ou peças que tenham sido danificados por negligência, mau uso, falha operacional ou elétrica da contratante.\n"
+                "O presente Contrato, alcança não apenas o(s) Equipamento(s) já relacionados na Proposta Comercial, mas também todos os demais que poderão vir a ser enviados, através de solicitação do CONTRATANTE, conforme as respectivas propostas comerciais futuras, e por meio de Notas Fiscais de Remessa emitidas pela World Comp e termos aditivos a serem celebrados entre as Partes.\n"
+                "– CLÁUSULA SEGUNDA – DA VIGÊNCIA EXECUÇÃO\n"
+                "O presente Contrato terá o seu início, com efeitos a partir da data de assinatura desta Proposta Comercial nº {num} de disponibilização do(s) Equipamento(s) pela World Comp, vigerá pelo prazo definido na Proposta Comercial, sendo renovado automaticamente ao final do contrato até que haja manifestação das partes.\n"
+                "Quando do encerramento do presente Contrato o CONTRATANTE se compromete a devolver o(s) Equipamento(s) nas mesmas condições de uso e manutenção em que entregue(s), salvo desgaste natural do tempo, conforme condições normais e aprovada de uso.\n"
+                " No término deste Contrato será realizada uma nova inspeção em conjunto pelas Partes, da qual será elaborado um relatório, que deverá ser assinado por representantes de ambas as Partes, detalhando as condições do(s) Equipamento(s), para devolução.\n"
+                "Se na inspeção conjunta, forem constatados que o(s) Equipamento(s), por razões técnicas ou mecânicas, não se encontra(m) dentro das condições mínimas exigidas para o seu funcionamento e/ou operação, em decorrência de mau uso ou quaisquer atos, fatos ou danos imputáveis ou causados pelo CONTRATANTE, este arcará com os custos de reparo do(s) Equipamento(s).\n"
+                "Não obstante, será de responsabilidade do CONTRATANTE qualquer manutenção corretiva, cuja necessidade seja identificada durante a vigência contratual, em decorrência de negligência ou má operação do(s) Equipamento(s), a qual será cobrada à parte, mediante apresentação de orçamento pela World Comp, em cada caso.\n"
+                "Durante o período em que permanecer na posse do(s) Equipamento(s), o representante legal do CONTRATANTE, qualificado abaixo e que assina este documento, ficará como depositário fiel do(s) Equipamento(s).\n"
+                "3- CLÁUSULA TERCEIRA – DAS CONDIÇÕES DE PAGAMENTO\n"
+                "3.1 O CONTRATANTE pagará à World Comp o valor descrito e em conformidade com as condições constantes da Proposta Comercial.\n"
+                "3.1.2 A CONTRATANTE efetuará os pagamentos através de boleto bancário ou depósito em conta, servindo os respectivos comprovantes de pagamento claramente identificados como prova de quitação, salvo se previsto de forma contrária na Proposta.\n"
+                "3.2 A ausência de pagamento na data estipulada, inclusive na hipótese de não recebimento do boleto bancário, observado o disposto na Cláusula acima, implicará na incidência de multa moratória de 2% (doia por cento) sobre o valor do débito, além de juros de 1% (um por cento) ao mês, calculados “pro rata dia”, a partir do dia seguinte ao do vencimento.\n"
+                "3.2.1 Caso o atraso dos pagamentos devidos pelo CONTRATANTE prolongue-se por prazo superior a 03 (três) meses consecutivos, a World Comp poderá encerrar o Contrato imediatamente.\n"
+                "3.3 O preço mencionado na proposta comercial será reajustado automaticamente a cada 12 (doze) meses de vigência contratual ou em períodos inferiores, caso a legislação da época assim permita.\n"
+                "3.4 O preço ora estabelecido está sujeito à renegociação, na hipótese de qualquer mudança nas condições operacionais dos equipamentos sob contrato.\n"
+                "4- CLÁUSULA QUARTA – DAS RESPONSABILIDADES DA WORLD COMP\n"
+                "4.1 A partida técnica, ou seja, acionar o funcionamento do(s) Equipamento(s) no início da locação, bem como o seu desligamento no término deste Contrato\n"
+                "4.1.1 Contatar o CONTRATANTE previamente à data de cada visita.\n"
+                "4.1.2 Fornecer ao CONTRATANTE, após cada visita, ordem de serviço que deverá ser assinada por esta., relatando o estado do(s) Equipamento(s) após as visitas realizadas e incluindo a lista de peças aplicadas, bem como relação das intervenções realizadas.\n"
+                "4.1.3 Enviar técnicos para as manutenções munidos de equipamentos de proteção pessoal, trajando uniformes devidamente identificados.\n"
+                "4.1.4 Informar a necessidade de eventuais manutenções corretivas necessárias à boa operação do compressor, iniciando a execução de tais atendimentos, se aplicável.\n"
+                "4.2 Não obstante os esforços da World Comp, fica desde já estabelecido que o atendimento aqui disposto não configura a imediata solução de eventual problema, já que somente durante o atendimento corretivo a World Comp avaliará necessidade de utilização/substituição de peça(s) a(s) qual(is) poderá(ão) não estar disponível(is) no momento do atendimento.\n"
+                "4.3 Em caso de morosidade superior a 1 (uma) hora entre a chegada ao CONTRATANTE e a liberação do técnico da World Comp para executar as intervenções programadas ou, ainda, não disponibilidade do(s) Equipamento(s) à World Comp, os custos da espera ou reprogramação da visita serão repassados ao CONTRATANTE, conforme tabela vigente de preços praticados.\n"
+                "5 - CLÁUSULA QUINTA - DAS RESPONSABILIDADES DO CONTRATANTE\n"
+                "5.1 Solicitar a partida técnica após a instalação do(s) Equipamento(s).\n"
+                "5.1.1 Utilizar o(s) Equipamento(s) para os seus estritos fins, obedecendo às recomendações fornecidas pela World Comp, sob pena de, em assim não procedendo, incorrer nos ônus previstos no artigo 570 do novo Código Civil e demais cominações contratuais e legais.\n"
+                "5.1.2Manter e guardar o(s) Equipamento(s) como se seu fosse(m), desde a sua [retirada | entrega] até sua efetiva devolução a World Comp, ficando responsável pela sua conservação e obrigando-se a devolvê-lo em perfeito estado, respeito desgastes naturais de uso, limpo e nas condições de uso que o encontrou quando da retirada, sem qualquer dano ou avaria, mesmo se provocados por incêndios, roubo, uso indevido ou qualquer outra coisa, quer por sua culpa, quer por culpa de terceiros, obrigando-se ao ressarcimento dos danos causados e ficando responsável ainda pela sua conservação e contratação de seguro, nos termos da Cláusula Sexta, abaixo.\n"
+                "5.1.3Devolver o(s) Equipamento(s) tão logo rescindido de direito o presente Contrato, incorrendo, se assim não o fizer, no arbitramento de aluguéis e demais consectários a que alude o artigo 575 do Código Civil.\n"
+                "5.1.4 Manter, na qualidade de única responsável pelo(s) Equipamento(s), a World Comp isenta de todas e quaisquer reclamações, reivindicações, responsabilidades, perdas, danos, custos e despesas que possam a ela serem imputados por terceiros, decorrentes da locação ora ajustada, incluindo empregados e terceiros sob a responsabilidade do CONTRATANTE. Cabe ao CONTRATANTE, informar imediatamente e por escrito à World Comp quaisquer reclamações dessa natureza, contra ele próprio ou contra a World Comp.\n"
+                "5.1.5 Indenizar a World Comp , por qualquer perda ou dano causado ao(s) Equipamento(s), pelo valor total de cada componente eventualmente perdido ou avariado.\n"
+                "5.1.6 Realizar a inspeção/manutenção diária e semanal (8 e 40 horas) da(s) máquina(s), conforme indicado Manual de Instruções.\n"
+                "5.1.7 Utilizar somente lubrificantes, filtros de ar e de óleo, separador de óleo – quando aplicável, e peças originais, genuínas ou aprovadas pela World Comp.\n"
+                "5.1.8 Disponibilizar ventilação adequada ao redor do(s) Equipamento(s) (de acordo com recomendações da World Comp e limpar regulamente o(s) Equipamento(s)\n"
+                "5.1.9 Notificar a World Comp imediatamente e por escrito sobre quaisquer mudanças na operação ou nas condições do local e de quaisquer problemas no funcionamento ou falhas que possam influenciar o funcionamento apropriado do(s) Equipamento(s).\n"
+                "5.1.10Permitir que a World Comp tenha acesso livre e integral aos equipamentos durante o horário comercial normal a fim de realizar visitas de serviço programadas, assegurando ainda, o direito de vistoria a qualquer momento dentro do horário comercial normal, independente de prévio aviso.\n"
+                "5.1.11 Tomar as medidas necessárias recomendadas pela World Comp a título de reparo.\n"
+                "5.1.12 Prestar assistência médica gratuita ao pessoal da World Comp nas mesmas condições que a oferecida aos funcionários do CONTRATANTE, em caso de acidente ou emergência dentro de suas dependências. Se o acidente ou emergência exigir maiores cuidados ou tratamentos médicos, a(s) pessoa(s) acidentada(as) deverá(ão) ser conduzida(s) ao centro médico mais próximo.\n"
+                "5.1.13 Fornecer todas as condições necessárias para a execução das manutenções, tais como equipamentos para elevação/transporte interno, iluminação, água e local adequados para limpeza de resfriadores e demais componentes, mão de obra para eventuais necessidades, etc.\n"
+                "5.1.14 Fornecer toda a instalação elétrica de acordo com manual de instruções do equipamento, e seguir as recomendações para a sala de compressores e o meio ambiente.\n"
+                "5.1.15 Fornecer edificações ou modificações para a sala de compressores, dutos para cabos elétricos e outros fins, bem como instalações de água se necessário, e todas as instalações diferentes do sistema de ar comprimido.\n"
+                "5.1.16Preparar todas as instalações de tubulação necessária para a passagem de ar comprimido a partir da sala do compressor para o local de consumo.\n"
+                "5.1.17 Não realizar qualquer intervenção no equipamento sem prévio consentimento da World Comp, por escrito.\n"
+                "5.1.18 Manter registro atualizado das ocorrências com o(s) Equipamento(s)\n"
+                "5.1.19 Solicitar formalmente as manutenções corretivas à World Comp e confirmar, antecipadamente, que o equipamento está disponível para a realização da manutenção preventiva na data combinada, sob pena de se caracterizar mau uso do(s) Equipamento(s), sendo permitido apenas um aditamento de manutenção já agendada, observado período máximo de adiamento de 45 (quarenta e cinco) dias. A hipótese de adiamento de qualquer manutenção por indisponibilidade do(s) Equipamento(s) por prazo superior a 45 (quarenta e cinco) dias facultará à World Comp a rescisão do presente instrumento, com a imediata retomada liminar do(s) Equipamento(s).\n"
+                "5.1.20 Efetivar o pagamento devido na Proposta Comercial, nos termos da Cláusula 3ª do presente Contrato.\n"
+                "5.1.21 Em caso de acidente de qualquer natureza envolvendo o(s) Equipamento(s), o CONTRATANTE é responsável por fornecer notificação imediata e escrita à World Comp, em prazo não superior a 24 (vinte e quatro) horas após o evento.\n"
+                "6 - CLÁUSULA SEXTA – SEGURO\n"
+                "6.1 O CONTRATANTE deverá providenciar o seguro do(s) Equipamento(s), de modo a cobrir o seu valor de propriedade, conforme estipulado nas respectivas Notas Fiscais de Remessa do(s) Equipamento(s), no qual a World Comp é a única beneficiária, abrangendo todos os riscos, inclusive contra terceiros, cobrindo, mas não se limitando a roubo, furto, incêndio, riscos de explosão, raios e inundações.\n"
+                "6.1.1 Caso o CONTRATANTE possua uma apólice coletiva de seguros que cubra todo o seu parque de máquinas em operação em seu estabelecimento, deverá incluir o(s) referido(s) Equipamento(s) objeto deste Contrato, na cobertura deste seguro.\n"
+                "6.1.2 Caso o CONTRATANTE não efetue o seguro na forma aqui estabelecida, assumirá total responsabilidade pelos riscos inerentes à operação do(s) Equipamento(s), e deverá indenizar integralmente a World Comp pelos danos causados ao mesmo.\n"
+                "6.1.3 A vigência do seguro deverá iniciar-se no primeiro dia posterior à liberação do(s) Equipamento(s) no local de operação, devendo o CONTRATANTE entregar uma cópia da apólice correspondente, tão logo a tenha disponível.\n"
+                "7 – CLÁUSULA SÉTIMA – RESCISÃO\n"
+                "7.1 As partes, desde já, manifestam sua ciência e concordância de que em caso de solicitação de resilição unilateral do presente, do contratado pelo CONTRATANTE, durante os três (03) primeiros meses de vigência, este arcará com multa não-compensatória a ser calculada da seguinte maneira: Valor da multa a a ser pago pela CONTRATANTE = Valor equivalente ao custo de 01 mês de locação.\n"
+                "7.1.1 Transcorrido os três (03) primeiros meses iniciais de vigência, o CONTRATANTE poderá resilir o presente Contrato desde que informe a World Comp com antecedência mínima de 30 (trinta) dias, através de notificação por escrito, não cabendo qualquer indenização ou multa.\n"
+                "7.1.2 A resilição unilateral por denúncia da World Comp independerá de decurso de qualquer prazo, devendo apenas observar a antecedência mínima de 30 (trinta) dias, através de notificação por escrito, não cabendo qualquer indenização ou multa.\n"
+                "7.2 As Partes poderão ainda considerar rescindido de pleno direito o presente Contrato, com imediata reintegração na posse do equipamento, mediante comunicação expressa, nos seguintes casos\n"
+                "7.2.1 Se o CONTRATANTE sublocar, penhorar ou repassar qualquer direito relativo ao(s) Equipamento(s) para terceiros, sem aprovação prévia e por escrito da World Comp..\n"
+                "7.2.2 Se o CONTRATANTE não efetuar o seguro do(s) Equipamento(s) na forma estabelecida na Cláusula Sexta.\n"
+                "7.2.3 Se o CONTRATANTE não utilizar corretamente o(s) Equipamento(s) e/ou não permitir a realização de intervenções de manutenção, de forma a mantê-lo(s) em boas condições de operação e funcionamento, conforme avaliação feita de comum acordo entre as Partes.\n"
+                "7.2.4 Se algum embargo, execução ou outro processo legal for aplicado contra o(s) Equipamento(s) ou parte dele ou ainda, contra quaisquer instalações onde estiver sendo usado.\n"
+                "7.2.5 Se o CONTRATANTE ceder ou transferir os direitos e obrigações oriundas do presente contrato para terceiros, sem a prévia e expressa autorização por parte da World Comp.\n"
+                "7.2.6 Se qualquer uma das Partes entrar em liquidação ou falência, convocar credores ou apontar um curador com respeito a qualquer dos seus empreendimentos ou bens.\n"
+                "7.3 Acordam as Partes, ainda, na possibilidade de busca e apreensão do(s) Equipamento(s) de forma imediata, mediante envio de notificação extrajudicial da World Comp ou protesto deste título.\n"
+                "7.4 Caso o(s) Equipamento(s) não seja(m) localizado(s) pela World Comp, esta poderá, independentemente de qualquer aviso ou notificação, cobrá-lo por via judicial, pleiteando o valor constante da(s) Nota(s) Fiscal(is) de Remessa, custas e outras despesas, além de honorários advocatícios desde já arbitrados em 20% (vinte por cento) sobre o valor pleiteado.\n"
+                "8- CLÁUSULA OITAVA – CASO FORTUITO OU FORÇA MAIOR\n"
+                "8.1 As Partes não responderão pelo eventual descumprimento de suas obrigações contratuais, se este resultar de caso fortuito ou força maior, nos termos do art. 393 do Código Civil Brasileiro.\n"
+                "a) Comunicar o fato à outra Parte, por escrito, no prazo de 10 (dez) dias da sua ocorrência ou de seu início, fornecendo-lhe detalhes sobre o evento.\n"
+                "b) Comprovar, perante a outra Parte, que o fato alegado realmente contribuiu para o descumprimento da obrigação.\n"
+                "8.3 Não poderá invocar a exceção de força maior ou caso fortuito a Parte que houver agido com culpa, concomitante ou anteriormente ao evento.\n"
+                "9– CLÁUSULA NONA – DA RESPONSABILIDADE TRABALHISTA\n"
+                "10.1Cada Parte será única e exclusivamente responsável pelas obrigações decorrentes dos acordos de trabalho de seus empregados, inclusive por eventuais inadimplementos trabalhistas em que possa incorrer, não podendo ser arguida solidariamente entre as Partes nem responsabilidade subsidiária, não existindo, por conseguinte, vinculação empregatícia entre os empregados das Partes, sendo cada uma responsável pelos salários, encargos, refeições e transporte de seus funcionários/prepostos.\n"
+                "10- CLÁUSULA DÉCIMA – DAS DISPOSIÇÕES GERAIS\n"
+                "11.1 Os termos e condições deste Contrato e dos demais documentos aqui presentes constituirão o completo acordo e entendimento entre as Partes e substituirão quaisquer comunicações prévias entre as partes, sejam elas verbais ou por escrito, incluindo qualquer acordo ou entendimento, variando ou estendendo o mesmo assunto.\n"
+                "11.2 Qualquer alteração no presente Contrato deverá ser feita mediante termo aditivo assinado pelas Partes.\n"
+                "11.3 Caso quaisquer das disposições deste Contrato sejam ou venham a se tornar legalmente ineficazes ou inválidas, a validade e o efeito das disposições restantes não serão afetados.\n"
+                "11.4 Não haverá responsabilidade da World Comp por perda de produção, perda de lucro, perda de uso, perda de contrato ou qualquer outra perda consequente ou indireta que seja.\n"
+                "11.5 O presente Contrato não estabelece entre as Partes qualquer forma de sociedade, associação, relação de emprego, responsabilidade solidária e conjunta, nem poderá ser entendido como mandato ou agenciamento.\n"
+                "11.6 A tolerância por qualquer das Partes, no que tange ao cumprimento das obrigações da outra Parte, não será considerada novação ou perdão, permanecendo as cláusulas deste Contrato em pleno vigor e efeito, na forma aqui prevista.\n"
+                "11.7 As Partes contratantes declaram, sob as penas da Lei, que os signatários do presente instrumento são seus representantes/procuradores legais, devidamente constituídos na forma dos respectivos atos constitutivos, com poderes para assumir as obrigações ora contraídas.\n"
+                "11.8 Todas as correspondências, notificações e comunicações permitidas ou exigidas entre as Partes deverão ser feitas por escrito, por meio de carta protocolada ou qualquer outro meio idôneo que confirme o recebimento (correio eletrônico,e-mail etc.), devendo ser encaminhadas aos endereços constantes do preâmbulo desse instrumento, sendo que, caso, no curso do presente instrumento ocorra modificação nos endereços de quaisquer das partes, a parte que tiver a mudança de endereço deverá comunicar a outra parte imediatamente.\n"
+                "11.9 O presente Contrato e suas obrigações vinculam as Partes, seus herdeiros e sucessores a qualquer título.\n"
+                "11.10 O presente Contrato e os direitos e obrigações dele decorrentes não poderão ser cedidos, transferidos ou sub-rogados por quaisquer das partes sem o prévio consentimento por escrito da outra.\n"
+                "11– CLÁUSULA DÉCIMA PRIMEIRA – FORO\n"
+                "Para dirimir definitivamente quaisquer dúvidas decorrentes do presente ajuste, as partes elegem, de comum acordo, o foro de São Bernardo do Campo, São Paulo, com renúncia expressa de qualquer outro, por mais especial que seja.\n"
+            ).format(num=numero_proposta)
+
+            # Substituir 'World Comp' pelo nome da filial (case-insensitive)
+            contrato_texto = re.sub(r"(?i)world\s*comp", locadora_nome, contrato_base)
+
+            # Concatenar introdução dinâmica + contrato
+            full_text = intro_dyn + contrato_texto
+
+            # Renderizar texto com quebras automáticas até o fim (páginas 7..13)
+            pdf.multi_cell(0, 5, clean_text(full_text))
         else:
             # Compra: manter comportamento existente
             if esboco_servico:
