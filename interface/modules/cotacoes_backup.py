@@ -1562,20 +1562,20 @@ class CotacoesModule(BaseModule):
 			if cotacao[20]:
 				self.relacao_pecas_text.insert("1.0", cotacao[20])
 			
-					# Campos de Locação
-		self.tipo_cotacao_var.set(cotacao[21] or "Compra")
-		self.locacao_valor_mensal_var.set(f"{cotacao[22]:.2f}" if cotacao[22] is not None else "0.00")
-		self.locacao_data_inicio_var.set(format_date(cotacao[23]) if cotacao[23] else "")
-		self.locacao_data_fim_var.set(format_date(cotacao[24]) if cotacao[24] else "")
-		self.locacao_qtd_meses_var.set(str(cotacao[25] or 0))
-		self.locacao_equipamento_var.set(cotacao[26] or "")
-		
-		# Recarregar caminho da imagem se existir
-		try:
-			self.locacao_imagem_var.set(cotacao[27] or "")
-		except Exception:
-			pass
+			# Campos de Locação
+			self.tipo_cotacao_var.set(cotacao[21] or "Compra")
+			self.locacao_valor_mensal_var.set(f"{cotacao[22]:.2f}" if cotacao[22] is not None else "0.00")
+			self.locacao_data_inicio_var.set(format_date(cotacao[23]) if cotacao[23] else "")
+			self.locacao_data_fim_var.set(format_date(cotacao[24]) if cotacao[24] else "")
+			self.locacao_qtd_meses_var.set(str(cotacao[25] or 0))
+			self.locacao_equipamento_var.set(cotacao[26] or "")
 			
+			# Recarregar caminho da imagem se existir
+			try:
+				self.locacao_imagem_var.set(cotacao[27] or "")
+			except Exception:
+				pass
+				
 			# Alternar UI conforme tipo de cotação
 			self.on_tipo_cotacao_changed()
 			
