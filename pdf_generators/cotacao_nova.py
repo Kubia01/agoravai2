@@ -742,6 +742,74 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             pdf.set_text_color(0, 0, 0)
             pdf.cell(sum(col_w[:-1]), 10, clean_text("TOTAL GERAL:"), 1, 0, 'R', 1)
             pdf.cell(col_w[-1], 10, clean_text(f"R$ {total_geral:.2f}"), 1, 1, 'R', 1)
+
+            # =====================================================
+            # PÁGINA 6: CONDIÇÕES DE PAGAMENTO e CONDIÇÕES COMERCIAIS
+            # =====================================================
+            pdf.add_page()
+            pdf.set_y(35)
+
+            # Título principal
+            pdf.set_text_color(*pdf.baby_blue)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 8, clean_text("CONDIÇÕES DE PAGAMENTO:"), 0, 1, 'L')
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Arial", '', 11)
+
+            # DDL dinâmico a partir de condicao_pagamento
+            ddl_valor = None
+            try:
+                m = re.search(r"(\d+)\s*DDL", (condicao_pagamento or ''), flags=re.IGNORECASE)
+                if m:
+                    ddl_valor = m.group(1)
+            except Exception:
+                pass
+            ddl_texto = f"{ddl_valor} DDL" if ddl_valor else (condicao_pagamento or "30 DDL")
+
+            texto_pagamento = (
+                "O preço inclui: Uso do equipamento listado no Resumo da Proposta Preço, partida técnica, serviços \n"
+                "preventivos e corretivos, peças, deslocamento e acomodação dos técnicos, quando necessário. \n"
+                "Pelos serviços objeto desta proposta, após a entrega do(s) equipamento(s) previsto neste contrato, o \n"
+                "CONTRATANTE deverá iniciar os respectivos pagamentos mensais referentes a locação no valor de \n"
+                "R$ ____ (______reais) taxa fixa mensal, com vencimento à " + ddl_texto + ", Data esta que \n"
+                "contará a partir da entrega do equipamento nas dependencias da contratante, ( COM \n"
+                "FATURAMENTO ATRAVÉS DE RECIBO DE LOCAÇÃO)."
+            )
+            pdf.multi_cell(0, 5, clean_text(texto_pagamento))
+            pdf.ln(6)
+
+            # Título secundário
+            pdf.set_text_color(*pdf.baby_blue)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 8, clean_text("CONDIÇÕES COMERCIAIS"), 0, 1, 'L')
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Arial", '', 11)
+
+            condicoes_texto = (
+                "- Os equipamentos objetos desta proposta serão fornecidos em caráter de Locação, cujas regras \n"
+                "dessa modalidade estão descritas nos Termos e Condições Gerais de Locação de Equipamento, \n"
+                "parte integrante deste documento.\n"
+                "- Assim que V. Sa. receber os equipamentos e materiais, entrar em contato conosco para agendar \n"
+                "o serviço de partida(s) técnica(s). \n"
+                "- Validade do Contrato 5 anos \n"
+                "- Informar sobre a necessidade de envio de documentos necessários para integração de técnicos. \n"
+                "- Antes da compra do serviço, o cliente deve informar a World Comp, ou seu representante, se \n"
+                "existem quaisquer riscos ou circunstâncias na sua operação que possam provocar acidentes \n"
+                "envolvendo as pessoas que realizarão o serviço, assim como as medidas de proteção ou outras \n"
+                "ações necessárias que a World Comp deva tomar a fim de reduzir tais riscos. \n"
+                "- É de responsabilidade do cliente fornecer todas as condições necessárias para a execução das \n"
+                "manutenções, tais como equipamentos para elevação/transporte interno, iluminação, água e local \n"
+                "adequados para limpeza de resfriadores e demais componentes, mão de obra para eventuais \n"
+                "necessidades, etc. \n"
+                "- Os resíduos gerados pelas atividades da World Comp são de responsabilidade do cliente. \n"
+                "- Todos os preços são para horário de trabalho definido como horário comercial, de segunda a \n"
+                "sexta-feira, das 8h às 17h. \n"
+                "- A World Comp não se responsabiliza perante o cliente, seus funcionários ou terceiros por perdas \n"
+                "ou danos pessoais, diretos e indiretos, de imagem, lucros cessantes e perda econômica \n"
+                "decorrentes dos serviços ora contratados ou de acidentes de qualquer tipo causados pelos \n"
+                "equipamentos que sofrerão manutenção."
+            )
+            pdf.multi_cell(0, 5, clean_text(condicoes_texto))
         else:
             # Compra: manter comportamento existente
             if esboco_servico:
