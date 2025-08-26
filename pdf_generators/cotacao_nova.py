@@ -207,7 +207,7 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
                 cot.id, cot.numero_proposta, cot.modelo_compressor, cot.numero_serie_compressor, 
                 cot.descricao_atividade, cot.observacoes, cot.data_criacao,
                 cot.valor_total, cot.tipo_frete, cot.condicao_pagamento, cot.prazo_entrega,
-                cli.id AS cliente_id, cli.nome AS cliente_nome, cli.nome_fantasia, cli.endereco, cli.email, 
+                cli.id AS cliente_id, cli.nome AS cliente_nome, COALESCE(cli.nome_fantasia, cli.nome) AS cliente_nome_fantasia, cli.endereco, cli.email, 
                 cli.telefone, cli.site, cli.cnpj, cli.cidade, cli.estado, cli.cep,
                 usr.id AS responsavel_id, usr.nome_completo, usr.email AS usr_email, usr.telefone AS usr_telefone, usr.username,
                 cot.moeda, cot.relacao_pecas, cot.filial_id, cot.esboco_servico, cot.relacao_pecas_substituir, cot.tipo_cotacao,
