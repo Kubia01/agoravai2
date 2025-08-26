@@ -702,6 +702,9 @@ class ProdutosModule(BaseModule):
                 self.tipo_var.set("Kit")
                 self.descricao_var.set(produto[5] or "")  # descricao
                 self.ativo_var.set(bool(produto[6]))  # ativo
+                # Garantir estado da UI
+                self.on_tipo_changed(None)
+                self.notebook.select(0)
                 
                 # Carregar itens do kit
                 self.kit_items = []
@@ -734,12 +737,12 @@ class ProdutosModule(BaseModule):
                 self.descricao_var.set(produto[5] or "")  # descricao
                 self.ativo_var.set(bool(produto[6]))  # ativo
                 
-                if produto[2] == "Produto":
-                    self.ncm_entry.config(state='normal')
-                else:
-                    self.ncm_entry.config(state='disabled')
-                
+                # Garantir estado da UI (NCM/Kit)
+                self.on_tipo_changed(None)
                 self.notebook.select(0)  # Ir para aba de produto/serviço
+                # Se não for kit, ocultar a seção de kit
+                if hasattr(self, 'kit_section_frame'):
+                    self.kit_section_frame.pack_forget()
                 
         except sqlite3.Error as e:
             self.show_error(f"Erro ao carregar produto: {e}")
