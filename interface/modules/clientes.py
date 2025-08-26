@@ -996,9 +996,9 @@ Contatos Cadastrados: {total_contatos}"""
         self.contatos_tree.delete(*self.contatos_tree.get_children()) # Limpar treeview de contatos
         
     def salvar_cliente(self):
-        """Salvar cliente (novo ou existente)"""
+        """Salvar cliente (novo ou existente) - VERSÃO SIMPLIFICADA"""
         try:
-            # Obter dados dos campos
+            # Obter dados dos campos básicos apenas
             nome = self.nome_var.get().strip()
             if not nome:
                 self.show_error("Nome é obrigatório.")
@@ -1011,67 +1011,45 @@ Contatos Cadastrados: {total_contatos}"""
             c = conn.cursor()
             
             try:
-                # Dados básicos do cliente - apenas campos essenciais
-                dados_cliente = {
-                    'nome': nome,
-                    'nome_fantasia': self.nome_fantasia_var.get().strip() or nome,
-                    'cnpj': self.cnpj_var.get().strip() or None,
-                    'endereco': self.endereco_var.get().strip() or None,
-                    'cidade': self.cidade_var.get().strip() or None,
-                    'estado': self.estado_var.get().strip() or None,
-                    'cep': self.cep_var.get().strip() or None,
-                    'telefone': self.telefone_var.get().strip() or None,
-                    'email': self.email_var.get().strip() or None,
-                    'observacoes': self.observacoes_text.get("1.0", tk.END).strip() or None,
-                    'prazo_pagamento': self.prazo_pagamento_var.get().strip() or None,
-                    'ativo': 1
-                }
+                # Dados básicos apenas - como funcionava antes
+                nome_fantasia = self.nome_fantasia_var.get().strip() or nome
+                cnpj = self.cnpj_var.get().strip() or None
+                endereco = self.endereco_var.get().strip() or None
+                cidade = self.cidade_var.get().strip() or None
+                estado = self.estado_var.get().strip() or None
+                cep = self.cep_var.get().strip() or None
+                telefone = self.telefone_var.get().strip() or None
+                email = self.email_var.get().strip() or None
+                observacoes = self.observacoes_text.get("1.0", tk.END).strip() or None
+                prazo_pagamento = self.prazo_pagamento_var.get().strip() or None
                 
-                print(f"DEBUG: Dados coletados: {dados_cliente}")
+                print(f"DEBUG: Dados coletados - Nome: {nome}, Fantasia: {nome_fantasia}, CNPJ: {cnpj}")
                 
                 if self.current_cliente_id:
-                    # ATUALIZAR cliente existente
+                    # ATUALIZAR cliente existente - QUERY SIMPLES
                     print(f"DEBUG: Atualizando cliente ID {self.current_cliente_id}")
                     
-                    query = """
+                    c.execute("""
                         UPDATE clientes SET
                             nome = ?, nome_fantasia = ?, cnpj = ?, endereco = ?, cidade = ?,
                             estado = ?, cep = ?, telefone = ?, email = ?, observacoes = ?,
-                            prazo_pagamento = ?, ativo = ?
+                            prazo_pagamento = ?
                         WHERE id = ?
-                    """
+                    """, (nome, nome_fantasia, cnpj, endereco, cidade, estado, cep, telefone, email, observacoes, prazo_pagamento, self.current_cliente_id))
                     
-                    valores = (
-                        dados_cliente['nome'], dados_cliente['nome_fantasia'], dados_cliente['cnpj'],
-                        dados_cliente['endereco'], dados_cliente['cidade'], dados_cliente['estado'],
-                        dados_cliente['cep'], dados_cliente['telefone'], dados_cliente['email'],
-                        dados_cliente['observacoes'], dados_cliente['prazo_pagamento'],
-                        dados_cliente['ativo'], self.current_cliente_id
-                    )
-                    
-                    c.execute(query, valores)
                     print(f"DEBUG: Cliente {self.current_cliente_id} atualizado com sucesso")
                     
                 else:
-                    # INSERIR novo cliente
+                    # INSERIR novo cliente - QUERY SIMPLES
                     print("DEBUG: Inserindo novo cliente")
                     
-                    query = """
+                    c.execute("""
                         INSERT INTO clientes (
                             nome, nome_fantasia, cnpj, endereco, cidade, estado, cep,
                             telefone, email, observacoes, prazo_pagamento, ativo, created_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-                    """
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'))
+                    """, (nome, nome_fantasia, cnpj, endereco, cidade, estado, cep, telefone, email, observacoes, prazo_pagamento))
                     
-                    valores = (
-                        dados_cliente['nome'], dados_cliente['nome_fantasia'], dados_cliente['cnpj'],
-                        dados_cliente['endereco'], dados_cliente['cidade'], dados_cliente['estado'],
-                        dados_cliente['cep'], dados_cliente['telefone'], dados_cliente['email'],
-                        dados_cliente['observacoes'], dados_cliente['prazo_pagamento'],
-                        dados_cliente['ativo']
-                    )
-                    
-                    c.execute(query, valores)
                     self.current_cliente_id = c.lastrowid
                     print(f"DEBUG: Novo cliente criado com ID {self.current_cliente_id}")
                 
