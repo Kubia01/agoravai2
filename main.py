@@ -20,9 +20,13 @@ def main():
         
         # Criar banco de dados
         print("Criando/verificando banco de dados...")
-        from database import criar_banco, DB_NAME
-        criar_banco()
-        print("✅ Banco de dados OK")
+        from database import criar_banco, verificar_banco, DB_NAME
+        
+        # Verificar se o banco existe e é válido
+        if verificar_banco():
+            print("🔄 Banco recriado com sucesso!")
+        else:
+            print("✅ Banco de dados OK")
         
         # Importar após verificar banco
         print("Carregando interface...")

@@ -6,9 +6,27 @@ DB_NAME = "crm_compressores.db"
 DATA_DIR = "data"
 os.makedirs(DATA_DIR, exist_ok=True)
 
+def verificar_banco():
+	"""Verificar se o banco existe e tem tamanho válido"""
+	if not os.path.exists(DB_NAME) or os.path.getsize(DB_NAME) == 0:
+		print(f"⚠️ Banco {DB_NAME} não existe ou está vazio. Criando...")
+		criar_banco()
+		return True
+	return False
+
 def criar_banco():
+	"""Criar banco de dados com todas as tabelas necessárias"""
+	print(f"🔧 Criando banco de dados: {DB_NAME}")
+	
+	# Remover banco existente se estiver vazio
+	if os.path.exists(DB_NAME) and os.path.getsize(DB_NAME) == 0:
+		os.remove(DB_NAME)
+		print("🗑️ Banco vazio removido")
+	
 	conn = sqlite3.connect(DB_NAME)
 	c = conn.cursor()
+	
+	print("📋 Criando tabelas...")
 	
 	# Tabela Usuários
 	c.execute('''CREATE TABLE IF NOT EXISTS usuarios (
@@ -37,6 +55,7 @@ def criar_banco():
 		cep TEXT,
 		observacoes TEXT,
 		ativo BOOLEAN DEFAULT 1,
+		prazo_pagamento TEXT,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	)''')
 	
@@ -84,15 +103,20 @@ def criar_banco():
 		numero_proposta TEXT NOT NULL UNIQUE,
 		cliente_id INTEGER NOT NULL,
 		responsavel_id INTEGER NOT NULL,
+		filial_id INTEGER DEFAULT 1,
 		data_criacao DATE NOT NULL,
-		validade DATE,
-		condicoes_pagamento TEXT,
-		prazo_entrega TEXT,
+		data_validade DATE,
+		modelo_compressor TEXT,
+		numero_serie_compressor TEXT,
+		descricao_atividade TEXT,
 		observacoes TEXT,
-		status TEXT DEFAULT 'Pendente',
-		total_geral REAL DEFAULT 0,
-		desconto REAL DEFAULT 0,
-		valor_final REAL DEFAULT 0,
+		valor_total REAL DEFAULT 0,
+		tipo_frete TEXT,
+		condicao_pagamento TEXT,
+		prazo_entrega TEXT,
+		moeda TEXT DEFAULT 'BRL',
+		status TEXT DEFAULT 'Em Aberto',
+		caminho_arquivo_pdf TEXT,
 		relacao_pecas TEXT,
 		esboco_servico TEXT,
 		relacao_pecas_substituir TEXT,
@@ -107,7 +131,7 @@ def criar_banco():
 		FOREIGN KEY (cliente_id) REFERENCES clientes(id),
 		FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
 	)''')
-
+	
 	# Tabela Itens da Cotação
 	c.execute('''CREATE TABLE IF NOT EXISTS itens_cotacao (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -129,12 +153,13 @@ def criar_banco():
 		locacao_data_fim DATE,
 		locacao_qtd_meses INTEGER,
 		locacao_imagem_path TEXT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		FOREIGN KEY (cotacao_id) REFERENCES cotacoes(id),
 		FOREIGN KEY (produto_id) REFERENCES produtos(id),
 		FOREIGN KEY (kit_id) REFERENCES itens_cotacao(id)
 	)''')
-
-	# Tabela Relatórios Técnicos - ATUALIZADA com campos das abas 2 e 3
+	
+	# Tabela Relatórios Técnicos
 	c.execute('''CREATE TABLE IF NOT EXISTS relatorios_tecnicos (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		numero_relatorio TEXT NOT NULL UNIQUE,
@@ -145,16 +170,12 @@ def criar_banco():
 		tipo_servico TEXT,
 		descricao_servico TEXT,
 		data_recebimento DATE,
-		
-		-- Aba 1: Condição Inicial
 		condicao_encontrada TEXT,
 		placa_identificacao TEXT,
 		acoplamento TEXT,
 		aspectos_rotores TEXT,
 		valvulas_acopladas TEXT,
 		data_recebimento_equip TEXT,
-		
-		-- Aba 2: Peritagem do Subconjunto
 		parafusos_pinos TEXT,
 		superficie_vedacao TEXT,
 		engrenagens TEXT,
@@ -162,21 +183,15 @@ def criar_banco():
 		rolamentos TEXT,
 		aspecto_oleo TEXT,
 		data_peritagem TEXT,
-		
-		-- Aba 3: Desmembrando Unidade Compressora
 		interf_desmontagem TEXT,
 		aspecto_rotores_aba3 TEXT,
 		aspecto_carcaca TEXT,
 		interf_mancais TEXT,
 		galeria_hidraulica TEXT,
 		data_desmembracao TEXT,
-		
-		-- Aba 4: Relação de Peças e Serviços
 		servicos_propostos TEXT,
 		pecas_recomendadas TEXT,
 		data_pecas TEXT,
-		
-		-- Outros campos
 		cotacao_id INTEGER,
 		tempo_trabalho_total TEXT,
 		tempo_deslocamento_total TEXT,
@@ -191,7 +206,7 @@ def criar_banco():
 		FOREIGN KEY (cliente_id) REFERENCES clientes(id),
 		FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
 	)''')
-
+	
 	# Tabela de Permissões de Usuários
 	c.execute('''CREATE TABLE IF NOT EXISTS permissoes_usuarios (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -202,7 +217,7 @@ def criar_banco():
 		FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
 		UNIQUE(usuario_id, modulo)
 	)''')
-
+	
 	# Tabela de Eventos de Campo
 	c.execute('''CREATE TABLE IF NOT EXISTS eventos_campo (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -215,35 +230,75 @@ def criar_banco():
 		FOREIGN KEY (relatorio_id) REFERENCES relatorios_tecnicos(id),
 		FOREIGN KEY (tecnico_id) REFERENCES usuarios(id)
 	)''')
-
-	# Atualizar tabela relatorios_tecnicos existente se necessário
+	
+	# Tabela Filiais
+	c.execute('''CREATE TABLE IF NOT EXISTS filiais (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		nome TEXT NOT NULL,
+		cnpj TEXT,
+		endereco TEXT,
+		cidade TEXT,
+		estado TEXT,
+		cep TEXT,
+		telefones TEXT,
+		email TEXT,
+		ativo BOOLEAN DEFAULT 1,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	)''')
+	
+	# Inserir dados iniciais
+	print("📝 Inserindo dados iniciais...")
+	
+	# Usuário admin padrão
 	try:
-		c.execute("ALTER TABLE relatorios_tecnicos ADD COLUMN anexos_aba1 TEXT")
-	except sqlite3.OperationalError:
-		pass  # Coluna já existe
-		
+		c.execute('''INSERT INTO usuarios (username, password, role, nome_completo, email, template_personalizado)
+					 VALUES (?, ?, ?, ?, ?, ?)''', 
+				  ('admin', 'admin123', 'admin', 'Administrador', 'admin@worldcomp.com.br', 0))
+		print("✅ Usuário admin criado")
+	except sqlite3.IntegrityError:
+		print("ℹ️ Usuário admin já existe")
+	
+	# Filial padrão
 	try:
-		c.execute("ALTER TABLE relatorios_tecnicos ADD COLUMN anexos_aba2 TEXT")
-	except sqlite3.OperationalError:
-		pass  # Coluna já existe
-		
+		c.execute('''INSERT INTO filiais (id, nome, cnpj, endereco, cidade, estado, cep, telefones, email)
+					 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+				  (1, 'World Comp Brasil', '12.345.678/0001-90', 'Rua das Flores, 123', 'São Paulo', 'SP', '01234-567', '(11) 99999-9999', 'contato@worldcomp.com.br'))
+		print("✅ Filial padrão criada")
+	except sqlite3.IntegrityError:
+		print("ℹ️ Filial padrão já existe")
+	
+	# Cliente de teste
 	try:
-		c.execute("ALTER TABLE relatorios_tecnicos ADD COLUMN anexos_aba3 TEXT")
-	except sqlite3.OperationalError:
-		pass  # Coluna já existe
-		
+		c.execute('''INSERT INTO clientes (nome, cnpj, email, telefone, endereco, cidade, estado, cep, prazo_pagamento)
+					 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+				  ('Cliente Teste', '98.765.432/0001-10', 'teste@cliente.com', '(11) 88888-8888', 'Rua Teste, 456', 'São Paulo', 'SP', '04567-890', '30 dias'))
+		print("✅ Cliente de teste criado")
+	except sqlite3.IntegrityError:
+		print("ℹ️ Cliente de teste já existe")
+	
+	# Produto de teste
 	try:
-		c.execute("ALTER TABLE relatorios_tecnicos ADD COLUMN anexos_aba4 TEXT")
-	except sqlite3.OperationalError:
-		pass  # Coluna já existe
-		
-	try:
-		c.execute("ALTER TABLE relatorios_tecnicos ADD COLUMN filial_id INTEGER DEFAULT 2")
-	except sqlite3.OperationalError:
-		pass  # Coluna já existe
-
+		c.execute('''INSERT INTO produtos (nome, tipo, valor_unitario, descricao)
+					 VALUES (?, ?, ?, ?)''',
+				  ('Compressor Teste', 'Produto', 1000.00, 'Compressor para testes'))
+		print("✅ Produto de teste criado")
+	except sqlite3.IntegrityError:
+		print("ℹ️ Produto de teste já existe")
+	
 	conn.commit()
 	conn.close()
+	
+	print(f"🎉 Banco de dados {DB_NAME} criado com sucesso!")
+	print(f"📁 Localização: {os.path.abspath(DB_NAME)}")
+	
+	# Verificar tamanho do arquivo
+	if os.path.exists(DB_NAME):
+		size = os.path.getsize(DB_NAME)
+		print(f"📊 Tamanho do arquivo: {size} bytes")
+		if size > 0:
+			print("✅ Banco de dados válido e funcional!")
+		else:
+			print("❌ Banco de dados está vazio!")
 
 if __name__ == "__main__":
 	criar_banco()
