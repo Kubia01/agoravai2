@@ -1233,6 +1233,17 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
 
             return True, pdf_path
 
+        # Garantir salvamento/retorno para Locação também
+        if (tipo_cotacao or '').lower() in ('locação','locacao'):
+            output_dir = os.path.join("data", "cotacoes", "arquivos")
+            os.makedirs(output_dir, exist_ok=True)
+            file_name = f"Proposta_{numero_proposta.replace('/', '_').replace(' ', '')}.pdf"
+            pdf_path = os.path.join(output_dir, file_name)
+            pdf.output(pdf_path)
+            c.execute("UPDATE cotacoes SET caminho_arquivo_pdf=? WHERE id= ?", (pdf_path, cot_id))
+            conn.commit()
+            return True, pdf_path
+
     except Exception as e:
         return False, f"Erro ao gerar PDF: {str(e)}"
     finally:
