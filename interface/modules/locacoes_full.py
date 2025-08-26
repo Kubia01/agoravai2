@@ -373,15 +373,26 @@ class LocacoesModule(BaseModule):
 				pass
 
 	def _on_cliente_selected(self, event=None):
+		"""Quando cliente é alterado"""
 		cliente_str = self.cliente_var.get().strip()
 		if not cliente_str:
 			return
+			
 		cliente_id = self.clientes_dict.get(cliente_str)
 		if not cliente_id:
 			return
 		try:
 			conn = sqlite3.connect(DB_NAME)
 			c = conn.cursor()
+			
+			# Buscar prazo de pagamento do cliente
+			c.execute("SELECT prazo_pagamento FROM clientes WHERE id = ?", (cliente_id,))
+			result = c.fetchone()
+			
+			if result and result[0]:
+				# Preencher automaticamente a condição de pagamento
+				self.condicao_pagamento_var.set(result[0])
+			
 			c.execute("SELECT nome FROM contatos WHERE cliente_id = ? ORDER BY nome", (cliente_id,))
 			contatos = [row[0] for row in c.fetchall()]
 			self.contato_cliente_combo['values'] = contatos

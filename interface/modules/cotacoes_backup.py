@@ -1193,6 +1193,7 @@ class CotacoesModule(BaseModule):
 		# Limpar campos
 		self.numero_var.set("")
 		self.cliente_var.set("")
+		self.contato_cliente_var.set("")  # Limpar contato do cliente
 		self.modelo_var.set("")
 		self.serie_var.set("")
 		self.status_var.set("Em Aberto")
