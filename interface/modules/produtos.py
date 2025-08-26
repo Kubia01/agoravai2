@@ -371,20 +371,27 @@ class ProdutosModule(BaseModule):
     def on_tipo_changed(self, event):
         """Controla visibilidade do campo NCM e seção de kit baseado no tipo"""
         current_tipo = self.tipo_var.get()
+        print(f"DEBUG: Tipo alterado para: {current_tipo}")  # Debug
         
         # Controlar campo NCM
         if current_tipo == "Serviço":
             self.ncm_entry.config(state='disabled')
             self.ncm_var.set("")
+            print("DEBUG: Campo NCM desabilitado para Serviço")  # Debug
         else:
             self.ncm_entry.config(state='normal')
+            print("DEBUG: Campo NCM habilitado")  # Debug
         
         # Controlar seção de kit
         if hasattr(self, 'kit_section_frame'):
             if current_tipo == "Kit":
                 self.kit_section_frame.pack(fill="both", expand=True, pady=(15, 0))
+                print("DEBUG: Seção de kit EXIBIDA")  # Debug
             else:
                 self.kit_section_frame.pack_forget()
+                print("DEBUG: Seção de kit OCULTADA")  # Debug
+        else:
+            print("DEBUG: ERRO - kit_section_frame não encontrado em on_tipo_changed")  # Debug
             
     def format_valor(self, event):
         """Formatar valor monetário"""
@@ -697,11 +704,13 @@ class ProdutosModule(BaseModule):
             self.current_produto_id = produto_id
             
             if produto[2] == "Kit":
+                print(f"DEBUG: Carregando Kit ID {produto_id}")  # Debug
                 # Carregar kit - usar as variáveis padrão
                 self.nome_var.set(produto[1] or "")  # nome
                 self.tipo_var.set("Kit")
                 self.descricao_var.set(produto[5] or "")  # descricao
                 self.ativo_var.set(bool(produto[6]))  # ativo
+                
                 # Garantir estado da UI
                 self.on_tipo_changed(None)
                 self.notebook.select(0)
@@ -715,7 +724,10 @@ class ProdutosModule(BaseModule):
                     WHERE ki.kit_id = ?
                 """, (produto_id,))
                 
-                for item_row in c.fetchall():
+                kit_items_data = c.fetchall()
+                print(f"DEBUG: Encontrados {len(kit_items_data)} itens para o kit")  # Debug
+                
+                for item_row in kit_items_data:
                     item_id, nome, tipo, valor_unitario, quantidade = item_row
                     self.kit_items.append({
                         'produto_id': item_id,
@@ -723,12 +735,23 @@ class ProdutosModule(BaseModule):
                         'nome': nome,
                         'quantidade': quantidade
                     })
+                    print(f"DEBUG: Item adicionado: {nome} ({tipo}) - Qtd: {quantidade}")  # Debug
                 
+                # Atualizar interface do kit
                 self.atualizar_kit_tree()
-                # Mostrar seção de kit
+                
+                # Garantir que a seção de kit seja exibida
                 if hasattr(self, 'kit_section_frame'):
                     self.kit_section_frame.pack(fill="both", expand=True, pady=(15, 0))
+                    print("DEBUG: Seção de kit exibida")  # Debug
+                else:
+                    print("DEBUG: ERRO - kit_section_frame não encontrado")  # Debug
+                    
+                # Recarregar produtos para o combobox
+                self.carregar_produtos_para_kit()
+                
             else:
+                print(f"DEBUG: Carregando {produto[2]} ID {produto_id}")  # Debug
                 # Carregar produto/serviço
                 self.nome_var.set(produto[1] or "")  # nome
                 self.tipo_var.set(produto[2] or "Produto")  # tipo
@@ -743,6 +766,7 @@ class ProdutosModule(BaseModule):
                 # Se não for kit, ocultar a seção de kit
                 if hasattr(self, 'kit_section_frame'):
                     self.kit_section_frame.pack_forget()
+                    print("DEBUG: Seção de kit ocultada")  # Debug
                 
         except sqlite3.Error as e:
             self.show_error(f"Erro ao carregar produto: {e}")
@@ -850,19 +874,25 @@ class ProdutosModule(BaseModule):
     def atualizar_kit_tree(self):
         """Atualizar a treeview de itens do kit"""
         if not hasattr(self, 'kit_items_tree'):
+            print("DEBUG: ERRO - kit_items_tree não encontrado")  # Debug
             return
             
+        print(f"DEBUG: Atualizando kit tree com {len(self.kit_items)} itens")  # Debug
+        
         # Limpar treeview
         for item in self.kit_items_tree.get_children():
             self.kit_items_tree.delete(item)
         
         # Adicionar itens
         for i, item in enumerate(self.kit_items):
+            print(f"DEBUG: Inserindo item {i}: {item['nome']} - {item['tipo']} - Qtd: {item['quantidade']}")  # Debug
             self.kit_items_tree.insert("", "end", text=str(i), values=(
                 item['nome'],
                 item['tipo'],
                 f"{item['quantidade']:.2f}"
-                        ))
+            ))
+        
+        print(f"DEBUG: Kit tree atualizada com {len(self.kit_items_tree.get_children())} itens visíveis")  # Debug
         
     def remover_item_kit(self):
         """Remover item selecionado do kit"""
