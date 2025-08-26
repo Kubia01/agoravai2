@@ -145,8 +145,8 @@ class RelatoriosModule(BaseModule):
         self.refresh_all_data()
         
         # Listener para eventos de usuários
-        self.bind_event('usuario_created', self.on_usuario_created)
-        
+        # self.bind_event('usuario_created', self.on_usuario_created)  # Removido - método não existe
+
     def create_header(self, parent):
         header_frame = tk.Frame(parent, bg='#f8fafc')
         header_frame.pack(fill="x", pady=(0, 10))
@@ -1327,16 +1327,10 @@ class RelatoriosModule(BaseModule):
             self.show_error(f"Erro ao gerar PDF: {resultado}")
             
     def handle_event(self, event_type, data=None):
-        """Manipular eventos do sistema"""
-        if event_type == 'cliente_created':
-            self.refresh_clientes()
-            print("Lista de clientes atualizada automaticamente no relatório!")
-        elif event_type == 'tecnico_created':
+        """Manipular eventos recebidos do sistema"""
+        if event_type == 'usuario_created':
+            print("DEBUG: Evento usuario_created recebido via handle_event, atualizando lista de técnicos...")
             self.refresh_tecnicos()
-            print("Lista de técnicos atualizada automaticamente!")
-        elif event_type == 'cotacao_created':
-            self.refresh_cotacoes()
-            print("Lista de cotações atualizada automaticamente!")
 
     def excluir_relatorio(self):
         selected = self.relatorios_tree.selection()
