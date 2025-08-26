@@ -1592,16 +1592,18 @@ class CotacoesModule(BaseModule):
 	def carregar_itens_cotacao(self, cotacao_id):
 		"""Carregar itens da cotação"""
 		print(f"DEBUG: Carregando itens para cotação ID: {cotacao_id}")
+		print(f"DEBUG: Tree atual tem {len(self.itens_tree.get_children())} itens")
 		
 		# Limpar lista atual
 		for item in self.itens_tree.get_children():
 			self.itens_tree.delete(item)
+		print(f"DEBUG: Tree limpa, agora tem {len(self.itens_tree.get_children())} itens")
 			
 		conn = sqlite3.connect(DB_NAME)
 		c = conn.cursor()
 		try:
 			# Query melhorada para garantir que todos os campos sejam retornados
-			c.execute("""
+			query = """
 				SELECT 
 					COALESCE(tipo, 'Produto') as tipo,
 					COALESCE(item_nome, '') as item_nome,
@@ -1619,13 +1621,21 @@ class CotacoesModule(BaseModule):
 				FROM itens_cotacao
 				WHERE cotacao_id = ?
 				ORDER BY id
-			""", (cotacao_id,))
+			"""
+			print(f"DEBUG: Executando query: {query}")
+			print(f"DEBUG: Parâmetros: cotacao_id = {cotacao_id}")
+			
+			c.execute(query, (cotacao_id,))
 			
 			itens = c.fetchall()
 			print(f"DEBUG: Encontrados {len(itens)} itens na cotação {cotacao_id}")
 			
 			if not itens:
 				print(f"DEBUG: Nenhum item encontrado para cotação {cotacao_id}")
+				print(f"DEBUG: Verificando se a cotação existe...")
+				c.execute("SELECT COUNT(*) FROM cotacoes WHERE id = ?", (cotacao_id,))
+				cotacao_count = c.fetchone()[0]
+				print(f"DEBUG: Cotação {cotacao_id} existe: {cotacao_count > 0}")
 				return
 			
 			for i, row in enumerate(itens):
@@ -1645,6 +1655,7 @@ class CotacoesModule(BaseModule):
 				meses = meses or 0
 				tipo_oper = tipo_oper or "Compra"
 				
+				print(f"DEBUG: Inserindo item na tree: {tipo}, {nome}, {qtd}")
 				self.itens_tree.insert("", "end", values=(
 					tipo,
 					nome,
@@ -1669,6 +1680,9 @@ class CotacoesModule(BaseModule):
 			self.show_error(f"Erro ao carregar itens: {e}")
 		except Exception as e:
 			print(f"ERRO inesperado ao carregar itens: {e}")
+			print(f"DEBUG: Tipo de erro: {type(e)}")
+			import traceback
+			traceback.print_exc()
 			self.show_error(f"Erro inesperado ao carregar itens: {e}")
 		finally:
 			conn.close()
