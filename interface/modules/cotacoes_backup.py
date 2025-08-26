@@ -1591,40 +1591,85 @@ class CotacoesModule(BaseModule):
 			
 	def carregar_itens_cotacao(self, cotacao_id):
 		"""Carregar itens da cotação"""
+		print(f"DEBUG: Carregando itens para cotação ID: {cotacao_id}")
+		
 		# Limpar lista atual
 		for item in self.itens_tree.get_children():
 			self.itens_tree.delete(item)
+			
 		conn = sqlite3.connect(DB_NAME)
 		c = conn.cursor()
 		try:
+			# Query melhorada para garantir que todos os campos sejam retornados
 			c.execute("""
-				SELECT tipo, item_nome, quantidade, valor_unitario, valor_total_item,
-				       descricao, mao_obra, deslocamento, estadia,
-				       locacao_qtd_meses, locacao_data_inicio, locacao_data_fim, tipo_operacao
+				SELECT 
+					COALESCE(tipo, 'Produto') as tipo,
+					COALESCE(item_nome, '') as item_nome,
+					COALESCE(quantidade, 1) as quantidade,
+					COALESCE(valor_unitario, 0) as valor_unitario,
+					COALESCE(valor_total_item, 0) as valor_total_item,
+					COALESCE(descricao, '') as descricao,
+					COALESCE(mao_obra, 0) as mao_obra,
+					COALESCE(deslocamento, 0) as deslocamento,
+					COALESCE(estadia, 0) as estadia,
+					COALESCE(locacao_qtd_meses, 0) as locacao_qtd_meses,
+					locacao_data_inicio,
+					locacao_data_fim,
+					COALESCE(tipo_operacao, 'Compra') as tipo_operacao
 				FROM itens_cotacao
 				WHERE cotacao_id = ?
 				ORDER BY id
 			""", (cotacao_id,))
-			for row in c.fetchall():
+			
+			itens = c.fetchall()
+			print(f"DEBUG: Encontrados {len(itens)} itens na cotação {cotacao_id}")
+			
+			if not itens:
+				print(f"DEBUG: Nenhum item encontrado para cotação {cotacao_id}")
+				return
+			
+			for i, row in enumerate(itens):
 				(tipo, nome, qtd, valor_unit, total, desc, mao_obra, desloc, estadia, meses, inicio, fim, tipo_oper) = row
+				print(f"DEBUG Item {i+1}: Tipo={tipo}, Nome={nome}, Qtd={qtd}, Valor={valor_unit}, Total={total}")
+				
+				# Garantir que valores não sejam None
+				tipo = tipo or "Produto"
+				nome = nome or "Item sem nome"
+				qtd = qtd or 1
+				valor_unit = valor_unit or 0
+				total = total or 0
+				desc = desc or ""
+				mao_obra = mao_obra or 0
+				desloc = desloc or 0
+				estadia = estadia or 0
+				meses = meses or 0
+				tipo_oper = tipo_oper or "Compra"
+				
 				self.itens_tree.insert("", "end", values=(
 					tipo,
 					nome,
 					f"{qtd:.2f}",
 					format_currency(valor_unit),
-					format_currency(mao_obra or 0),
-					format_currency(desloc or 0),
-					format_currency(estadia or 0),
-					str(meses or ""),
+					format_currency(mao_obra),
+					format_currency(desloc),
+					format_currency(estadia),
+					str(meses),
 					(format_date(inicio) if inicio else ""),
 					(format_date(fim) if fim else ""),
 					format_currency(total),
-					desc or "",
-					tipo_oper or "Compra"
+					desc,
+					tipo_oper
 				))
+				
+			print(f"DEBUG: {len(self.itens_tree.get_children())} itens inseridos na tree")
 			self.atualizar_total()
+			
 		except sqlite3.Error as e:
+			print(f"ERRO ao carregar itens: {e}")
 			self.show_error(f"Erro ao carregar itens: {e}")
+		except Exception as e:
+			print(f"ERRO inesperado ao carregar itens: {e}")
+			self.show_error(f"Erro inesperado ao carregar itens: {e}")
 		finally:
 			conn.close()
 
