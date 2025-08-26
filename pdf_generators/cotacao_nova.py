@@ -967,15 +967,28 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             pdf.cell(col_w, 6, clean_text("______________________________________"), 0, 0, 'L')
             pdf.cell(10, 6, "", 0, 0)
             pdf.cell(col_w, 6, clean_text("______________________________________"), 0, 1, 'L')
-            pdf.set_x(left_margin)
-            pdf.cell(col_w, 6, clean_text(f"Contratante: {cliente_nome}"), 0, 0, 'L')
-            pdf.cell(10, 6, "", 0, 0)
-            pdf.cell(col_w, 6, clean_text(f"Contratada: {dados_filial.get('nome', '')}"), 0, 1, 'L')
+            # Contratante / Contratada com quebras
+            x_left = left_margin
+            y_row = pdf.get_y()
+            pdf.set_xy(x_left, y_row)
+            pdf.multi_cell(col_w, 6, clean_text(f"Contratante: {cliente_nome}"), 0, 'L')
+            height_left = pdf.get_y() - y_row
+            x_right = left_margin + col_w + 10
+            pdf.set_xy(x_right, y_row)
+            pdf.multi_cell(col_w, 6, clean_text(f"Contratada: {dados_filial.get('nome', '')}"), 0, 'L')
+            height_right = pdf.get_y() - y_row
+            row_h = max(height_left, height_right)
+            pdf.set_y(y_row + row_h)
             cnpj_cli = format_cnpj(cliente_cnpj) if cliente_cnpj else ""
-            pdf.set_x(left_margin)
-            pdf.cell(col_w, 6, clean_text(f"CNPJ: {cnpj_cli}"), 0, 0, 'L')
-            pdf.cell(10, 6, "", 0, 0)
-            pdf.cell(col_w, 6, clean_text(f"CNPJ: {dados_filial.get('cnpj', '')}"), 0, 1, 'L')
+            y_row = pdf.get_y()
+            pdf.set_xy(x_left, y_row)
+            pdf.multi_cell(col_w, 6, clean_text(f"CNPJ: {cnpj_cli}"), 0, 'L')
+            height_left = pdf.get_y() - y_row
+            pdf.set_xy(x_right, y_row)
+            pdf.multi_cell(col_w, 6, clean_text(f"CNPJ: {dados_filial.get('cnpj', '')}"), 0, 'L')
+            height_right = pdf.get_y() - y_row
+            row_h = max(height_left, height_right)
+            pdf.set_y(y_row + row_h)
             pdf.ln(16)
             # Testemunhas
             for i in range(2):
