@@ -131,7 +131,6 @@ class MainWindow:
         # Relatórios
         self.relatorios_module = add_module("📋 Relatórios", "interface.modules.relatorios", "RelatoriosModule")
         # Consultas
-        self.consultas_module = add_module("🔍 Consultas", "interface.modules.consultas", "ConsultasModule")
         # Usuários e Permissões (apenas admin)
         if self.has_role('admin'):
             self.usuarios_module = add_module("👤 Usuários", "interface.modules.usuarios", "UsuariosModule")
