@@ -401,12 +401,12 @@ class LocacoesModule(BaseModule):
 		try:
 			conn = sqlite3.connect(DB_NAME)
 			c = conn.cursor()
-			c.execute("SELECT MAX(CAST(SUBSTR(numero_proposta, 6) AS INTEGER)) FROM cotacoes WHERE numero_proposta LIKE 'PROP-%'")
+			c.execute("SELECT MAX(CAST(SUBSTR(numero_proposta, 5) AS INTEGER)) FROM cotacoes WHERE tipo_cotacao='Locação' AND numero_proposta LIKE 'LOC-%'")
 			result = c.fetchone()
 			proximo = (result[0] + 1) if (result and result[0]) else 1
-			return f"PROP-{proximo:06d}"
+			return f"LOC-{proximo:06d}"
 		except Exception:
-			return f"PROP-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+			return f"LOC-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 		finally:
 			try:
 				conn.close()
