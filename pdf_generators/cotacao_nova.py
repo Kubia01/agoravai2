@@ -814,12 +814,11 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             # =====================================================
             # PÁGINAS 7 A 13: TERMOS E CONDIÇÕES GERAIS (LOCAÇÃO)
             # =====================================================
-            # Página 7: imagem do equipamento novamente e título
-            # Ajustar margens para corpo do contrato
-            pdf.set_top_margin(45)
+            # Ajustar margens para corpo do contrato (mais afastado do cabeçalho/rodapé)
+            pdf.set_top_margin(60)
             pdf.set_auto_page_break(auto=True, margin=35)
             pdf.add_page()
-            pdf.set_y(45)
+            pdf.set_y(60)
             imagem_p7 = None
             try:
                 # Reaproveitar a imagem do primeiro item de locação, se houver
@@ -843,11 +842,11 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 except Exception:
                     w, h = 140, 55
                 x = (210 - w) / 2
-                y = 45
+                y = 60
                 pdf.image(imagem_p7, x=x, y=y, w=w, h=h)
                 pdf.set_y(y + h + 8)
             else:
-                pdf.set_y(50)
+                pdf.set_y(65)
             pdf.set_text_color(*pdf.baby_blue)
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(0, 8, clean_text("TERMOS E CONDIÇÕES GERAIS DE LOCAÇÃO DE EQUIPAMENTO"), 0, 1, 'L')
@@ -896,7 +895,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 "3- CLÁUSULA TERCEIRA – DAS CONDIÇÕES DE PAGAMENTO\n"
                 "3.1 O CONTRATANTE pagará à World Comp o valor descrito e em conformidade com as condições constantes da Proposta Comercial.\n"
                 "3.1.2 A CONTRATANTE efetuará os pagamentos através de boleto bancário ou depósito em conta, servindo os respectivos comprovantes de pagamento claramente identificados como prova de quitação, salvo se previsto de forma contrária na Proposta.\n"
-                "3.2 A ausência de pagamento na data estipulada, inclusive na hipótese de não recebimento do boleto bancário, observado o disposto na Cláusula acima, implicará na incidência de multa moratória de 2% (doia por cento) sobre o valor do débito, além de juros de 1% (um por cento) ao mês, calculados “pro rata dia”, a partir do dia seguinte ao do vencimento.\n"
+                "3.2 A ausência de pagamento na data estipulada, inclusive na hipótese de não recebimento do boleto bancário, observado o disposto na Cláusula acima, implicará na incidência de multa moratória de 2% (doia por cento) sobre o valor do débito, além de juros de 1% (um por cento) ao mês, calculados "pro rata dia", a partir do dia seguinte ao do vencimento.\n"
                 "3.2.1 Caso o atraso dos pagamentos devidos pelo CONTRATANTE prolongue-se por prazo superior a 03 (três) meses consecutivos, a World Comp poderá encerrar o Contrato imediatamente.\n"
                 "3.3 O preço mencionado na proposta comercial será reajustado automaticamente a cada 12 (doze) meses de vigência contratual ou em períodos inferiores, caso a legislação da época assim permita.\n"
                 "3.4 O preço ora estabelecido está sujeito à renegociação, na hipótese de qualquer mudança nas condições operacionais dos equipamentos sob contrato.\n"
@@ -997,7 +996,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         # =====================================================
         # PÁGINA 5: RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS
         # =====================================================
-        if relacao_pecas_substituir:
+        if relacao_pecas_substituir and not ((tipo_cotacao or '').lower() in ('locação','locacao')):
             pdf.add_page()
             pdf.begin_section('relacao', top_first=35, bottom_first=40, top_cont=130, bottom_cont=40, title="RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS")
             pdf.set_y(35)
@@ -1009,207 +1008,207 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             pdf.end_section()
 
         # =====================================================
-        # PÁGINAS SEGUINTES: DETALHES DA PROPOSTA
+        # PÁGINAS SEGUINTES: DETALHES DA PROPOSTA (somente não-locação)
         # =====================================================
-        pdf.add_page()
-        
-        # Dados da proposta
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 8, clean_text(f"PROPOSTA Nº {numero_proposta}"), 0, 1, 'L')
-        pdf.set_font("Arial", '', 11)
-        pdf.cell(0, 6, clean_text(f"Data: {format_date(data_criacao)}"), 0, 1, 'L')
-        pdf.cell(0, 6, clean_text(f"Responsável: {responsavel_nome}"), 0, 1, 'L')
-        pdf.cell(0, 6, clean_text(f"Telefone Responsável: {format_phone(responsavel_telefone)}"), 0, 1, 'L')
-        pdf.ln(10)
-
-        # Dados do cliente
-        pdf.set_font("Arial", 'B', 11)
-        pdf.cell(0, 6, clean_text("DADOS DO CLIENTE:"), 0, 1, 'L')
-        pdf.set_font("Arial", '', 11)
-        
-        cliente_nome_display = cliente_nome_fantasia if cliente_nome_fantasia else cliente_nome
-        pdf.cell(0, 5, clean_text(f"Empresa: {cliente_nome_display}"), 0, 1, 'L')
-        if cliente_cnpj:
-            pdf.cell(0, 5, clean_text(f"CNPJ: {format_cnpj(cliente_cnpj)}"), 0, 1, 'L')
-        if contato_nome and contato_nome != "Não informado":
-            pdf.cell(0, 5, clean_text(f"Contato: {contato_nome}"), 0, 1, 'L')
-        pdf.ln(5)
-
-        # Dados do compressor
-        if modelo_compressor or numero_serie_compressor:
-            pdf.set_font("Arial", 'B', 11)
-            pdf.cell(0, 6, clean_text("DADOS DO COMPRESSOR:"), 0, 1, 'L')
-            pdf.set_font("Arial", '', 11)
-            if modelo_compressor:
-                pdf.cell(0, 5, clean_text(f"Modelo: {modelo_compressor}"), 0, 1, 'L')
-            if numero_serie_compressor:
-                pdf.cell(0, 5, clean_text(f"Nº de Série: {numero_serie_compressor}"), 0, 1, 'L')
-            pdf.ln(5)
-
-        # Descrição - GARANTIR que não seja vazia
-        pdf.set_font("Arial", 'B', 11)
-        pdf.cell(0, 6, clean_text("DESCRIÇÃO DO SERVIÇO:"), 0, 1, 'L')
-        pdf.set_font("Arial", '', 11)
-        descricao_final = descricao_atividade if descricao_atividade and descricao_atividade.strip() else "Fornecimento de peças e serviços para compressor"
-        pdf.multi_cell(0, 5, clean_text(descricao_final))
-        pdf.ln(10)
-
-        # Relação de Peças - GARANTIR que seja exibida corretamente
-        if relacao_pecas and relacao_pecas.strip():
-            relacao_sem_prefixo = relacao_pecas.replace("Serviço: ", "").replace("Produto: ", "").replace("Kit: ", "")
-            pdf.set_font("Arial", 'B', 11)
-            pdf.cell(0, 6, clean_text("RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS:"), 0, 1, 'L')
-            pdf.set_font("Arial", '', 11)
-            pdf.multi_cell(0, 5, clean_text(relacao_sem_prefixo))
-            pdf.ln(5)
-
-        # ITENS DA PROPOSTA - CORRIGIDO
-        # =============================
-        if itens_cotacao:
+        if not ((tipo_cotacao or '').lower() in ('locação','locacao')):
+            pdf.add_page()
+            # Dados da proposta
             pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 8, clean_text("ITENS DA PROPOSTA"), 0, 1, 'C')
-            pdf.ln(5)
-
-            # Configurar larguras das colunas para ocupar toda a largura da página
-            # Largura total disponível: ~195 (210 - 10 - 5) para margens
-            page_width = 195
-            col_widths = [20, 85, 25, 35, 30]  # Total: 195
-            
-            # Cabeçalho da tabela - posicionando nas bordas
-            pdf.set_x(10)  # Margem esquerda
-            pdf.set_fill_color(50, 100, 150)
-            pdf.set_text_color(255, 255, 255)
-            pdf.set_font("Arial", 'B', 11)
-            pdf.cell(col_widths[0], 8, clean_text("Item"), 1, 0, 'C', 1)
-            pdf.cell(col_widths[1], 8, clean_text("Descrição"), 1, 0, 'L', 1)
-            pdf.cell(col_widths[2], 8, clean_text("Qtd."), 1, 0, 'C', 1)
-            pdf.cell(col_widths[3], 8, clean_text("Valor Unitário"), 1, 0, 'R', 1)
-            pdf.cell(col_widths[4], 8, clean_text("Valor Total"), 1, 1, 'R', 1)
-
-            pdf.set_text_color(0, 0, 0)
+            pdf.cell(0, 8, clean_text(f"PROPOSTA Nº {numero_proposta}"), 0, 1, 'L')
             pdf.set_font("Arial", '', 11)
-            item_counter = 1
-            
-            for item in itens_cotacao:
-                (item_id, item_tipo, item_nome, quantidade, descricao, 
-                 valor_unitario, valor_total_item, 
-                 mao_obra, deslocamento, estadia, produto_id, tipo_operacao) = item
-                
-                # DEBUG: Verificar valores vindos do banco
-                print(f"DEBUG Item {item_counter}:")
-                print(f"  - ID: {item_id}")
-                print(f"  - Tipo: {item_tipo}")
-                print(f"  - Nome: {item_nome}")
-                print(f"  - Quantidade: {quantidade}")
-                print(f"  - Descrição: '{descricao}'")
-                print(f"  - Valor Unitário: {valor_unitario}")
-                print(f"  - Valor Total: {valor_total_item}")
-                print(f"  - Produto ID: {produto_id}")
-                
-                # GARANTIR que descrição não seja vazia ou None
-                if not descricao or str(descricao).strip() == '' or str(descricao).lower() in ['none', 'null']:
-                    descricao = item_nome if item_nome else "Descrição não informada"
-                    print(f"  - Descrição corrigida para: '{descricao}'")
-                
-                # TRATAMENTO ESPECIAL PARA KITS E SERVIÇOS (como modelo antigo)
-                descricao_final = descricao
-                
-                # Adicionar prefixo baseado no tipo de operação
-                if tipo_operacao == "Locação":
-                    prefixo = "Locação - "
-                else:
-                    prefixo = ""
-                
-                if item_tipo == "Kit" and produto_id:
-                    # Obter composição do kit
-                    composicao = PDFCotacao.obter_composicao_kit(produto_id)
-                    descricao_final = f"{prefixo}Kit: {item_nome}\nComposição:\n" + "\n".join(composicao)
-                
-                elif item_tipo == "Serviço":
-                    descricao_final = f"{prefixo}Serviço: {item_nome}"
-                    if mao_obra or deslocamento or estadia:
-                        descricao_final += "\nDetalhes:"
-                        if mao_obra:
-                            descricao_final += f"\n- Mão de obra: R${mao_obra:.2f}"
-                        if deslocamento:
-                            descricao_final += f"\n- Deslocamento: R${deslocamento:.2f}"
-                        if estadia:
-                            descricao_final += f"\n- Estadia: R${estadia:.2f}"
-                
-                else:  # Produto
-                    descricao_final = f"{prefixo}{item_nome}"
-                
-                # Calcular altura baseada no número de linhas
-                num_linhas = descricao_final.count('\n') + 1
-                altura_total = max(num_linhas * 6, 6)
-
-                # Primeira linha - nome principal do item
-                pdf.set_x(10)
-                pdf.cell(col_widths[0], altura_total, str(item_counter), 1, 0, 'C')
-
-                # Descrição principal - usar multi_cell para quebrar texto
-                x_pos = pdf.get_x()
-                y_pos = pdf.get_y()
-
-                # Usar multi_cell para quebrar texto automaticamente
-                pdf.multi_cell(col_widths[1], 6, clean_text(descricao_final), 1, 'L')
-
-                # Calcular nova posição Y após o texto
-                new_y = pdf.get_y()
-                altura_real = new_y - y_pos
-
-                # Voltar para posição original das outras colunas
-                pdf.set_xy(x_pos + col_widths[1], y_pos)
-
-                # Quantidade
-                pdf.cell(col_widths[2], altura_real, str(int(quantidade)), 1, 0, 'C')
-
-                # Valor Unitário
-                pdf.cell(col_widths[3], altura_real, clean_text(f"R$ {valor_unitario:.2f}"), 1, 0, 'R')
-
-                # Valor Total
-                pdf.cell(col_widths[4], altura_real, clean_text(f"R$ {valor_total_item:.2f}"), 1, 1, 'R')
-                
-                item_counter += 1
-
-            # Linha do valor total - alinhada com a tabela
-            pdf.set_x(10)  # Mesma margem esquerda da tabela
-            pdf.set_font("Arial", 'B', 12)
-            pdf.set_fill_color(200, 200, 200)
-            pdf.set_text_color(0, 0, 0)
-            pdf.cell(sum(col_widths[0:4]), 10, clean_text("VALOR TOTAL DA PROPOSTA:"), 1, 0, 'R', 1)
-            pdf.cell(col_widths[4], 10, clean_text(f"R$ {valor_total:.2f}"), 1, 1, 'R', 1)
+            pdf.cell(0, 6, clean_text(f"Data: {format_date(data_criacao)}"), 0, 1, 'L')
+            pdf.cell(0, 6, clean_text(f"Responsável: {responsavel_nome}"), 0, 1, 'L')
+            pdf.cell(0, 6, clean_text(f"Telefone Responsável: {format_phone(responsavel_telefone)}"), 0, 1, 'L')
             pdf.ln(10)
 
-        # Condições comerciais
-        pdf.set_font("Arial", 'B', 11)
-        pdf.cell(0, 6, clean_text("CONDIÇÕES COMERCIAIS:"), 0, 1, 'L')
-        pdf.set_font("Arial", '', 11)
-        pdf.cell(0, 5, clean_text(f"Tipo de Frete: {tipo_frete if tipo_frete else 'FOB'}"), 0, 1, 'L')
-        pdf.cell(0, 5, clean_text(f"Condição de Pagamento: {condicao_pagamento if condicao_pagamento else 'A combinar'}"), 0, 1, 'L')
-        pdf.cell(0, 5, clean_text(f"Prazo de Entrega: {prazo_entrega if prazo_entrega else 'A combinar'}"), 0, 1, 'L')
-        pdf.cell(0, 5, clean_text(f"Moeda: {moeda if moeda else 'BRL (Real Brasileiro)'}"), 0, 1, 'L')
-        pdf.ln(5)
-
-        # Observações se houver
-        if observacoes and observacoes.strip():
+            # Dados do cliente
             pdf.set_font("Arial", 'B', 11)
-            pdf.cell(0, 6, clean_text("OBSERVAÇÕES:"), 0, 1, 'L')
+            pdf.cell(0, 6, clean_text("DADOS DO CLIENTE:"), 0, 1, 'L')
             pdf.set_font("Arial", '', 11)
-            pdf.multi_cell(0, 5, clean_text(observacoes))
+            
+            cliente_nome_display = cliente_nome_fantasia if cliente_nome_fantasia else cliente_nome
+            pdf.cell(0, 5, clean_text(f"Empresa: {cliente_nome_display}"), 0, 1, 'L')
+            if cliente_cnpj:
+                pdf.cell(0, 5, clean_text(f"CNPJ: {format_cnpj(cliente_cnpj)}"), 0, 1, 'L')
+            if contato_nome and contato_nome != "Não informado":
+                pdf.cell(0, 5, clean_text(f"Contato: {contato_nome}"), 0, 1, 'L')
+            pdf.ln(5)
 
-        # Salvar PDF
-        output_dir = os.path.join("data", "cotacoes", "arquivos")
-        os.makedirs(output_dir, exist_ok=True)
-        file_name = f"Proposta_{numero_proposta.replace('/', '_').replace(' ', '')}.pdf"
-        pdf_path = os.path.join(output_dir, file_name)
-        pdf.output(pdf_path)
+            # Dados do compressor
+            if modelo_compressor or numero_serie_compressor:
+                pdf.set_font("Arial", 'B', 11)
+                pdf.cell(0, 6, clean_text("DADOS DO COMPRESSOR:"), 0, 1, 'L')
+                pdf.set_font("Arial", '', 11)
+                if modelo_compressor:
+                    pdf.cell(0, 5, clean_text(f"Modelo: {modelo_compressor}"), 0, 1, 'L')
+                if numero_serie_compressor:
+                    pdf.cell(0, 5, clean_text(f"Nº de Série: {numero_serie_compressor}"), 0, 1, 'L')
+                pdf.ln(5)
 
-        # Atualizar caminho do PDF no banco de dados
-        c.execute("UPDATE cotacoes SET caminho_arquivo_pdf=? WHERE id=?", (pdf_path, cot_id))
-        conn.commit()
+            # Descrição - GARANTIR que não seja vazia
+            pdf.set_font("Arial", 'B', 11)
+            pdf.cell(0, 6, clean_text("DESCRIÇÃO DO SERVIÇO:"), 0, 1, 'L')
+            pdf.set_font("Arial", '', 11)
+            descricao_final = descricao_atividade if descricao_atividade and descricao_atividade.strip() else "Fornecimento de peças e serviços para compressor"
+            pdf.multi_cell(0, 5, clean_text(descricao_final))
+            pdf.ln(10)
 
-        return True, pdf_path
+            # Relação de Peças - GARANTIR que seja exibida corretamente
+            if relacao_pecas and relacao_pecas.strip():
+                relacao_sem_prefixo = relacao_pecas.replace("Serviço: ", "").replace("Produto: ", "").replace("Kit: ", "")
+                pdf.set_font("Arial", 'B', 11)
+                pdf.cell(0, 6, clean_text("RELAÇÃO DE PEÇAS A SEREM SUBSTITUÍDAS:"), 0, 1, 'L')
+                pdf.set_font("Arial", '', 11)
+                pdf.multi_cell(0, 5, clean_text(relacao_sem_prefixo))
+                pdf.ln(5)
+
+            # ITENS DA PROPOSTA - CORRIGIDO
+            # =============================
+            if itens_cotacao:
+                pdf.set_font("Arial", 'B', 12)
+                pdf.cell(0, 8, clean_text("ITENS DA PROPOSTA"), 0, 1, 'C')
+                pdf.ln(5)
+
+                # Configurar larguras das colunas para ocupar toda a largura da página
+                # Largura total disponível: ~195 (210 - 10 - 5) para margens
+                page_width = 195
+                col_widths = [20, 85, 25, 35, 30]  # Total: 195
+                
+                # Cabeçalho da tabela - posicionando nas bordas
+                pdf.set_x(10)  # Margem esquerda
+                pdf.set_fill_color(50, 100, 150)
+                pdf.set_text_color(255, 255, 255)
+                pdf.set_font("Arial", 'B', 11)
+                pdf.cell(col_widths[0], 8, clean_text("Item"), 1, 0, 'C', 1)
+                pdf.cell(col_widths[1], 8, clean_text("Descrição"), 1, 0, 'L', 1)
+                pdf.cell(col_widths[2], 8, clean_text("Qtd."), 1, 0, 'C', 1)
+                pdf.cell(col_widths[3], 8, clean_text("Valor Unitário"), 1, 0, 'R', 1)
+                pdf.cell(col_widths[4], 8, clean_text("Valor Total"), 1, 1, 'R', 1)
+
+                pdf.set_text_color(0, 0, 0)
+                pdf.set_font("Arial", '', 11)
+                item_counter = 1
+                
+                for item in itens_cotacao:
+                    (item_id, item_tipo, item_nome, quantidade, descricao, 
+                     valor_unitario, valor_total_item, 
+                     mao_obra, deslocamento, estadia, produto_id, tipo_operacao) = item
+                    
+                    # DEBUG: Verificar valores vindos do banco
+                    print(f"DEBUG Item {item_counter}:")
+                    print(f"  - ID: {item_id}")
+                    print(f"  - Tipo: {item_tipo}")
+                    print(f"  - Nome: {item_nome}")
+                    print(f"  - Quantidade: {quantidade}")
+                    print(f"  - Descrição: '{descricao}'")
+                    print(f"  - Valor Unitário: {valor_unitario}")
+                    print(f"  - Valor Total: {valor_total_item}")
+                    print(f"  - Produto ID: {produto_id}")
+                    
+                    # GARANTIR que descrição não seja vazia ou None
+                    if not descricao or str(descricao).strip() == '' or str(descricao).lower() in ['none', 'null']:
+                        descricao = item_nome if item_nome else "Descrição não informada"
+                        print(f"  - Descrição corrigida para: '{descricao}'")
+                    
+                    # TRATAMENTO ESPECIAL PARA KITS E SERVIÇOS (como modelo antigo)
+                    descricao_final = descricao
+                    
+                    # Adicionar prefixo baseado no tipo de operação
+                    if tipo_operacao == "Locação":
+                        prefixo = "Locação - "
+                    else:
+                        prefixo = ""
+                    
+                    if item_tipo == "Kit" and produto_id:
+                        # Obter composição do kit
+                        composicao = PDFCotacao.obter_composicao_kit(produto_id)
+                        descricao_final = f"{prefixo}Kit: {item_nome}\nComposição:\n" + "\n".join(composicao)
+                    
+                    elif item_tipo == "Serviço":
+                        descricao_final = f"{prefixo}Serviço: {item_nome}"
+                        if mao_obra or deslocamento or estadia:
+                            descricao_final += "\nDetalhes:"
+                            if mao_obra:
+                                descricao_final += f"\n- Mão de obra: R${mao_obra:.2f}"
+                            if deslocamento:
+                                descricao_final += f"\n- Deslocamento: R${deslocamento:.2f}"
+                            if estadia:
+                                descricao_final += f"\n- Estadia: R${estadia:.2f}"
+                    
+                    else:  # Produto
+                        descricao_final = f"{prefixo}{item_nome}"
+                    
+                    # Calcular altura baseada no número de linhas
+                    num_linhas = descricao_final.count('\n') + 1
+                    altura_total = max(num_linhas * 6, 6)
+
+                    # Primeira linha - nome principal do item
+                    pdf.set_x(10)
+                    pdf.cell(col_widths[0], altura_total, str(item_counter), 1, 0, 'C')
+
+                    # Descrição principal - usar multi_cell para quebrar texto
+                    x_pos = pdf.get_x()
+                    y_pos = pdf.get_y()
+
+                    # Usar multi_cell para quebrar texto automaticamente
+                    pdf.multi_cell(col_widths[1], 6, clean_text(descricao_final), 1, 'L')
+
+                    # Calcular nova posição Y após o texto
+                    new_y = pdf.get_y()
+                    altura_real = new_y - y_pos
+
+                    # Voltar para posição original das outras colunas
+                    pdf.set_xy(x_pos + col_widths[1], y_pos)
+
+                    # Quantidade
+                    pdf.cell(col_widths[2], altura_real, str(int(quantidade)), 1, 0, 'C')
+
+                    # Valor Unitário
+                    pdf.cell(col_widths[3], altura_real, clean_text(f"R$ {valor_unitario:.2f}"), 1, 0, 'R')
+
+                    # Valor Total
+                    pdf.cell(col_widths[4], altura_real, clean_text(f"R$ {valor_total_item:.2f}"), 1, 1, 'R')
+                    
+                    item_counter += 1
+
+                # Linha do valor total - alinhada com a tabela
+                pdf.set_x(10)  # Mesma margem esquerda da tabela
+                pdf.set_font("Arial", 'B', 12)
+                pdf.set_fill_color(200, 200, 200)
+                pdf.set_text_color(0, 0, 0)
+                pdf.cell(sum(col_widths[0:4]), 10, clean_text("VALOR TOTAL DA PROPOSTA:"), 1, 0, 'R', 1)
+                pdf.cell(col_widths[4], 10, clean_text(f"R$ {valor_total:.2f}"), 1, 1, 'R', 1)
+                pdf.ln(10)
+
+            # Condições comerciais
+            pdf.set_font("Arial", 'B', 11)
+            pdf.cell(0, 6, clean_text("CONDIÇÕES COMERCIAIS:"), 0, 1, 'L')
+            pdf.set_font("Arial", '', 11)
+            pdf.cell(0, 5, clean_text(f"Tipo de Frete: {tipo_frete if tipo_frete else 'FOB'}"), 0, 1, 'L')
+            pdf.cell(0, 5, clean_text(f"Condição de Pagamento: {condicao_pagamento if condicao_pagamento else 'A combinar'}"), 0, 1, 'L')
+            pdf.cell(0, 5, clean_text(f"Prazo de Entrega: {prazo_entrega if prazo_entrega else 'A combinar'}"), 0, 1, 'L')
+            pdf.cell(0, 5, clean_text(f"Moeda: {moeda if moeda else 'BRL (Real Brasileiro)'}"), 0, 1, 'L')
+            pdf.ln(5)
+
+            # Observações se houver
+            if observacoes and observacoes.strip():
+                pdf.set_font("Arial", 'B', 11)
+                pdf.cell(0, 6, clean_text("OBSERVAÇÕES:"), 0, 1, 'L')
+                pdf.set_font("Arial", '', 11)
+                pdf.multi_cell(0, 5, clean_text(observacoes))
+
+            # Salvar PDF
+            output_dir = os.path.join("data", "cotacoes", "arquivos")
+            os.makedirs(output_dir, exist_ok=True)
+            file_name = f"Proposta_{numero_proposta.replace('/', '_').replace(' ', '')}.pdf"
+            pdf_path = os.path.join(output_dir, file_name)
+            pdf.output(pdf_path)
+
+            # Atualizar caminho do PDF no banco de dados
+            c.execute("UPDATE cotacoes SET caminho_arquivo_pdf=? WHERE id=?", (pdf_path, cot_id))
+            conn.commit()
+
+            return True, pdf_path
 
     except Exception as e:
         return False, f"Erro ao gerar PDF: {str(e)}"
