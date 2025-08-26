@@ -311,14 +311,27 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
         # 2. CAPA PERSONALIZADA SOBREPOSTA (se disponível)
         # 2.1 Tentar template do banco (template_image_path) do usuário
         template_jpeg_path = None
+        print(f"DEBUG: Buscando template para usuário: {responsavel_username}")
+        
         c.execute("SELECT template_personalizado, template_image_path FROM usuarios WHERE username = ?", (responsavel_username,))
         tu = c.fetchone()
-        if tu and tu[0] and tu[1] and os.path.exists(tu[1]):
-            template_jpeg_path = tu[1]
+        if tu:
+            print(f"DEBUG: Template encontrado - Personalizado: {tu[0]}, Caminho: {tu[1]}")
+            if tu[0] and tu[1] and os.path.exists(tu[1]):
+                template_jpeg_path = tu[1]
+                print(f"DEBUG: Usando template do banco: {template_jpeg_path}")
+            else:
+                print(f"DEBUG: Template não encontrado ou arquivo não existe")
         else:
+            print(f"DEBUG: Usuário não encontrado na tabela usuarios")
+        
+        if not template_jpeg_path:
             # fallback para mapeamento estático
             template_jpeg_path = obter_template_capa_jpeg(responsavel_username)
+            print(f"DEBUG: Usando template estático: {template_jpeg_path}")
+            
         if template_jpeg_path and os.path.exists(template_jpeg_path):
+            print(f"DEBUG: Aplicando template na capa: {template_jpeg_path}")
             # Adicionar capa personalizada reduzida e posicionada
             capa_width = 120  # Largura reduzida
             capa_height = 120  # Altura reduzida  
@@ -326,6 +339,8 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
             y_pos = 105  # Posição Y no terço superior
             
             pdf.image(template_jpeg_path, x=x_pos, y=y_pos, w=capa_width, h=capa_height)
+        else:
+            print(f"DEBUG: Nenhum template válido encontrado para {responsavel_username}")
         # Não exibir nenhum texto na capa
         pdf.set_text_color(0, 0, 0)
 
@@ -1090,7 +1105,10 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
 
             # ITENS DA PROPOSTA - CORRIGIDO
             # =============================
-            if itens_cotacao:
+            # SEMPRE mostrar tabela de itens para cotações de compra (não locação)
+            if itens_cotacao and (tipo_cotacao or '').lower() not in ['locação', 'locacao']:
+                print(f"DEBUG: Gerando tabela de itens para cotação de COMPRA com {len(itens_cotacao)} itens")
+                
                 pdf.set_font("Arial", 'B', 12)
                 pdf.cell(0, 8, clean_text("ITENS DA PROPOSTA"), 0, 1, 'C')
                 pdf.ln(5)
@@ -1205,6 +1223,8 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 pdf.cell(sum(col_widths[0:4]), 10, clean_text("VALOR TOTAL DA PROPOSTA:"), 1, 0, 'R', 1)
                 pdf.cell(col_widths[4], 10, clean_text(f"R$ {valor_total:.2f}"), 1, 1, 'R', 1)
                 pdf.ln(10)
+            else:
+                print(f"DEBUG: Não gerando tabela de itens - Tipo: {tipo_cotacao}, Itens: {len(itens_cotacao) if itens_cotacao else 0}")
 
             # Condições comerciais
             pdf.set_font("Arial", 'B', 11)
