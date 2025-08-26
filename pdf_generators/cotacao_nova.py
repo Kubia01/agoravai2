@@ -939,49 +939,58 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
 
             # Renderizar texto com quebras automáticas até o fim (páginas 7..13)
             pdf.multi_cell(0, 5, clean_text(full_text))
-            # Página 14 - Assinaturas e encerramento
+            # Página 14 - Assinaturas e encerramento (com margens seguras)
             pdf.add_page()
-            pdf.set_y(35)
+            left_margin = 15
+            right_margin = 15
+            usable_width = 210 - left_margin - right_margin
+            pdf.set_xy(left_margin, 35)
             pdf.set_text_color(*pdf.baby_blue)
             pdf.set_font("Arial", 'B', 12)
-            pdf.cell(0, 8, clean_text("ENCERRAMENTO E ASSINATURAS"), 0, 1, 'L')
+            pdf.cell(usable_width, 8, clean_text("ENCERRAMENTO E ASSINATURAS"), 0, 1, 'L')
             pdf.set_text_color(0, 0, 0)
             pdf.set_font("Arial", '', 11)
             texto_final = (
                 "Para dirimir definitivamente quaisquer dúvidas decorrentes do presente ajuste, as partes elegem, de comum acordo, o foro de São Bernardo do Campo, São Paulo, com renúncia expressa de qualquer outro, por mais especial que seja. \n\n"
                 "E, por estarem assim justas e contratadas, as partes assinam o presente instrumento em 02 (duas) vias de igual teor e para os mesmos fins e efeitos de direito, juntamente com as 02 (duas) testemunhas abaixo."
             )
-            pdf.multi_cell(0, 6, clean_text(texto_final))
+            pdf.set_x(left_margin)
+            pdf.multi_cell(usable_width, 6, clean_text(texto_final))
             pdf.ln(8)
             data_long = format_date_long_pt(data_criacao)
-            pdf.cell(0, 6, clean_text(f"São Bernardo do Campo, {data_long}."), 0, 1, 'L')
+            pdf.set_x(left_margin)
+            pdf.cell(usable_width, 6, clean_text(f"São Bernardo do Campo, {data_long}."), 0, 1, 'L')
             pdf.ln(16)
-            # Linhas e labels de assinatura
-            # Contratante
-            pdf.cell(90, 6, clean_text("______________________________________"), 0, 0, 'L')
+            # Linhas e labels de assinatura com margens
+            col_w = (usable_width - 10) / 2
+            pdf.set_x(left_margin)
+            pdf.cell(col_w, 6, clean_text("______________________________________"), 0, 0, 'L')
             pdf.cell(10, 6, "", 0, 0)
-            # Contratada
-            pdf.cell(90, 6, clean_text("______________________________________"), 0, 1, 'L')
-            pdf.cell(90, 6, clean_text(f"Contratante: {cliente_nome}"), 0, 0, 'L')
+            pdf.cell(col_w, 6, clean_text("______________________________________"), 0, 1, 'L')
+            pdf.set_x(left_margin)
+            pdf.cell(col_w, 6, clean_text(f"Contratante: {cliente_nome}"), 0, 0, 'L')
             pdf.cell(10, 6, "", 0, 0)
-            pdf.cell(90, 6, clean_text(f"Contratada: {dados_filial.get('nome', '')}"), 0, 1, 'L')
-            # CNPJs
+            pdf.cell(col_w, 6, clean_text(f"Contratada: {dados_filial.get('nome', '')}"), 0, 1, 'L')
             cnpj_cli = format_cnpj(cliente_cnpj) if cliente_cnpj else ""
-            pdf.cell(90, 6, clean_text(f"CNPJ: {cnpj_cli}"), 0, 0, 'L')
+            pdf.set_x(left_margin)
+            pdf.cell(col_w, 6, clean_text(f"CNPJ: {cnpj_cli}"), 0, 0, 'L')
             pdf.cell(10, 6, "", 0, 0)
-            pdf.cell(90, 6, clean_text(f"CNPJ: {dados_filial.get('cnpj', '')}"), 0, 1, 'L')
+            pdf.cell(col_w, 6, clean_text(f"CNPJ: {dados_filial.get('cnpj', '')}"), 0, 1, 'L')
             pdf.ln(16)
-            # Testemunhas (linhas duplas)
+            # Testemunhas
             for i in range(2):
-                pdf.cell(90, 6, clean_text("______________________________________"), 0, 0, 'L')
+                pdf.set_x(left_margin)
+                pdf.cell(col_w, 6, clean_text("______________________________________"), 0, 0, 'L')
                 pdf.cell(10, 6, "", 0, 0)
-                pdf.cell(90, 6, clean_text("_______________________________________"), 0, 1, 'L')
-                pdf.cell(90, 6, clean_text("Nome:"), 0, 0, 'L')
+                pdf.cell(col_w, 6, clean_text("_______________________________________"), 0, 1, 'L')
+                pdf.set_x(left_margin)
+                pdf.cell(col_w, 6, clean_text("Nome:"), 0, 0, 'L')
                 pdf.cell(10, 6, "", 0, 0)
-                pdf.cell(90, 6, clean_text("Nome:"), 0, 1, 'L')
-                pdf.cell(90, 6, clean_text("CPF:"), 0, 0, 'L')
+                pdf.cell(col_w, 6, clean_text("Nome:"), 0, 1, 'L')
+                pdf.set_x(left_margin)
+                pdf.cell(col_w, 6, clean_text("CPF:"), 0, 0, 'L')
                 pdf.cell(10, 6, "", 0, 0)
-                pdf.cell(90, 6, clean_text("CPF:"), 0, 1, 'L')
+                pdf.cell(col_w, 6, clean_text("CPF:"), 0, 1, 'L')
         else:
             # Compra: manter comportamento existente
             if esboco_servico:
