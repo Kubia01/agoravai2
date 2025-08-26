@@ -603,21 +603,22 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             if imagem_pagina4:
                 try:
                     from PIL import Image
-                    max_w, max_h = 130, 70
+                    # ~30% menor que a configuração anterior
+                    max_w, max_h = 90, 49
                     img = Image.open(imagem_pagina4)
                     iw, ih = img.size
                     ratio = min(max_w / iw, max_h / ih)
                     w = iw * ratio
                     h = ih * ratio
                 except Exception:
-                    w, h = 120, 65
+                    w, h = 85, 45
                 x = (210 - w) / 2
                 y = pdf.get_y()
-                if y < 55:
-                    y = 55
+                if y < 60:
+                    y = 60
                 if y + h > 270:
                     pdf.add_page()
-                    y = 55
+                    y = 60
                 pdf.image(imagem_pagina4, x=x, y=y, w=w, h=h)
                 pdf.set_y(y + h + 6)
             # Bloco de cobertura total conforme especificação
@@ -838,10 +839,10 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             # PÁGINAS 7 A 13: TERMOS E CONDIÇÕES GERAIS (LOCAÇÃO)
             # =====================================================
             # Ajustar margens para corpo do contrato (mais afastado do cabeçalho/rodapé)
-            pdf.set_top_margin(70)
+            pdf.set_top_margin(77)
             pdf.set_auto_page_break(auto=True, margin=35)
             pdf.add_page()
-            pdf.set_y(70)
+            pdf.set_y(77)
             imagem_p7 = None
             try:
                 # Reaproveitar a imagem do primeiro item de locação, se houver
@@ -856,20 +857,21 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             if imagem_p7:
                 try:
                     from PIL import Image
-                    max_w, max_h = 140, 50
+                    # ~30% menor que a configuração anterior
+                    max_w, max_h = 100, 35
                     img = Image.open(imagem_p7)
                     iw, ih = img.size
                     ratio = min(max_w / iw, max_h / ih)
                     w = iw * ratio
                     h = ih * ratio
                 except Exception:
-                    w, h = 120, 45
+                    w, h = 90, 30
                 x = (210 - w) / 2
-                y = 70
+                y = 77
                 pdf.image(imagem_p7, x=x, y=y, w=w, h=h)
                 pdf.set_y(y + h + 8)
             else:
-                pdf.set_y(75)
+                pdf.set_y(82)
             pdf.set_text_color(*pdf.baby_blue)
             pdf.set_font("Arial", 'B', 12)
             pdf.cell(0, 8, clean_text("TERMOS E CONDIÇÕES GERAIS DE LOCAÇÃO DE EQUIPAMENTO"), 0, 1, 'L')
