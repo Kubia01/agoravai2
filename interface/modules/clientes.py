@@ -1044,7 +1044,7 @@ Contatos Cadastrados: {total_contatos}"""
                         nome = ?, nome_fantasia = ?, cnpj = ?, inscricao_estadual = ?,
                         inscricao_municipal = ?, endereco = ?, numero = ?, complemento = ?,
                         bairro = ?, cidade = ?, estado = ?, cep = ?, telefone = ?, email = ?,
-                        site = ?, prazo_pagamento = ?, updated_at = CURRENT_TIMESTAMP
+                        site = ?, prazo_pagamento = ?, updated_at = datetime('now')
                     WHERE id = ?
                 """, dados + (self.current_cliente_id,))
             else:
@@ -1053,8 +1053,8 @@ Contatos Cadastrados: {total_contatos}"""
                     INSERT INTO clientes (nome, nome_fantasia, cnpj, inscricao_estadual,
                                         inscricao_municipal, endereco, numero, complemento,
                                         bairro, cidade, estado, cep, telefone, email,
-                                        site, prazo_pagamento)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                        site, prazo_pagamento, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
                 """, dados)
                 
                 self.current_cliente_id = c.lastrowid

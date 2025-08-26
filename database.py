@@ -39,7 +39,7 @@ def criar_banco():
 		telefone TEXT,
 		template_personalizado BOOLEAN DEFAULT 0,
 		template_image_path TEXT,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		created_at TIMESTAMP DEFAULT (datetime('now'))
 	)''')
 	
 	# Tabela Clientes
@@ -56,7 +56,7 @@ def criar_banco():
 		observacoes TEXT,
 		ativo BOOLEAN DEFAULT 1,
 		prazo_pagamento TEXT,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		created_at TIMESTAMP DEFAULT (datetime('now'))
 	)''')
 	
 	# Tabela Contatos
@@ -70,7 +70,7 @@ def criar_banco():
 		celular TEXT,
 		observacoes TEXT,
 		ativo BOOLEAN DEFAULT 1,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		created_at TIMESTAMP DEFAULT (datetime('now')),
 		FOREIGN KEY (cliente_id) REFERENCES clientes(id)
 	)''')
 	
@@ -83,7 +83,7 @@ def criar_banco():
 		valor_unitario REAL DEFAULT 0,
 		descricao TEXT,
 		ativo BOOLEAN DEFAULT 1,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		created_at TIMESTAMP DEFAULT (datetime('now'))
 	)''')
 	
 	# Tabela Itens de Kit
@@ -92,7 +92,7 @@ def criar_banco():
 		kit_id INTEGER NOT NULL,
 		produto_id INTEGER NOT NULL,
 		quantidade REAL NOT NULL DEFAULT 1,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		created_at TIMESTAMP DEFAULT (datetime('now')),
 		FOREIGN KEY (kit_id) REFERENCES produtos(id),
 		FOREIGN KEY (produto_id) REFERENCES produtos(id)
 	)''')
@@ -127,7 +127,7 @@ def criar_banco():
 		locacao_qtd_meses INTEGER,
 		locacao_nome_equipamento TEXT,
 		locacao_imagem_path TEXT,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		created_at TIMESTAMP DEFAULT (datetime('now')),
 		FOREIGN KEY (cliente_id) REFERENCES clientes(id),
 		FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
 	)''')
@@ -153,7 +153,7 @@ def criar_banco():
 		locacao_data_fim DATE,
 		locacao_qtd_meses INTEGER,
 		locacao_imagem_path TEXT,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		created_at TIMESTAMP DEFAULT (datetime('now')),
 		FOREIGN KEY (cotacao_id) REFERENCES cotacoes(id),
 		FOREIGN KEY (produto_id) REFERENCES produtos(id),
 		FOREIGN KEY (kit_id) REFERENCES itens_cotacao(id)
@@ -202,7 +202,7 @@ def criar_banco():
 		anexos_aba3 TEXT,
 		anexos_aba4 TEXT,
 		filial_id INTEGER DEFAULT 2,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		created_at TIMESTAMP DEFAULT (datetime('now')),
 		FOREIGN KEY (cliente_id) REFERENCES clientes(id),
 		FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
 	)''')
@@ -213,7 +213,7 @@ def criar_banco():
 		usuario_id INTEGER NOT NULL,
 		modulo TEXT NOT NULL,
 		nivel_acesso TEXT NOT NULL DEFAULT 'sem_acesso',
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		created_at TIMESTAMP DEFAULT (datetime('now')),
 		FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
 		UNIQUE(usuario_id, modulo)
 	)''')
@@ -226,7 +226,7 @@ def criar_banco():
 		data_hora TEXT NOT NULL,
 		evento TEXT NOT NULL,
 		tipo TEXT NOT NULL,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		created_at TIMESTAMP DEFAULT (datetime('now')),
 		FOREIGN KEY (relatorio_id) REFERENCES relatorios_tecnicos(id),
 		FOREIGN KEY (tecnico_id) REFERENCES usuarios(id)
 	)''')
@@ -243,7 +243,7 @@ def criar_banco():
 		telefones TEXT,
 		email TEXT,
 		ativo BOOLEAN DEFAULT 1,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		created_at TIMESTAMP DEFAULT (datetime('now'))
 	)''')
 	
 	# Inserir dados iniciais
