@@ -874,7 +874,7 @@ Contatos Cadastrados: {total_contatos}"""
         contatos_buttons = tk.Frame(add_contato_frame, bg='white')
         contatos_buttons.pack(fill="x", pady=(10, 0))
 
-        adicionar_contato_btn = self.create_button(contatos_buttons, "Adicionar Contato", self.adicionar_contato)
+        adicionar_contato_btn = self.create_button(contatos_buttons, "Salvar Contato", self.adicionar_contato)
         adicionar_contato_btn.pack(side="left", padx=(0, 10))
 
         limpar_contato_btn = self.create_button(contatos_buttons, "Limpar Campos", self.limpar_contato, bg='#e2e8f0', fg='#475569')
@@ -1275,18 +1275,11 @@ Contatos Cadastrados: {total_contatos}"""
             conn.close()
 
     def adicionar_contato(self):
-        """Adicionar novo contato ao cliente"""
-        # Se ainda não houver cliente salvo, tentar salvar rapidamente antes de adicionar contato
+        """Adicionar novo contato ao cliente (sem salvar o cliente automaticamente)"""
+        # Exigir cliente previamente salvo para associar contato
         if not self.current_cliente_id:
-            nome_temp = self.nome_var.get().strip()
-            if not nome_temp:
-                self.show_warning("Preencha o nome do cliente antes de adicionar um contato.")
-                return
-            # Salvar o cliente rapidamente para gerar ID
-            self.salvar_cliente()
-            if not self.current_cliente_id:
-                # Falhou ao salvar
-                return
+            self.show_warning("Salve o cliente antes de salvar um contato (use 'Salvar Cliente').")
+            return
          
         nome = self.contato_nome_var.get().strip()
         if not nome:
@@ -1319,12 +1312,12 @@ Contatos Cadastrados: {total_contatos}"""
             """, dados_contato)
             conn.commit()
             
-            self.show_success("Contato adicionado com sucesso!")
+            self.show_success("Contato salvo com sucesso!")
             self.limpar_contato() # Limpar campos do novo contato
             self.carregar_cliente_para_edicao(self.current_cliente_id) # Recarregar cliente com novo contato
             
         except sqlite3.Error as e:
-            self.show_error(f"Erro ao adicionar contato: {e}")
+            self.show_error(f"Erro ao salvar contato: {e}")
         finally:
             conn.close()
             
