@@ -33,7 +33,7 @@ class LocacoesModule(BaseModule):
 		form_panel.grid(row=0, column=0, sticky="nsew", padx=(10, 10), pady=(10, 10))
 		form_panel.grid_columnconfigure(0, weight=1)
 
-		# Buttons footer
+		# Buttons footer (top)
 		self._create_buttons(form_panel)
 
 		# Scrollable form
@@ -71,6 +71,7 @@ class LocacoesModule(BaseModule):
 		lista_buttons.pack(side="bottom", fill="x", pady=(10, 0))
 		editar_btn = self.create_button(lista_buttons, "Editar", self.editar)
 		editar_btn.pack(side="left", padx=(0, 10))
+		# Manter apenas o botão inferior direito de PDF
 		gerar_pdf_lista_btn = self.create_button(lista_buttons, "Gerar PDF", self.gerar_pdf, bg='#10b981')
 		gerar_pdf_lista_btn.pack(side="right")
 
@@ -101,8 +102,7 @@ class LocacoesModule(BaseModule):
 		nova_btn.pack(side="left", padx=(0, 10))
 		salvar_btn = self.create_button(buttons_frame, "Salvar Locação", self.salvar)
 		salvar_btn.pack(side="left", padx=(0, 10))
-		gerar_pdf_btn = self.create_button(buttons_frame, "Gerar PDF", self.gerar_pdf, bg='#10b981')
-		gerar_pdf_btn.pack(side="right")
+		# Removido botão superior de Gerar PDF (manter apenas o inferior direito)
 
 	def _create_form_content(self, parent):
 		main_grid = tk.Frame(parent, bg='white')
@@ -122,6 +122,7 @@ class LocacoesModule(BaseModule):
 		self.filial_var = tk.StringVar(value="2")
 		self.modelo_var = tk.StringVar()
 		self.observacoes_var = tk.StringVar()
+		self.condicao_pagamento_var = tk.StringVar()
 
 		tk.Label(dados, text="Número da Proposta *:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
 		tk.Entry(dados, textvariable=self.numero_var, font=('Arial', 10), width=30).grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
@@ -149,6 +150,10 @@ class LocacoesModule(BaseModule):
 
 		tk.Label(dados, text="Modelo do Compressor:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
 		tk.Entry(dados, textvariable=self.modelo_var, font=('Arial', 10), width=50).grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
+		row += 1
+
+		tk.Label(dados, text="Condição de Pagamento *:", font=('Arial', 10, 'bold'), bg='white').grid(row=row, column=0, sticky="w", pady=5)
+		tk.Entry(dados, textvariable=self.condicao_pagamento_var, font=('Arial', 10), width=50).grid(row=row, column=1, sticky="ew", padx=(10, 0), pady=5)
 		row += 1
 
 		# Observações
@@ -213,6 +218,12 @@ class LocacoesModule(BaseModule):
 		self.create_button(img_item_frame, "Selecionar...", lambda: self._pick_image_into(self.item_imagem_var), bg='#10b981').pack(side="right", padx=(5, 0))
 		row += 1
 
+		# Ações de imagem do item selecionado
+		actions_frame = tk.Frame(parent, bg='white')
+		actions_frame.pack(fill="x", pady=(0, 8))
+		self.create_button(actions_frame, "Usar imagem no item selecionado", self._aplicar_imagem_item_selecionado, bg='#64748b').pack(side="left", padx=(5, 5))
+		self.create_button(actions_frame, "Remover imagem do item selecionado", self._remover_imagem_item_selecionado, bg='#dc2626').pack(side="left", padx=(0, 5))
+
 		add_btn = self.create_button(add_frame, "Adicionar Item", self._adicionar_item)
 		add_btn.grid(row=row, column=0, columnspan=2, pady=10)
 
@@ -257,6 +268,29 @@ class LocacoesModule(BaseModule):
 										  filetypes=[("Imagens", "*.jpg *.jpeg *.png *.bmp *.gif"), ("Todos", "*.*")])
 		if path:
 			var.set(path)
+
+	def _aplicar_imagem_item_selecionado(self):
+		selected = self.itens_tree.selection()
+		if not selected:
+			self.show_warning("Selecione um item para aplicar a imagem.")
+			return
+		img = self.item_imagem_var.get().strip()
+		item_id = selected[0]
+		vals = list(self.itens_tree.item(item_id)['values'])
+		if len(vals) == 9:
+			vals[8] = img
+			self.itens_tree.item(item_id, values=tuple(vals))
+
+	def _remover_imagem_item_selecionado(self):
+		selected = self.itens_tree.selection()
+		if not selected:
+			self.show_warning("Selecione um item para remover a imagem.")
+			return
+		item_id = selected[0]
+		vals = list(self.itens_tree.item(item_id)['values'])
+		if len(vals) == 9:
+			vals[8] = ""
+			self.itens_tree.item(item_id, values=tuple(vals))
 
 	def _adicionar_item(self):
 		nome = self.item_nome_var.get().strip()
@@ -380,11 +414,15 @@ class LocacoesModule(BaseModule):
 	def salvar(self):
 		numero = self.numero_var.get().strip()
 		cliente_str = self.cliente_var.get().strip()
+		cond_pgto = self.condicao_pagamento_var.get().strip()
 		if not numero:
 			self.show_warning("Informe o número da proposta.")
 			return
 		if not cliente_str:
 			self.show_warning("Selecione um cliente.")
+			return
+		if not cond_pgto:
+			self.show_warning("Informe a Condição de Pagamento.")
 			return
 		cliente_id = self.clientes_dict.get(cliente_str)
 		if not cliente_id:
@@ -401,7 +439,6 @@ class LocacoesModule(BaseModule):
 				except ValueError:
 					pass
 
-		# Outros campos
 		data_validade = None
 		filial_str = self.filial_var.get()
 		filial_id = int(filial_str.split(' - ')[0]) if ' - ' in filial_str else int(filial_str)
@@ -423,7 +460,7 @@ class LocacoesModule(BaseModule):
 					(
 						numero, cliente_id, self.user_id, filial_id, datetime.now().strftime('%Y-%m-%d'),
 						data_validade, self.modelo_var.get().strip(), self.observacoes_text.get("1.0", tk.END).strip(), total, "Em Aberto",
-						"", "", "", "",
+						cond_pgto, "", "", "",
 						"Locação", self.contato_cliente_var.get().strip(),
 						self.current_cotacao_id,
 					),
@@ -442,7 +479,7 @@ class LocacoesModule(BaseModule):
 					""",
 					(
 						numero, cliente_id, self.user_id, datetime.now().strftime('%Y-%m-%d'), None,
-						self.modelo_var.get().strip(), self.observacoes_text.get("1.0", tk.END).strip(), total, "Em Aberto", "", "",
+						self.modelo_var.get().strip(), self.observacoes_text.get("1.0", tk.END).strip(), total, "Em Aberto", cond_pgto, "",
 						filial_id, "", "", "Locação",
 						self.contato_cliente_var.get().strip(),
 					),
@@ -450,7 +487,7 @@ class LocacoesModule(BaseModule):
 				cotacao_id = c.lastrowid
 				self.current_cotacao_id = cotacao_id
 
-			# Inserir itens (como locação) com dados por item (datas e imagem)
+			# Inserir itens com imagem por item
 			for iid in self.itens_tree.get_children():
 				(nome, qtd, valor_unit_fmt, meses, inicio_fmt, fim_fmt, total_fmt, desc, imagem) = self.itens_tree.item(iid)['values']
 				quantidade = float(qtd)
@@ -492,6 +529,7 @@ class LocacoesModule(BaseModule):
 		self.contato_cliente_var.set("")
 		self.filial_var.set("2")
 		self.modelo_var.set("")
+		self.condicao_pagamento_var.set("")
 		self.observacoes_text.delete("1.0", tk.END)
 		for iid in self.itens_tree.get_children():
 			self.itens_tree.delete(iid)
@@ -629,7 +667,7 @@ class LocacoesModule(BaseModule):
 			c.execute(
 				"""
 				SELECT id, numero_proposta, cliente_id, responsavel_id, filial_id, data_validade, modelo_compressor,
-				       observacoes, valor_total, status, contato_nome
+				       observacoes, valor_total, status, contato_nome, condicao_pagamento
 				FROM cotacoes
 				WHERE id = ? AND tipo_cotacao = 'Locação'
 				""",
@@ -641,7 +679,7 @@ class LocacoesModule(BaseModule):
 				return
 			(
 				cid, numero, cliente_id, responsavel_id, filial_id, data_validade, modelo_compressor,
-				observacoes, valor_total, status, contato_nome,
+				observacoes, valor_total, status, contato_nome, cond_pgto
 			) = row
 			self.current_cotacao_id = cid
 			self.numero_var.set(numero)
@@ -657,9 +695,10 @@ class LocacoesModule(BaseModule):
 					self.contato_cliente_var.set(contato_nome)
 				except Exception:
 					pass
-			# filial
+			# filial e campos
 			self.filial_var.set(str(filial_id))
 			self.modelo_var.set(modelo_compressor or "")
+			self.condicao_pagamento_var.set(cond_pgto or "")
 			self.observacoes_text.delete("1.0", tk.END)
 			if observacoes:
 				self.observacoes_text.insert("1.0", observacoes)
@@ -677,6 +716,7 @@ class LocacoesModule(BaseModule):
 				""",
 				(cid,),
 			)
+			first_img = ""
 			for (nome, qtd, valor_unit, meses, inicio, fim, total_item, desc, img) in c.fetchall():
 				self.itens_tree.insert(
 					"", "end",
@@ -692,7 +732,12 @@ class LocacoesModule(BaseModule):
 						img or "",
 					),
 				)
+				if not first_img and img:
+					first_img = img
 			self._update_total()
+			# Prefill image field with first item's image to allow keeping/changing
+			if first_img:
+				self.item_imagem_var.set(first_img)
 		except sqlite3.Error as e:
 			self.show_error(f"Erro ao carregar locação: {e}")
 		finally:
@@ -726,3 +771,7 @@ class LocacoesModule(BaseModule):
 		if end.day >= start.day:
 			months += 1
 		return months if months > 0 else 1
+
+	def handle_event(self, event_type, data=None):
+		if event_type in ('cliente_created', 'cliente_updated'):
+			self._refresh_clientes()
