@@ -9,13 +9,13 @@ os.makedirs(DATA_DIR, exist_ok=True)
 def criar_banco():
 	conn = sqlite3.connect(DB_NAME)
 	c = conn.cursor()
-
+	
 	# Tabela Usuários
 	c.execute('''CREATE TABLE IF NOT EXISTS usuarios (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		username TEXT NOT NULL UNIQUE,
+		username TEXT UNIQUE NOT NULL,
 		password TEXT NOT NULL,
-		role TEXT NOT NULL DEFAULT 'operador',
+		role TEXT DEFAULT 'operador',
 		nome_completo TEXT,
 		email TEXT,
 		telefone TEXT,
@@ -24,181 +24,75 @@ def criar_banco():
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	)''')
 	
-	# Migração: Adicionar colunas se não existirem
-	try:
-		c.execute("ALTER TABLE usuarios ADD COLUMN template_personalizado BOOLEAN DEFAULT 0")
-	except sqlite3.OperationalError:
-		pass  # Coluna já existe
-		
-	try:
-		c.execute("ALTER TABLE usuarios ADD COLUMN template_image_path TEXT")
-	except sqlite3.OperationalError:
-		pass  # Coluna já existe
-		
-	# Migração: Adicionar colunas para cotações se não existirem
-	try:
-		c.execute("ALTER TABLE cotacoes ADD COLUMN esboco_servico TEXT")
-	except sqlite3.OperationalError:
-		pass  # Coluna já existe
-		
-	try:
-		c.execute("ALTER TABLE cotacoes ADD COLUMN relacao_pecas_substituir TEXT")
-	except sqlite3.OperationalError:
-		pass  # Coluna já existe
-		
-	# Migração: Adicionar coluna para tipo de operação nos itens
-	try:
-		c.execute("ALTER TABLE itens_cotacao ADD COLUMN tipo_operacao TEXT DEFAULT 'Compra'")
-	except sqlite3.OperationalError:
-		pass  # Coluna já existe
-
-	# Migração: Adicionar colunas para Locação nas cotações
-	try:
-		c.execute("ALTER TABLE cotacoes ADD COLUMN tipo_cotacao TEXT DEFAULT 'Compra'")
-	except sqlite3.OperationalError:
-		pass
-	try:
-		c.execute("ALTER TABLE cotacoes ADD COLUMN locacao_valor_mensal REAL")
-	except sqlite3.OperationalError:
-		pass
-	try:
-		c.execute("ALTER TABLE cotacoes ADD COLUMN locacao_data_inicio DATE")
-	except sqlite3.OperationalError:
-		pass
-	try:
-		c.execute("ALTER TABLE cotacoes ADD COLUMN locacao_data_fim DATE")
-	except sqlite3.OperationalError:
-		pass
-	try:
-		c.execute("ALTER TABLE cotacoes ADD COLUMN locacao_qtd_meses INTEGER")
-	except sqlite3.OperationalError:
-		pass
-	try:
-		c.execute("ALTER TABLE cotacoes ADD COLUMN locacao_nome_equipamento TEXT")
-	except sqlite3.OperationalError:
-		pass
-
-	# Migração: Adicionar coluna para imagem da locação
-	try:
-		c.execute("ALTER TABLE cotacoes ADD COLUMN locacao_imagem_path TEXT")
-	except sqlite3.OperationalError:
-		pass  # Coluna já existe
-
-	# Migração: Adicionar coluna para contato do cliente na cotação
-	try:
-		c.execute("ALTER TABLE cotacoes ADD COLUMN contato_nome TEXT")
-	except sqlite3.OperationalError:
-		pass  # Coluna já existe
-
-	# Migração: Adicionar colunas de locação por item em itens_cotacao
-	try:
-		c.execute("ALTER TABLE itens_cotacao ADD COLUMN locacao_data_inicio DATE")
-	except sqlite3.OperationalError:
-		pass
-	try:
-		c.execute("ALTER TABLE itens_cotacao ADD COLUMN locacao_data_fim DATE")
-	except sqlite3.OperationalError:
-		pass
-	try:
-		c.execute("ALTER TABLE itens_cotacao ADD COLUMN locacao_qtd_meses INTEGER")
-	except sqlite3.OperationalError:
-		pass
-	# Migração: Imagem por item de locação
-	try:
-		c.execute("ALTER TABLE itens_cotacao ADD COLUMN locacao_imagem_path TEXT")
-	except sqlite3.OperationalError:
-		pass
-
-	# Tabela Clientes - ATUALIZADA
+	# Tabela Clientes
 	c.execute('''CREATE TABLE IF NOT EXISTS clientes (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		nome TEXT NOT NULL,
-		nome_fantasia TEXT,
 		cnpj TEXT UNIQUE,
-		inscricao_estadual TEXT,
-		inscricao_municipal TEXT,
+		email TEXT,
+		telefone TEXT,
 		endereco TEXT,
-		numero TEXT,
-		complemento TEXT,
-		bairro TEXT,
 		cidade TEXT,
 		estado TEXT,
 		cep TEXT,
-		telefone TEXT,
-		email TEXT,
-		site TEXT,
-		prazo_pagamento TEXT,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		observacoes TEXT,
+		ativo BOOLEAN DEFAULT 1,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	)''')
-
-	# Tabela Contatos do Cliente - NOVA
+	
+	# Tabela Contatos
 	c.execute('''CREATE TABLE IF NOT EXISTS contatos (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		cliente_id INTEGER NOT NULL,
 		nome TEXT NOT NULL,
 		cargo TEXT,
-		telefone TEXT,
 		email TEXT,
+		telefone TEXT,
+		celular TEXT,
 		observacoes TEXT,
+		ativo BOOLEAN DEFAULT 1,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (cliente_id) REFERENCES clientes(id) ON DELETE CASCADE
+		FOREIGN KEY (cliente_id) REFERENCES clientes(id)
 	)''')
-
-	# Tabela Técnicos
-	c.execute('''CREATE TABLE IF NOT EXISTS tecnicos (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		nome TEXT NOT NULL,
-		especialidade TEXT,
-		telefone TEXT,
-		email TEXT,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	)''')
-
-	# Tabela Produtos/Serviços/Kits
+	
+	# Tabela Produtos
 	c.execute('''CREATE TABLE IF NOT EXISTS produtos (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		nome TEXT NOT NULL,
-		tipo TEXT NOT NULL CHECK (tipo IN ('Serviço', 'Produto', 'Kit')),
+		tipo TEXT NOT NULL,
 		ncm TEXT,
 		valor_unitario REAL DEFAULT 0,
 		descricao TEXT,
 		ativo BOOLEAN DEFAULT 1,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	)''')
-
-	# Tabela Itens do Kit - RENOMEADA
+	
+	# Tabela Itens de Kit
 	c.execute('''CREATE TABLE IF NOT EXISTS kit_items (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		kit_id INTEGER NOT NULL,
 		produto_id INTEGER NOT NULL,
 		quantidade REAL NOT NULL DEFAULT 1,
-		FOREIGN KEY (kit_id) REFERENCES produtos(id) ON DELETE CASCADE,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (kit_id) REFERENCES produtos(id),
 		FOREIGN KEY (produto_id) REFERENCES produtos(id)
 	)''')
-
+	
 	# Tabela Cotações
 	c.execute('''CREATE TABLE IF NOT EXISTS cotacoes (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		numero_proposta TEXT NOT NULL UNIQUE,
 		cliente_id INTEGER NOT NULL,
 		responsavel_id INTEGER NOT NULL,
-		filial_id INTEGER DEFAULT 2,
 		data_criacao DATE NOT NULL,
-		data_validade DATE,
-		modelo_compressor TEXT,
-		numero_serie_compressor TEXT,
-		descricao_atividade TEXT,
-		observacoes TEXT,
-		valor_total REAL DEFAULT 0,
-		tipo_frete TEXT DEFAULT 'FOB',
-		condicao_pagamento TEXT,
-		contato_nome TEXT,
+		validade DATE,
+		condicoes_pagamento TEXT,
 		prazo_entrega TEXT,
-		moeda TEXT DEFAULT 'BRL',
-		status TEXT DEFAULT 'Em Aberto',
-		caminho_arquivo_pdf TEXT,
+		observacoes TEXT,
+		status TEXT DEFAULT 'Pendente',
+		total_geral REAL DEFAULT 0,
+		desconto REAL DEFAULT 0,
+		valor_final REAL DEFAULT 0,
 		relacao_pecas TEXT,
 		esboco_servico TEXT,
 		relacao_pecas_substituir TEXT,
@@ -321,6 +215,32 @@ def criar_banco():
 		FOREIGN KEY (relatorio_id) REFERENCES relatorios_tecnicos(id),
 		FOREIGN KEY (tecnico_id) REFERENCES usuarios(id)
 	)''')
+
+	# Atualizar tabela relatorios_tecnicos existente se necessário
+	try:
+		c.execute("ALTER TABLE relatorios_tecnicos ADD COLUMN anexos_aba1 TEXT")
+	except sqlite3.OperationalError:
+		pass  # Coluna já existe
+		
+	try:
+		c.execute("ALTER TABLE relatorios_tecnicos ADD COLUMN anexos_aba2 TEXT")
+	except sqlite3.OperationalError:
+		pass  # Coluna já existe
+		
+	try:
+		c.execute("ALTER TABLE relatorios_tecnicos ADD COLUMN anexos_aba3 TEXT")
+	except sqlite3.OperationalError:
+		pass  # Coluna já existe
+		
+	try:
+		c.execute("ALTER TABLE relatorios_tecnicos ADD COLUMN anexos_aba4 TEXT")
+	except sqlite3.OperationalError:
+		pass  # Coluna já existe
+		
+	try:
+		c.execute("ALTER TABLE relatorios_tecnicos ADD COLUMN filial_id INTEGER DEFAULT 2")
+	except sqlite3.OperationalError:
+		pass  # Coluna já existe
 
 	conn.commit()
 	conn.close()

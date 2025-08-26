@@ -732,7 +732,7 @@ class RelatoriosModule(BaseModule):
                 'descricao': f'Anexo da Aba {aba_numero}'
             }
             self.anexos_aba[aba_numero].append(anexo_info)
-            listbox.insert(tk.END, nome_anexo)
+            listbox.insert(tk.END, nome_arquivo)
         
     def remover_anexo(self, aba_numero):
         """Remover anexo selecionado"""
