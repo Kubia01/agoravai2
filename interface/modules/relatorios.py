@@ -144,6 +144,9 @@ class RelatoriosModule(BaseModule):
         # Dados iniciais
         self.refresh_all_data()
         
+        # Listener para eventos de usuários
+        self.bind_event('usuario_created', self.on_usuario_created)
+        
     def create_header(self, parent):
         header_frame = tk.Frame(parent, bg='#f8fafc')
         header_frame.pack(fill="x", pady=(0, 10))
@@ -380,7 +383,7 @@ class RelatoriosModule(BaseModule):
             "Parafusos/Pinos",
             "Superfície Vedação",
             "Engrenagens",
-            "Bico Injertor",
+            "Bico Injetor",
             "Rolamentos",
             "Aspecto Óleo",
             "Data"
@@ -545,6 +548,11 @@ class RelatoriosModule(BaseModule):
         self.refresh_tecnicos()
         self.refresh_cotacoes()
         self.carregar_relatorios()
+        
+    def on_usuario_created(self, event_data=None):
+        """Evento disparado quando um novo usuário é criado"""
+        print("DEBUG: Evento usuario_created recebido, atualizando lista de técnicos...")
+        self.refresh_tecnicos()
         
     def refresh_clientes(self):
         """Atualizar lista de clientes"""
@@ -724,7 +732,7 @@ class RelatoriosModule(BaseModule):
                 'descricao': f'Anexo da Aba {aba_numero}'
             }
             self.anexos_aba[aba_numero].append(anexo_info)
-            listbox.insert(tk.END, nome_arquivo)
+            listbox.insert(tk.END, nome_anexo)
         
     def remover_anexo(self, aba_numero):
         """Remover anexo selecionado"""
@@ -901,7 +909,7 @@ class RelatoriosModule(BaseModule):
                 self.aba2_vars.get("Parafusos/Pinos", tk.StringVar()).get(),
                 self.aba2_vars.get("Superfície Vedação", tk.StringVar()).get(),
                 self.aba2_vars.get("Engrenagens", tk.StringVar()).get(),
-                self.aba2_vars.get("Bico Injertor", tk.StringVar()).get(),
+                self.aba2_vars.get("Bico Injetor", tk.StringVar()).get(),
                 self.aba2_vars.get("Rolamentos", tk.StringVar()).get(),
                 self.aba2_vars.get("Aspecto Óleo", tk.StringVar()).get(),
                 self.aba2_vars.get("Data", tk.StringVar()).get(),
@@ -940,7 +948,7 @@ class RelatoriosModule(BaseModule):
                         condicao_encontrada = ?, placa_identificacao = ?, acoplamento = ?,
                         aspectos_rotores = ?, valvulas_acopladas = ?, data_recebimento_equip = ?,
                         parafusos_pinos = ?, superficie_vedacao = ?, engrenagens = ?,
-                        bico_injertor = ?, rolamentos = ?, aspecto_oleo = ?, data_peritagem = ?,
+                        bico_injetor = ?, rolamentos = ?, aspecto_oleo = ?, data_peritagem = ?,
                         interf_desmontagem = ?, aspecto_rotores_aba3 = ?, aspecto_carcaca = ?,
                         interf_mancais = ?, galeria_hidraulica = ?, data_desmembracao = ?,
                         servicos_propostos = ?, pecas_recomendadas = ?, data_pecas = ?,
@@ -961,7 +969,7 @@ class RelatoriosModule(BaseModule):
                         formulario_servico, tipo_servico, descricao_servico, data_recebimento,
                         condicao_encontrada, placa_identificacao, acoplamento, aspectos_rotores,
                         valvulas_acopladas, data_recebimento_equip, parafusos_pinos, superficie_vedacao,
-                        engrenagens, bico_injertor, rolamentos, aspecto_oleo, data_peritagem,
+                        engrenagens, bico_injetor, rolamentos, aspecto_oleo, data_peritagem,
                         interf_desmontagem, aspecto_rotores_aba3, aspecto_carcaca, interf_mancais,
                         galeria_hidraulica, data_desmembracao, servicos_propostos, pecas_recomendadas,
                         data_pecas, cotacao_id, tempo_trabalho_total, tempo_deslocamento_total,
@@ -1141,7 +1149,7 @@ class RelatoriosModule(BaseModule):
                     self.aba1_vars[campo].set(relatorio[9 + i] or "")
             
             # Aba 2 (índices 15-21)
-            aba2_campos = ["Parafusos/Pinos", "Superfície Vedação", "Engrenagens", "Bico Injertor", "Rolamentos", "Aspecto Óleo", "Data"]
+            aba2_campos = ["Parafusos/Pinos", "Superfície Vedação", "Engrenagens", "Bico Injetor", "Rolamentos", "Aspecto Óleo", "Data"]
             for i, campo in enumerate(aba2_campos):
                 if campo in self.aba2_vars:
                     self.aba2_vars[campo].set(relatorio[15 + i] or "")

@@ -288,8 +288,38 @@ def criar_banco():
 		tempo_deslocamento_total TEXT,
 		fotos TEXT,
 		assinaturas TEXT,
+		anexos_aba1 TEXT,
+		anexos_aba2 TEXT,
+		anexos_aba3 TEXT,
+		anexos_aba4 TEXT,
+		filial_id INTEGER DEFAULT 2,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (cotacao_id) REFERENCES cotacoes(id)
+		FOREIGN KEY (cliente_id) REFERENCES clientes(id),
+		FOREIGN KEY (responsavel_id) REFERENCES usuarios(id)
+	)''')
+
+	# Tabela de Permissões de Usuários
+	c.execute('''CREATE TABLE IF NOT EXISTS permissoes_usuarios (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		usuario_id INTEGER NOT NULL,
+		modulo TEXT NOT NULL,
+		nivel_acesso TEXT NOT NULL DEFAULT 'sem_acesso',
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+		UNIQUE(usuario_id, modulo)
+	)''')
+
+	# Tabela de Eventos de Campo
+	c.execute('''CREATE TABLE IF NOT EXISTS eventos_campo (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		relatorio_id INTEGER NOT NULL,
+		tecnico_id INTEGER NOT NULL,
+		data_hora TEXT NOT NULL,
+		evento TEXT NOT NULL,
+		tipo TEXT NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (relatorio_id) REFERENCES relatorios_tecnicos(id),
+		FOREIGN KEY (tecnico_id) REFERENCES usuarios(id)
 	)''')
 
 	conn.commit()

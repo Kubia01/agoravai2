@@ -283,6 +283,9 @@ class UsuariosModule(BaseModule):
             conn.commit()
             self.show_success("Usuário salvo com sucesso!")
             
+            # Emitir evento para atualizar outros módulos
+            self.emit_event('usuario_created')
+            
             self.carregar_usuarios()
             
         except sqlite3.IntegrityError as e:
