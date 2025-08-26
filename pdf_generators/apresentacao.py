@@ -156,7 +156,7 @@ def gerar_pdf_apresentacao(output_path: str = None) -> tuple:
 		pdf.set_text_color(0, 0, 0)
 		pdf.set_font("Arial", '', 10)
 		for (t, cols) in db.get("tables", [])[:20]:  # limitar listagem
-			pdf.cell(0, 5, f"• {t}: {', '.join(cols) if cols else '(colunas não mapeadas)'}", 0, 1, 'L')
+			pdf.cell(0, 5, f"- {t}: {', '.join(cols) if cols else '(colunas não mapeadas)'}", 0, 1, 'L')
 		pdf.ln(3)
 
 		# Seção: Estrutura de módulos (detalhada)
