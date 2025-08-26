@@ -127,6 +127,12 @@ distribuicao/
 test_*.py
 DEBUG_*.md
 
+# Permitir documentação versionada em data/docs
+!data/docs/
+!data/docs/**
+!data/docs/*.pdf
+!data/docs/*.docx
+
 # PyInstaller específico
 *.spec
 build/
