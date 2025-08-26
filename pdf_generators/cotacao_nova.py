@@ -577,7 +577,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
         if (tipo_cotacao or '').lower() == 'locação' or (tipo_cotacao or '').lower() == 'locacao':
             # Página 4 específica de Locação
             pdf.add_page()
-            pdf.set_y(35)
+            pdf.set_y(50)
 
             # Determinar título dinâmico a partir do "Modelo do Compressor" informado na Locação
             modelo_titulo = None
@@ -685,7 +685,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             # PÁGINA 5: TABELA DE ITENS VENDIDOS (EQUIPAMENTOS DA LOCAÇÃO)
             # =====================================================
             pdf.add_page()
-            pdf.set_y(35)
+            pdf.set_y(50)
             pdf.set_text_color(*pdf.baby_blue)
             pdf.set_font("Arial", 'B', 14)
             pdf.cell(0, 10, clean_text("ITENS VENDIDOS - EQUIPAMENTOS DA LOCAÇÃO"), 0, 1, 'L')
