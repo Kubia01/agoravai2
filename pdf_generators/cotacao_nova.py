@@ -583,7 +583,6 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             modelo_titulo = None
             try:
                 for it in itens_cotacao or []:
-                    # (id, tipo, item_nome, quantidade, descricao, valor_unitario, valor_total_item, mao_obra, deslocamento, estadia, produto_id, tipo_operacao)
                     desc = it[4] if len(it) > 4 else None
                     tipo_oper = (it[11] if len(it) > 11 else '') or ''
                     if 'loca' in tipo_oper.lower() and desc:
@@ -593,23 +592,34 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                             break
             except Exception:
                 pass
-            if not modelo_titulo and modelo_compressor:
-                modelo_titulo = modelo_compressor
+            # Remover título do modelo acima da cobertura: não imprimiremos título de equipamento aqui
+            # Imagem dinâmica (se fornecida) ou fallback do banco de dados
+            imagem_pagina4 = None
+            if locacao_pagina4_image and os.path.exists(locacao_pagina4_image):
+                imagem_pagina4 = locacao_pagina4_image
+            elif 'locacao_imagem_path_db' in locals() and locacao_imagem_path_db and os.path.exists(locacao_imagem_path_db):
+                imagem_pagina4 = locacao_imagem_path_db
 
-            # Título da página 4: usar o Modelo do Compressor (dinâmico) ou fallback
-            pdf.set_text_color(*pdf.baby_blue)
-            pdf.set_font("Arial", 'B', 12)
-            titulo_pagina4 = modelo_titulo if (modelo_titulo and str(modelo_titulo).strip()) else "DETALHES DO EQUIPAMENTO"
-            pdf.cell(0, 8, clean_text(titulo_pagina4), 0, 1, 'L')
-            pdf.set_text_color(0, 0, 0)
-            pdf.set_font("Arial", '', 11)
-            # Mostrar nome do equipamento (se houver) abaixo do título
-            equip_name = (locacao_nome_equipamento_db or '').strip() if 'locacao_nome_equipamento_db' in locals() else ''
-            if equip_name:
-                pdf.set_font("Arial", 'B', 11)
-                pdf.cell(0, 6, clean_text(f"Equipamento: {equip_name}"), 0, 1, 'L')
-                pdf.set_font("Arial", '', 11)
-
+            if imagem_pagina4:
+                try:
+                    from PIL import Image
+                    max_w, max_h = 150, 90
+                    img = Image.open(imagem_pagina4)
+                    iw, ih = img.size
+                    ratio = min(max_w / iw, max_h / ih)
+                    w = iw * ratio
+                    h = ih * ratio
+                except Exception:
+                    w, h = 140, 80
+                x = (210 - w) / 2
+                y = pdf.get_y()
+                if y < 50:
+                    y = 50
+                if y + h > 270:
+                    pdf.add_page()
+                    y = 50
+                pdf.image(imagem_pagina4, x=x, y=y, w=w, h=h)
+                pdf.set_y(y + h + 6)
             # Bloco de cobertura total conforme especificação
             pdf.set_text_color(*pdf.baby_blue)
             pdf.set_font("Arial", 'B', 12)
@@ -630,7 +640,9 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             pdf.cell(0, 8, clean_text("EQUIPAMENTO A SER OFERTADO:"), 0, 1, 'L')
             pdf.set_text_color(0, 0, 0)
             pdf.set_font("Arial", 'B', 12)
-            equipamento_nome = None
+            # Não imprimir o nome do modelo aqui conforme solicitado
+            pdf.ln(2)
+
             # Tentar obter do primeiro item de locação
             try:
                 c.execute("SELECT item_nome, locacao_imagem_path FROM itens_cotacao WHERE cotacao_id = ? AND tipo_operacao = 'Locação' ORDER BY id LIMIT 1", (cot_id,))
@@ -688,7 +700,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             pdf.set_y(50)
             pdf.set_text_color(*pdf.baby_blue)
             pdf.set_font("Arial", 'B', 14)
-            pdf.cell(0, 10, clean_text("ITENS VENDIDOS - EQUIPAMENTOS DA LOCAÇÃO"), 0, 1, 'L')
+            pdf.cell(0, 10, clean_text("EQUIPAMENTOS"), 0, 1, 'L')
             pdf.ln(2)
 
             # Buscar itens de locação com meses
@@ -740,8 +752,14 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             pdf.set_font("Arial", 'B', 12)
             pdf.set_fill_color(200, 200, 200)
             pdf.set_text_color(0, 0, 0)
+            # Formatar em pt-BR: 32.500,00
+            def brl(v):
+                try:
+                    return ("R$ " + f"{v:,.2f}").replace(",", "@").replace(".", ",").replace("@", ".")
+                except Exception:
+                    return f"R$ {v:.2f}"
             pdf.cell(sum(col_w[:-1]), 10, clean_text("TOTAL GERAL:"), 1, 0, 'R', 1)
-            pdf.cell(col_w[-1], 10, clean_text(f"R$ {total_geral:.2f}"), 1, 1, 'R', 1)
+            pdf.cell(col_w[-1], 10, clean_text(brl(total_geral)), 1, 1, 'R', 1)
 
             # =====================================================
             # PÁGINA 6: CONDIÇÕES DE PAGAMENTO e CONDIÇÕES COMERCIAIS
@@ -775,7 +793,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 "contará a partir da entrega do equipamento nas dependencias da contratante, ( COM \n"
                 "FATURAMENTO ATRAVÉS DE RECIBO DE LOCAÇÃO)."
             )
-            pdf.multi_cell(0, 5, clean_text(texto_pagamento))
+            pdf.multi_cell(0, 6, clean_text(texto_pagamento))
             pdf.ln(6)
 
             # Título secundário
@@ -809,7 +827,12 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 "decorrentes dos serviços ora contratados ou de acidentes de qualquer tipo causados pelos \n"
                 "equipamentos que sofrerão manutenção."
             )
-            pdf.multi_cell(0, 5, clean_text(condicoes_texto))
+            # Espaçamento leve entre tópicos: quebrar com linha em branco entre bullets
+            for paragraph in condicoes_texto.split("- "):
+                if paragraph.strip():
+                    txt = ("- " + paragraph).strip()
+                    pdf.multi_cell(0, 6, clean_text(txt))
+                    pdf.ln(1)
 
             # =====================================================
             # PÁGINAS 7 A 13: TERMOS E CONDIÇÕES GERAIS (LOCAÇÃO)
@@ -895,7 +918,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 "3- CLÁUSULA TERCEIRA – DAS CONDIÇÕES DE PAGAMENTO\n"
                 "3.1 O CONTRATANTE pagará à World Comp o valor descrito e em conformidade com as condições constantes da Proposta Comercial.\n"
                 "3.1.2 A CONTRATANTE efetuará os pagamentos através de boleto bancário ou depósito em conta, servindo os respectivos comprovantes de pagamento claramente identificados como prova de quitação, salvo se previsto de forma contrária na Proposta.\n"
-                "3.2 A ausência de pagamento na data estipulada, inclusive na hipótese de não recebimento do boleto bancário, observado o disposto na Cláusula acima, implicará na incidência de multa moratória de 2% (doia por cento) sobre o valor do débito, além de juros de 1% (um por cento) ao mês, calculados "pro rata dia", a partir do dia seguinte ao do vencimento.\n"
+                "3.2 A ausência de pagamento na data estipulada, inclusive na hipótese de não recebimento do boleto bancário, observado o disposto na Cláusula acima, implicará na incidência de multa moratória de 2% (doia por cento) sobre o valor do débito, além de juros de 1% (um por cento) ao mês, calculados 'pro rata dia', a partir do dia seguinte ao do vencimento.\n"
                 "3.2.1 Caso o atraso dos pagamentos devidos pelo CONTRATANTE prolongue-se por prazo superior a 03 (três) meses consecutivos, a World Comp poderá encerrar o Contrato imediatamente.\n"
                 "3.3 O preço mencionado na proposta comercial será reajustado automaticamente a cada 12 (doze) meses de vigência contratual ou em períodos inferiores, caso a legislação da época assim permita.\n"
                 "3.4 O preço ora estabelecido está sujeito à renegociação, na hipótese de qualquer mudança nas condições operacionais dos equipamentos sob contrato.\n"
