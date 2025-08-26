@@ -579,6 +579,16 @@ class ProdutosModule(BaseModule):
             
             self.carregar_produtos()
             self.carregar_produtos_para_kit()  # Atualizar lista para kits
+            # Evitar reaproveitar composição anterior em um novo kit
+            if tipo == "Kit":
+                self.kit_items = []
+                if hasattr(self, 'kit_items_tree'):
+                    self.atualizar_kit_tree()
+                # opcional: limpar campos de item
+                self.item_produto_var.set("")
+                self.item_quantidade_var.set("1")
+                # manter dados do kit na tela para revisão, ou usar self.novo_kit() se desejar limpar tudo
+                # self.novo_kit()
             
         except sqlite3.Error as e:
             self.show_error(f"Erro ao salvar {tipo.lower()}: {e}")
@@ -664,18 +674,11 @@ class ProdutosModule(BaseModule):
             conn.close()
             
     def editar_produto(self):
-        """Editar produto selecionado"""
-        selected = self.produtos_tree.selection()
-        if not selected:
-            self.show_warning("Selecione um produto para editar.")
+        """Editar produto selecionado (qualquer aba)."""
+        produto_id, _tree = self._get_selected_produto_id()
+        if not produto_id:
+            self.show_warning("Selecione um produto/serviço/kit para editar.")
             return
-            
-        # Obter ID do produto
-        tags = self.produtos_tree.item(selected[0])['tags']
-        if not tags:
-            return
-            
-        produto_id = tags[0]
         self.carregar_produto_para_edicao(produto_id)
         
     def carregar_produto_para_edicao(self, produto_id):
@@ -744,24 +747,16 @@ class ProdutosModule(BaseModule):
             conn.close()
             
     def toggle_ativo(self):
-        """Ativar/desativar produto selecionado"""
-        selected = self.produtos_tree.selection()
-        if not selected:
+        """Ativar/desativar produto selecionado (qualquer aba)."""
+        produto_id, tree = self._get_selected_produto_id()
+        if not produto_id:
             self.show_warning("Selecione um produto para ativar/desativar.")
             return
-            
-        # Obter ID do produto
-        tags = self.produtos_tree.item(selected[0])['tags']
-        if not tags:
-            return
-            
-        produto_id = tags[0]
         
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
         
         try:
-            # Inverter status ativo
             c.execute("UPDATE produtos SET ativo = NOT ativo WHERE id = ?", (produto_id,))
             conn.commit()
             
@@ -896,4 +891,19 @@ class ProdutosModule(BaseModule):
         self.kit_items = []
         if hasattr(self, 'kit_items_tree'):
             self.atualizar_kit_tree()
+        
+    def _get_selected_produto_id(self):
+        """Retorna (produto_id, tree_obj) da primeira aba com seleção."""
+        if not hasattr(self, 'trees_por_tipo'):
+            return None, None
+        for tipo, tree in self.trees_por_tipo.items():
+            try:
+                selected = tree.selection()
+                if selected:
+                    tags = tree.item(selected[0]).get('tags')
+                    if tags:
+                        return tags[0], tree
+            except Exception:
+                continue
+        return None, None
         
