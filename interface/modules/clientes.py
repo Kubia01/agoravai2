@@ -983,83 +983,84 @@ Contatos Cadastrados: {total_contatos}"""
         self.contatos_tree.delete(*self.contatos_tree.get_children()) # Limpar treeview de contatos
         
     def salvar_cliente(self):
-        """Salvar cliente no banco de dados"""
-        # Validações
+        """Salvar cliente (novo ou existente)"""
+        # Obter dados dos campos
         nome = self.nome_var.get().strip()
         if not nome:
-            self.show_warning("O nome/razão social é obrigatório.")
+            self.show_error("Nome é obrigatório.")
             return
             
-        cnpj = self.cnpj_var.get().strip()
-        if cnpj and not validate_cnpj(cnpj):
-            self.show_warning("CNPJ inválido.")
-            return
-            
-        email = self.email_var.get().strip()
-        if email and not validate_email(email):
-            self.show_warning("Email inválido.")
-            return
-            
+        # Conectar ao banco
         conn = sqlite3.connect(DB_NAME)
         c = conn.cursor()
         
         try:
-            # Verificar CNPJ duplicado antes de salvar
-            if cnpj:
-                if self.current_cliente_id:
-                    # Verificar se existe outro cliente com o mesmo CNPJ (excluindo o atual)
-                    c.execute("SELECT id FROM clientes WHERE cnpj = ? AND id != ?", (cnpj, self.current_cliente_id))
-                else:
-                    # Verificar se existe cliente com o mesmo CNPJ
-                    c.execute("SELECT id FROM clientes WHERE cnpj = ?", (cnpj,))
-                
-                if c.fetchone():
-                    self.show_error("CNPJ já cadastrado no sistema. Não é possível salvar um CNPJ duplicado.")
-                    return
-            
-            # Preparar dados
-            dados = (
-                nome,
-                self.nome_fantasia_var.get().strip(),
-                cnpj if cnpj else None,
-                self.inscricao_estadual_var.get().strip(),
-                self.inscricao_municipal_var.get().strip(),
-                self.endereco_var.get().strip(),
-                self.numero_var.get().strip(),
-                self.complemento_var.get().strip(),
-                self.bairro_var.get().strip(),
-                self.cidade_var.get().strip(),
-                self.estado_var.get().strip(),
-                self.cep_var.get().strip(),
-                self.telefone_var.get().strip(),
-                email if email else None,
-                self.site_var.get().strip(),
-                self.prazo_pagamento_var.get().strip()
-            )
+            # Dados básicos do cliente
+            dados_cliente = {
+                'nome': nome,
+                'nome_fantasia': self.nome_fantasia_var.get().strip() or nome,
+                'cnpj': self.cnpj_var.get().strip() or None,
+                'email': self.email_var.get().strip() or None,
+                'telefone': self.telefone_var.get().strip() or None,
+                'endereco': self.endereco_var.get().strip() or None,
+                'cidade': self.cidade_var.get().strip() or None,
+                'estado': self.estado_var.get().strip() or None,
+                'cep': self.cep_var.get().strip() or None,
+                'observacoes': self.observacoes_text.get("1.0", tk.END).strip() or None,
+                'prazo_pagamento': self.prazo_pagamento_var.get().strip() or None,
+                'ativo': 1
+            }
             
             if self.current_cliente_id:
-                # Atualizar cliente existente
-                c.execute("""
-                    UPDATE clientes SET
-                        nome = ?, nome_fantasia = ?, cnpj = ?, inscricao_estadual = ?,
-                        inscricao_municipal = ?, endereco = ?, numero = ?, complemento = ?,
-                        bairro = ?, cidade = ?, estado = ?, cep = ?, telefone = ?, email = ?,
-                        site = ?, prazo_pagamento = ?, updated_at = datetime('now')
-                    WHERE id = ?
-                """, dados + (self.current_cliente_id,))
-            else:
-                # Inserir novo cliente
-                c.execute("""
-                    INSERT INTO clientes (nome, nome_fantasia, cnpj, inscricao_estadual,
-                                        inscricao_municipal, endereco, numero, complemento,
-                                        bairro, cidade, estado, cep, telefone, email,
-                                        site, prazo_pagamento, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-                """, dados)
+                # ATUALIZAR cliente existente
+                print(f"DEBUG: Atualizando cliente ID {self.current_cliente_id}")
                 
+                query = """
+                    UPDATE clientes SET
+                        nome = ?, nome_fantasia = ?, cnpj = ?, email = ?, telefone = ?,
+                        endereco = ?, cidade = ?, estado = ?, cep = ?, observacoes = ?,
+                        prazo_pagamento = ?, ativo = ?
+                    WHERE id = ?
+                """
+                
+                valores = (
+                    dados_cliente['nome'], dados_cliente['nome_fantasia'], dados_cliente['cnpj'],
+                    dados_cliente['email'], dados_cliente['telefone'], dados_cliente['endereco'],
+                    dados_cliente['cidade'], dados_cliente['estado'], dados_cliente['cep'],
+                    dados_cliente['observacoes'], dados_cliente['prazo_pagamento'], dados_cliente['ativo'],
+                    self.current_cliente_id
+                )
+                
+                c.execute(query, valores)
+                print(f"DEBUG: Cliente {self.current_cliente_id} atualizado com sucesso")
+                
+            else:
+                # INSERIR novo cliente
+                print("DEBUG: Inserindo novo cliente")
+                
+                query = """
+                    INSERT INTO clientes (
+                        nome, nome_fantasia, cnpj, email, telefone, endereco, cidade, 
+                        estado, cep, observacoes, prazo_pagamento, ativo, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                """
+                
+                valores = (
+                    dados_cliente['nome'], dados_cliente['nome_fantasia'], dados_cliente['cnpj'],
+                    dados_cliente['email'], dados_cliente['telefone'], dados_cliente['endereco'],
+                    dados_cliente['cidade'], dados_cliente['estado'], dados_cliente['cep'],
+                    dados_cliente['observacoes'], dados_cliente['prazo_pagamento'], dados_cliente['ativo']
+                )
+                
+                c.execute(query, valores)
                 self.current_cliente_id = c.lastrowid
+                print(f"DEBUG: Novo cliente criado com ID {self.current_cliente_id}")
             
+            # Confirmar alterações
             conn.commit()
+            print("DEBUG: Commit realizado com sucesso")
+            
+            # Mostrar sucesso
             self.show_success("Cliente salvo com sucesso!")
             
             # Emitir evento para atualizar outros módulos
@@ -1068,15 +1069,27 @@ Contatos Cadastrados: {total_contatos}"""
             # Recarregar lista
             self.carregar_clientes()
             
+            # Limpar formulário se for novo cliente
+            if not self.current_cliente_id:
+                self.limpar_formulario()
+                
         except sqlite3.IntegrityError as e:
+            print(f"DEBUG: Erro de integridade: {e}")
             if "cnpj" in str(e).lower():
                 self.show_error("CNPJ já cadastrado no sistema.")
             else:
                 self.show_error(f"Erro de integridade: {e}")
         except sqlite3.Error as e:
+            print(f"DEBUG: Erro SQLite: {e}")
             self.show_error(f"Erro ao salvar cliente: {e}")
+        except Exception as e:
+            print(f"DEBUG: Erro inesperado: {e}")
+            import traceback
+            traceback.print_exc()
+            self.show_error(f"Erro inesperado: {e}")
         finally:
             conn.close()
+            print("DEBUG: Conexão fechada")
             
     def carregar_clientes(self):
         """Carregar lista de clientes"""
