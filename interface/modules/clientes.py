@@ -4,6 +4,7 @@ import sqlite3
 from .base_module import BaseModule
 from database import DB_NAME
 from utils.formatters import format_cnpj, format_phone, validate_cnpj, validate_email
+import tkinter.scrolledtext as scrolledtext
 
 class ClientesModule(BaseModule):
     def setup_ui(self):
@@ -97,6 +98,11 @@ class ClientesModule(BaseModule):
         card4.pack(fill="x", pady=(0, 8))
         tk.Label(card4, text="⏳ Prazo de Pagamento", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_prazo_pagamento_section(card4)
+
+        card4_5 = tk.Frame(form_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card4_5.pack(fill="x", pady=(0, 8))
+        tk.Label(card4_5, text="📝 Observações", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
+        self.create_observacoes_section(card4_5)
 
         card5 = tk.Frame(form_inner, bg='white', bd=0, relief='ridge', highlightthickness=0)
         card5.pack(fill="both", expand=True)
@@ -220,9 +226,15 @@ class ClientesModule(BaseModule):
         tk.Label(card4, text="⏳ Prazo de Pagamento", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_prazo_pagamento_section(card4)
 
+        # Card: Observações
+        card4_5 = tk.Frame(data_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
+        card4_5.grid(row=4, column=0, sticky="ew", pady=(0, 8))
+        tk.Label(card4_5, text="📝 Observações", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
+        self.create_observacoes_section(card4_5)
+
         # Card: Contatos do Cliente
         card5 = tk.Frame(data_panel, bg='white', bd=0, relief='ridge', highlightthickness=0)
-        card5.grid(row=4, column=0, sticky="nsew", pady=(0, 0))
+        card5.grid(row=5, column=0, sticky="nsew", pady=(0, 0))
         tk.Label(card5, text="📇 Contatos do Cliente", font=("Arial", 12, "bold"), bg='white', anchor="w").pack(anchor="w", padx=12, pady=(8, 0))
         self.create_contatos_integrados_section(card5)
 
@@ -995,17 +1007,23 @@ Contatos Cadastrados: {total_contatos}"""
         c = conn.cursor()
         
         try:
-            # Dados básicos do cliente
+            # Dados básicos do cliente - apenas campos que existem na interface
             dados_cliente = {
                 'nome': nome,
                 'nome_fantasia': self.nome_fantasia_var.get().strip() or nome,
                 'cnpj': self.cnpj_var.get().strip() or None,
-                'email': self.email_var.get().strip() or None,
-                'telefone': self.telefone_var.get().strip() or None,
+                'inscricao_estadual': self.inscricao_estadual_var.get().strip() or None,
+                'inscricao_municipal': self.inscricao_municipal_var.get().strip() or None,
                 'endereco': self.endereco_var.get().strip() or None,
+                'numero': self.numero_var.get().strip() or None,
+                'complemento': self.complemento_var.get().strip() or None,
+                'bairro': self.bairro_var.get().strip() or None,
                 'cidade': self.cidade_var.get().strip() or None,
                 'estado': self.estado_var.get().strip() or None,
                 'cep': self.cep_var.get().strip() or None,
+                'telefone': self.telefone_var.get().strip() or None,
+                'email': self.email_var.get().strip() or None,
+                'site': self.site_var.get().strip() or None,
                 'observacoes': self.observacoes_text.get("1.0", tk.END).strip() or None,
                 'prazo_pagamento': self.prazo_pagamento_var.get().strip() or None,
                 'ativo': 1
@@ -1017,18 +1035,21 @@ Contatos Cadastrados: {total_contatos}"""
                 
                 query = """
                     UPDATE clientes SET
-                        nome = ?, nome_fantasia = ?, cnpj = ?, email = ?, telefone = ?,
-                        endereco = ?, cidade = ?, estado = ?, cep = ?, observacoes = ?,
-                        prazo_pagamento = ?, ativo = ?
+                        nome = ?, nome_fantasia = ?, cnpj = ?, inscricao_estadual = ?,
+                        inscricao_municipal = ?, endereco = ?, numero = ?, complemento = ?,
+                        bairro = ?, cidade = ?, estado = ?, cep = ?, telefone = ?, email = ?,
+                        site = ?, observacoes = ?, prazo_pagamento = ?, ativo = ?
                     WHERE id = ?
                 """
                 
                 valores = (
                     dados_cliente['nome'], dados_cliente['nome_fantasia'], dados_cliente['cnpj'],
-                    dados_cliente['email'], dados_cliente['telefone'], dados_cliente['endereco'],
-                    dados_cliente['cidade'], dados_cliente['estado'], dados_cliente['cep'],
-                    dados_cliente['observacoes'], dados_cliente['prazo_pagamento'], dados_cliente['ativo'],
-                    self.current_cliente_id
+                    dados_cliente['inscricao_estadual'], dados_cliente['inscricao_municipal'],
+                    dados_cliente['endereco'], dados_cliente['numero'], dados_cliente['complemento'],
+                    dados_cliente['bairro'], dados_cliente['cidade'], dados_cliente['estado'],
+                    dados_cliente['cep'], dados_cliente['telefone'], dados_cliente['email'],
+                    dados_cliente['site'], dados_cliente['observacoes'], dados_cliente['prazo_pagamento'],
+                    dados_cliente['ativo'], self.current_cliente_id
                 )
                 
                 c.execute(query, valores)
@@ -1040,16 +1061,20 @@ Contatos Cadastrados: {total_contatos}"""
                 
                 query = """
                     INSERT INTO clientes (
-                        nome, nome_fantasia, cnpj, email, telefone, endereco, cidade, 
-                        estado, cep, observacoes, prazo_pagamento, ativo, created_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                        nome, nome_fantasia, cnpj, inscricao_estadual, inscricao_municipal,
+                        endereco, numero, complemento, bairro, cidade, estado, cep,
+                        telefone, email, site, observacoes, prazo_pagamento, ativo, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                 """
                 
                 valores = (
                     dados_cliente['nome'], dados_cliente['nome_fantasia'], dados_cliente['cnpj'],
-                    dados_cliente['email'], dados_cliente['telefone'], dados_cliente['endereco'],
-                    dados_cliente['cidade'], dados_cliente['estado'], dados_cliente['cep'],
-                    dados_cliente['observacoes'], dados_cliente['prazo_pagamento'], dados_cliente['ativo']
+                    dados_cliente['inscricao_estadual'], dados_cliente['inscricao_municipal'],
+                    dados_cliente['endereco'], dados_cliente['numero'], dados_cliente['complemento'],
+                    dados_cliente['bairro'], dados_cliente['cidade'], dados_cliente['estado'],
+                    dados_cliente['cep'], dados_cliente['telefone'], dados_cliente['email'],
+                    dados_cliente['site'], dados_cliente['observacoes'], dados_cliente['prazo_pagamento'],
+                    dados_cliente['ativo']
                 )
                 
                 c.execute(query, valores)
@@ -1432,3 +1457,19 @@ Contatos Cadastrados: {total_contatos}"""
             self.cep_var.set(format_cep(cep))
         except Exception as e:
             self.show_error(f"Erro ao buscar CEP: {e}")
+
+    def create_observacoes_section(self, parent):
+        """Criar seção para observações"""
+        section_frame = self.create_section_frame(parent, "Observações")
+        section_frame.pack(fill="both", expand=True, pady=(5, 0))
+        
+        # Frame para observações
+        obs_frame = tk.Frame(section_frame, bg='white')
+        obs_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        # Campo de observações
+        tk.Label(obs_frame, text="Observações:", 
+                 font=('Arial', 10, 'bold'), bg='white').pack(anchor="w", pady=(0, 5))
+        
+        self.observacoes_text = scrolledtext.ScrolledText(obs_frame, height=3, width=80, wrap=tk.WORD)
+        self.observacoes_text.pack(fill="both", expand=True)
