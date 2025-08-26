@@ -552,10 +552,11 @@ class ProdutosModule(BaseModule):
             if self.current_produto_id:
                 # Atualizar produto
                 c.execute("""
-                    UPDATE produtos SET nome = ?, tipo = ?, ncm = ?, valor_unitario = ?,
-                                      descricao = ?, ativo = ?, updated_at = CURRENT_TIMESTAMP
+                    UPDATE produtos SET
+                        nome = ?, tipo = ?, ncm = ?, valor_unitario = ?,
+                        descricao = ?, ativo = ?, updated_at = datetime('now')
                     WHERE id = ?
-                """, dados + (self.current_produto_id,))
+                """, (nome, tipo, self.ncm_var.get().strip(), valor, self.descricao_var.get().strip(), 1 if self.ativo_var.get() else 0, self.current_produto_id))
                 
                 # Se for kit, limpar itens existentes
                 if tipo == "Kit":
