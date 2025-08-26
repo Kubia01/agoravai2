@@ -251,9 +251,10 @@ def criar_banco():
 	
 	# Usuário admin padrão
 	try:
+		password_hash = hashlib.sha256("admin123".encode()).hexdigest()
 		c.execute('''INSERT INTO usuarios (username, password, role, nome_completo, email, template_personalizado)
 					 VALUES (?, ?, ?, ?, ?, ?)''', 
-				  ('admin', 'admin123', 'admin', 'Administrador', 'admin@worldcomp.com.br', 0))
+				  ('admin', password_hash, 'admin', 'Administrador', 'admin@worldcomp.com.br', 0))
 		print("✅ Usuário admin criado")
 	except sqlite3.IntegrityError:
 		print("ℹ️ Usuário admin já existe")
