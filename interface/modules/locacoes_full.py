@@ -544,19 +544,22 @@ class LocacoesModule(BaseModule):
 			pass
 
 	def gerar_pdf(self):
-		# Se ainda não houver ID, tenta salvar automaticamente antes de gerar
-		if not self.current_cotacao_id:
+		# Permitir gerar PDF a partir da seleção na lista, mesmo sem estado do formulário
+		cotacao_id = self.current_cotacao_id
+		if not cotacao_id:
 			try:
-				self.salvar()
+				selected = self.tree.selection()
+				if selected:
+					cotacao_id = self.tree.item(selected[0])['tags'][0]
 			except Exception:
-				pass
-		if not self.current_cotacao_id:
-			self.show_warning("Salve a locação antes de gerar o PDF.")
+				cotacao_id = None
+		if not cotacao_id:
+			self.show_warning("Selecione uma locação na lista para gerar o PDF.")
 			return
 		try:
 			current_username = self._get_current_username()
 			sucesso, resultado = gerar_pdf_cotacao_nova(
-				self.current_cotacao_id,
+				cotacao_id,
 				DB_NAME,
 				current_username,
 				contato_nome=self.contato_cliente_var.get(),
