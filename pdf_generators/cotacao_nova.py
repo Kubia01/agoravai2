@@ -679,8 +679,8 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 imagem_pagina4 = locacao_imagem_path_db
 
             if imagem_pagina4:
-                # Calcular tamanho proporcional dentro de uma área (largura ~170mm, altura ~120mm)
-                max_w, max_h = 170, 120
+                # Calcular tamanho proporcional dentro de uma área reduzida em ~30% (119x84)
+                max_w, max_h = 119, 84
                 try:
                     from PIL import Image
                     img = Image.open(imagem_pagina4)
@@ -690,7 +690,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                     h = ih * ratio
                 except Exception:
                     # Fallback simples caso PIL não esteja disponível
-                    w, h = 170, 110
+                    w, h = 119, 84
                 # Inserir imagem deixando margem esquerda 20mm
                 x = 20
                 y = pdf.get_y() + 3
@@ -866,15 +866,15 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             if imagem_p7:
                 try:
                     from PIL import Image
-                    # ~30% menor que a configuração anterior
-                    max_w, max_h = 100, 35
+                    # Reduzir em ~30% com bounding box menor (70x24)
+                    max_w, max_h = 70, 24
                     img = Image.open(imagem_p7)
                     iw, ih = img.size
                     ratio = min(max_w / iw, max_h / ih)
                     w = iw * ratio
                     h = ih * ratio
                 except Exception:
-                    w, h = 90, 30
+                    w, h = 70, 24
                 x = (210 - w) / 2
                 y = 77
                 pdf.image(imagem_p7, x=x, y=y, w=w, h=h)

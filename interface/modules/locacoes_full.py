@@ -544,6 +544,12 @@ class LocacoesModule(BaseModule):
 			pass
 
 	def gerar_pdf(self):
+		# Se ainda não houver ID, tenta salvar automaticamente antes de gerar
+		if not self.current_cotacao_id:
+			try:
+				self.salvar()
+			except Exception:
+				pass
 		if not self.current_cotacao_id:
 			self.show_warning("Salve a locação antes de gerar o PDF.")
 			return
