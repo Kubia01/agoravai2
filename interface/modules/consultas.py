@@ -11,14 +11,12 @@ DATE_FMT = "%Y-%m-%d"
 
 class ConsultasModule(BaseModule):
     def setup_ui(self):
-        self.simple_mode = tk.BooleanVar(value=True)
-        self.simple_filters = []  # list of dicts: {field_var, op_var, value_var, value2_var, row_frame}
         container = tk.Frame(self.frame, bg='#f8fafc')
         container.pack(fill='both', expand=True, padx=10, pady=10)
         
         self.create_header(container)
         
-        # Scrollable area
+        # Área rolável vertical
         scroll_container = tk.Frame(container, bg='#f8fafc')
         scroll_container.pack(fill='both', expand=True)
         canvas = tk.Canvas(scroll_container, bg='#f8fafc', highlightthickness=0)
@@ -31,7 +29,7 @@ class ConsultasModule(BaseModule):
         self.inner.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox('all')))
         canvas.bind('<Configure>', lambda e: canvas.itemconfigure(window, width=e.width))
         
-        # Builder container inside scroll
+        # Builder
         self.create_new_builder(self.inner)
         
         self.selected_fields = {
@@ -48,14 +46,6 @@ class ConsultasModule(BaseModule):
         header = tk.Frame(parent, bg='#f8fafc')
         header.pack(fill='x', pady=(0, 12))
         tk.Label(header, text='Consultas', font=('Arial', 16, 'bold'), background='#f8fafc', foreground='#1e293b').pack(side='left')
-        toggle = ttk.Checkbutton(header, text='Modo simples', variable=self.simple_mode, command=self._toggle_mode)
-        toggle.pack(side='right')
-    
-    def _toggle_mode(self):
-        # Recriar o builder para refletir o modo
-        for w in self.builder.winfo_children():
-            w.destroy()
-        self._create_builder_content(self.builder)
     
     def create_new_builder(self, parent):
         self.builder = tk.Frame(parent, bg='white', padx=12, pady=12)
@@ -63,7 +53,7 @@ class ConsultasModule(BaseModule):
         self._create_builder_content(self.builder)
     
     def _create_builder_content(self, builder):
-        # Linha 1: Período e módulo base (comuns)
+        # Linha 1: Período e módulo base
         row1 = tk.Frame(builder, bg='white')
         row1.pack(fill='x')
         tk.Label(row1, text='Data inicial:', background='white').pack(side='left')
@@ -77,12 +67,25 @@ class ConsultasModule(BaseModule):
         self.base_module_combo = ttk.Combobox(row1, textvariable=self.base_module_var, state='readonly', width=20,
                                               values=['Clientes','Produtos','Cotações','Relatórios','Usuários'])
         self.base_module_combo.pack(side='left', padx=(6, 0))
-        self.base_module_combo.bind('<<ComboboxSelected>>', lambda e: (self.sync_module_tabs(), self._refresh_simple_fields()))
+        self.base_module_combo.bind('<<ComboboxSelected>>', lambda e: self.sync_module_tabs())
         
-        if self.simple_mode.get():
-            self._create_simple_panel(builder)
-        else:
-            self._create_advanced_panel(builder)
+        # Linha 2: Combinações de módulos (como antes)
+        row2 = tk.Frame(builder, bg='white')
+        row2.pack(fill='x', pady=(10, 6))
+        tk.Label(row2, text='Combinar com:', background='white').pack(side='left')
+        self.combine_vars = {
+            'Clientes': tk.BooleanVar(value=False),
+            'Produtos': tk.BooleanVar(value=False),
+            'Cotações': tk.BooleanVar(value=False),
+            'Relatórios': tk.BooleanVar(value=False),
+            'Usuários': tk.BooleanVar(value=False)
+        }
+        for name, var in self.combine_vars.items():
+            cb = tk.Checkbutton(row2, text=name, variable=var, bg='white', onvalue=True, offvalue=False, command=self.sync_module_tabs)
+            cb.pack(side='left', padx=(6, 6))
+        
+        # Painel avançado original
+        self._create_advanced_panel(builder)
         
         # Resultados
         results = tk.Frame(builder, bg='white')
@@ -92,64 +95,6 @@ class ConsultasModule(BaseModule):
         scroll = ttk.Scrollbar(results, orient='vertical', command=self.tree.yview)
         self.tree.configure(yscrollcommand=scroll.set)
         scroll.pack(side='right', fill='y')
-    
-    def _create_simple_panel(self, builder):
-        panel = tk.LabelFrame(builder, text='Filtros rápidos', bg='white')
-        panel.pack(fill='x', pady=(10, 6))
-        # Botões
-        actions = tk.Frame(builder, bg='white')
-        actions.pack(fill='x', pady=(8, 6))
-        self.create_button(actions, 'Executar', self.execute_query, bg='#3b82f6').pack(side='left')
-        self.create_button(actions, 'Exportar Excel', self.export_excel, bg='#0ea5e9').pack(side='left', padx=(8,0))
-        
-        # Linha de filtros dinâmicos
-        self._refresh_simple_fields()
-        self.simple_filters_frame = tk.Frame(panel, bg='white')
-        self.simple_filters_frame.pack(fill='x', pady=(6, 0))
-        self._add_simple_filter_row()
-    
-    def _refresh_simple_fields(self):
-        # preencher lista de campos do módulo base
-        self._ensure_module_fields_loaded()
-        base = self.base_module_var.get()
-        self.simple_field_options = [label for (label, expr) in self.module_fields.get(base, [])]
-        if not self.simple_field_options:
-            self.simple_field_options = ['ID']
-    
-    def _add_simple_filter_row(self):
-        row = tk.Frame(self.simple_filters_frame, bg='white')
-        row.pack(fill='x', pady=4)
-        field_var = tk.StringVar(value=self.simple_field_options[0])
-        field_cb = ttk.Combobox(row, textvariable=field_var, values=self.simple_field_options, width=28, state='readonly')
-        field_cb.pack(side='left', padx=(0, 6))
-        op_var = tk.StringVar(value='contém')
-        op_cb = ttk.Combobox(row, textvariable=op_var, values=['=', 'contém', 'começa com', 'termina com', '>', '>=', '<', '<=', 'entre'], width=14, state='readonly')
-        op_cb.pack(side='left', padx=(0, 6))
-        val_var = tk.StringVar()
-        val_entry = ttk.Entry(row, textvariable=val_var, width=24)
-        val_entry.pack(side='left', padx=(0, 6))
-        val2_var = tk.StringVar()
-        val2_entry = ttk.Entry(row, textvariable=val2_var, width=24)
-        val2_entry.pack(side='left', padx=(0, 6))
-        def on_op_change(*args):
-            show_between = (op_var.get() == 'entre')
-            val2_entry.configure(state='normal' if show_between else 'disabled')
-        op_cb.bind('<<ComboboxSelected>>', lambda e: on_op_change())
-        on_op_change()
-        rem_btn = self.create_button(row, 'Remover', lambda r=row: self._remove_simple_row(r), bg='#ef4444')
-        rem_btn.pack(side='left', padx=(6, 0))
-        # guardar
-        self.simple_filters.append({'row': row, 'field_var': field_var, 'op_var': op_var, 'value_var': val_var, 'value2_var': val2_var})
-        # botão adicionar outra
-        add_btn = self.create_button(self.simple_filters_frame, 'Adicionar filtro', self._add_simple_filter_row, bg='#64748b')
-        add_btn.pack(anchor='w', pady=(6,0))
-    
-    def _remove_simple_row(self, row):
-        for f in list(self.simple_filters):
-            if f['row'] is row:
-                f['row'].destroy()
-                self.simple_filters.remove(f)
-                break
     
     def _create_advanced_panel(self, builder):
         # Abas por módulo para seleção de campos
@@ -179,7 +124,6 @@ class ConsultasModule(BaseModule):
                 ('Email', 'u.email'), ('Telefone', 'u.telefone'), ('Criado em', 'u.created_at')
             ]
         }
-        # completar dinamicamente
         self.autofill_module_fields()
         self.tab_frames = {}
         self.tab_vars = {}
@@ -202,7 +146,7 @@ class ConsultasModule(BaseModule):
         self.relations_text = tk.Label(relations, bg='white', fg='#334155', justify='left')
         self.relations_text.pack(anchor='w')
         self.sync_module_tabs()
-        # Ações avançadas
+        # Ações
         actions = tk.Frame(builder, bg='white')
         actions.pack(fill='x', pady=(10, 6))
         self.create_button(actions, 'Executar', self.execute_query, bg='#3b82f6').pack(side='left')
@@ -241,9 +185,6 @@ class ConsultasModule(BaseModule):
             self.autofill_module_fields()
     
     def build_sql(self):
-        if self.simple_mode.get():
-            return self._build_sql_simple()
-        # avançado como antes
         start = self.start_date_var.get().strip()
         end = self.end_date_var.get().strip()
         for d in [start, end]:
@@ -392,3 +333,19 @@ class ConsultasModule(BaseModule):
     
     def handle_event(self, event_type, data=None):
         pass
+
+    def sync_module_tabs(self):
+        base = self.base_module_var.get()
+        # Marcar base sempre combinado
+        for name, var in self.combine_vars.items():
+            if name == base:
+                var.set(True)
+        # Atualizar texto de relações
+        rels = [
+            'Cotações c → Clientes cl: c.cliente_id = cl.id',
+            'Cotações c → Usuários u: c.responsavel_id = u.id',
+            'Itens (via Produtos p) → Cotações c: (não usado direto aqui)',
+            'Relatórios r → Clientes cl: r.cliente_id = cl.id',
+            'Relatórios r → Usuários u: r.responsavel_id = u.id'
+        ]
+        self.relations_text.config(text='\n'.join(rels))
