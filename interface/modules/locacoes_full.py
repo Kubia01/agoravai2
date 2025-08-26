@@ -254,6 +254,9 @@ class LocacoesModule(BaseModule):
 		list_container.grid_rowconfigure(0, weight=1)
 		list_container.grid_columnconfigure(0, weight=1)
 
+		# Permitir edição por duplo clique
+		self.itens_tree.bind("<Double-1>", self._on_item_double_click)
+
 		# Footer total
 		item_buttons = tk.Frame(parent, bg='white')
 		item_buttons.pack(fill="x", pady=(10, 0))
@@ -533,6 +536,8 @@ class LocacoesModule(BaseModule):
 		self.observacoes_text.delete("1.0", tk.END)
 		for iid in self.itens_tree.get_children():
 			self.itens_tree.delete(iid)
+		# limpar qualquer imagem temporária
+		self.item_imagem_var.set("")
 		try:
 			self.numero_var.set(self._gerar_numero_sequencial())
 		except Exception:
@@ -775,3 +780,69 @@ class LocacoesModule(BaseModule):
 	def handle_event(self, event_type, data=None):
 		if event_type in ('cliente_created', 'cliente_updated'):
 			self._refresh_clientes()
+
+	def _on_item_double_click(self, event=None):
+		selected = self.itens_tree.selection()
+		if not selected:
+			return
+		iid = selected[0]
+		vals = list(self.itens_tree.item(iid)['values'])
+		if len(vals) != 9:
+			return
+		# Criar diálogo simples de edição
+		dialog = tk.Toplevel(self.frame)
+		dialog.title("Editar Item da Locação")
+		dialog.grab_set()
+		labels = [
+			("Nome/Equipamento", 0),
+			("Quantidade", 1),
+			("Valor Unit./Mensal", 2),
+			("Meses", 3),
+			("Início (DD/MM/AAAA)", 4),
+			("Fim (DD/MM/AAAA)", 5),
+			("Descrição", 7),
+			("Imagem", 8),
+		]
+		entries = {}
+		row = 0
+		for label, idx in labels:
+			tk.Label(dialog, text=label).grid(row=row, column=0, sticky="w", padx=8, pady=4)
+			var = tk.StringVar(value=str(vals[idx]))
+			ent = tk.Entry(dialog, textvariable=var, width=50)
+			ent.grid(row=row, column=1, padx=8, pady=4)
+			entries[idx] = var
+			row += 1
+
+		def on_save():
+			try:
+				# ler campos
+				nome = entries[0].get().strip()
+				quantidade = float(entries[1].get().strip().replace(',', '.'))
+				valor_unit = clean_number(entries[2].get().strip())
+				meses = int(entries[3].get().strip() or 0)
+				inicio = entries[4].get().strip()
+				fim = entries[5].get().strip()
+				descricao = entries[7].get().strip()
+				imagem = entries[8].get().strip()
+				# recalcular total
+				total = (valor_unit or 0) * (meses or 0) * (quantidade or 0)
+				# formatar
+				vals[0] = nome
+				vals[1] = f"{quantidade:.2f}"
+				vals[2] = format_currency(valor_unit)
+				vals[3] = str(meses)
+				vals[4] = entries[4].get().strip()
+				vals[5] = entries[5].get().strip()
+				vals[6] = format_currency(total)
+				vals[7] = descricao
+				vals[8] = imagem
+				self.itens_tree.item(iid, values=tuple(vals))
+				self._update_total()
+				dialog.destroy()
+			except Exception as e:
+				messagebox.showerror("Erro", f"Não foi possível salvar alterações: {e}")
+
+		btns = tk.Frame(dialog)
+		btns.grid(row=row, column=0, columnspan=2, pady=(8, 4))
+		self.create_button(btns, "Salvar", on_save, bg='#10b981').pack(side="left", padx=6)
+		self.create_button(btns, "Cancelar", dialog.destroy, bg='#64748b').pack(side="left", padx=6)

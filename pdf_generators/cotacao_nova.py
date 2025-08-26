@@ -83,6 +83,13 @@ def clean_text(text):
     
     return text
 
+def replace_company_names(text, filial_name):
+    """Substitui qualquer ocorrência de 'World Comp' (case-insensitive, com espaços) pelo nome da filial."""
+    try:
+        return re.sub(r"(?i)world\s*comp", filial_name or "WORLD COMP", text or "")
+    except Exception:
+        return text
+
 class PDFCotacao(FPDF):
     def __init__(self, dados_filial, dados_usuario, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -463,6 +470,7 @@ def gerar_pdf_cotacao_nova(cotacao_id, db_name, current_user=None, contato_nome=
 "disposicao para analisar, corrigir e prestar os devidos esclarecimentos, sempre buscando atender as\n"
 "especificacoes e necessidades dos nossos clientes."
             )
+            texto_apresentacao = replace_company_names(texto_apresentacao, dados_filial.get('nome'))
         else:
             modelo_text = f" {modelo_compressor}" if modelo_compressor else ""
             texto_apresentacao = clean_text(f"""
@@ -483,7 +491,8 @@ Atenciosamente,
             pdf.set_font("Arial", '', 11)
             pdf.cell(0, 5, clean_text("Atenciosamente,"), 0, 1, 'L')
             pdf.set_font("Arial", 'B', 11)
-            pdf.cell(0, 5, clean_text("WORLD COMP DO BRASIL COMPRESSORES EIRELI"), 0, 1, 'L')
+            filial_nome_ass = dados_filial.get('nome', 'WORLD COMP')
+            pdf.cell(0, 5, clean_text(filial_nome_ass), 0, 1, 'L')
         else:
             pdf.set_font("Arial", 'B', 11)
             pdf.cell(0, 6, clean_text(responsavel_nome.upper()), 0, 1, 'L')
@@ -533,7 +542,7 @@ Atenciosamente,
                 pdf.cell(0, 8, titulo, 0, 1, 'L')
                 pdf.set_text_color(0, 0, 0)
                 pdf.set_font("Arial", '', 11)
-                pdf.multi_cell(0, 5, texto)
+                pdf.multi_cell(0, 5, replace_company_names(texto, dados_filial.get('nome')))
                 pdf.ln(3)
             pdf.ln(7)
         else:
