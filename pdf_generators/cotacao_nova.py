@@ -13,74 +13,24 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from assets.filiais.filiais_config import obter_filial, obter_usuario_cotacao, obter_template_capa_jpeg
 
 def clean_text(text):
-    """Substitui tabs por espaços e remove caracteres problemáticos"""
+    """Normaliza espaços e símbolos problemáticos preservando acentuação (Latin-1)."""
     if text is None:
         return ""
-    
-    # Converter para string se não for
     text = str(text)
-    
     # Substitui tabs por 4 espaços
     text = text.replace('\t', '    ')
-    
-    # Substituir caracteres especiais problemáticos
+    # Substitui alguns símbolos especiais por equivalentes simples
     replacements = {
-        # Bullets e símbolos especiais
-        '•': '- ',
-        '●': '- ',
-        '◦': '- ',
-        '◆': '- ',
-        '▪': '- ',
-        '▫': '- ',
-        '★': '* ',
-        '☆': '* ',
-        
-        # Aspas especiais
-        '"': '"',
-        '"': '"',
-        ''': "'",
-        ''': "'",
-        
-        # Travessões
-        '–': '-',
-        '—': '-',
-        
-        # Outros símbolos
-        '…': '...',
-        '®': '(R)',
-        '™': '(TM)',
-        '©': '(C)',
-        '°': ' graus',
-        '€': 'EUR',
-        '£': 'GBP',
-        '¥': 'JPY',
-        
-        # Acentos problemáticos (fallback)
-        'À': 'A', 'Á': 'A', 'Â': 'A', 'Ã': 'A', 'Ä': 'A',
-        'È': 'E', 'É': 'E', 'Ê': 'E', 'Ë': 'E',
-        'Ì': 'I', 'Í': 'I', 'Î': 'I', 'Ï': 'I',
-        'Ò': 'O', 'Ó': 'O', 'Ô': 'O', 'Õ': 'O', 'Ö': 'O',
-        'Ù': 'U', 'Ú': 'U', 'Û': 'U', 'Ü': 'U',
-        'Ç': 'C', 'Ñ': 'N',
-        'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a',
-        'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
-        'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i',
-        'ò': 'o', 'ó': 'o', 'ô': 'o', 'õ': 'o', 'ö': 'o',
-        'ù': 'u', 'ú': 'u', 'û': 'u', 'ü': 'u',
-        'ç': 'c', 'ñ': 'n',
+        '•': '- ', '●': '- ', '◦': '- ', '◆': '- ', '▪': '- ', '▫': '- ',
+        '★': '* ', '☆': '* ', '–': '-', '—': '-', '…': '...', '®': '(R)', '™': '(TM)', '©': '(C)'
     }
-    
-    # Aplicar substituições
     for old_char, new_char in replacements.items():
         text = text.replace(old_char, new_char)
-    
-    # Remover caracteres fora do Latin-1 (preservando acentuação comum em PT-BR)
+    # Garantir compatibilidade Latin-1 sem remover acentos comuns
     try:
-        text = text.encode('latin-1', 'ignore').decode('latin-1')
-    except:
-        # Fallback simples
-        text = ''.join(ch for ch in text if ord(ch) <= 255)
-    
+        text.encode('latin-1')
+    except Exception:
+        text = text.encode('latin-1', 'replace').decode('latin-1')
     return text
 
 def replace_company_names(text, filial_name):
@@ -609,27 +559,7 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
             elif 'locacao_imagem_path_db' in locals() and locacao_imagem_path_db and os.path.exists(locacao_imagem_path_db):
                 imagem_pagina4 = locacao_imagem_path_db
 
-            if imagem_pagina4:
-                try:
-                    from PIL import Image
-                    # ~30% menor que a configuração anterior
-                    max_w, max_h = 90, 49
-                    img = Image.open(imagem_pagina4)
-                    iw, ih = img.size
-                    ratio = min(max_w / iw, max_h / ih)
-                    w = iw * ratio
-                    h = ih * ratio
-                except Exception:
-                    w, h = 85, 45
-                x = (210 - w) / 2
-                y = pdf.get_y()
-                if y < 60:
-                    y = 60
-                if y + h > 270:
-                    pdf.add_page()
-                    y = 60
-                pdf.image(imagem_pagina4, x=x, y=y, w=w, h=h)
-                pdf.set_y(y + h + 6)
+            # Imagem será renderizada apenas uma vez mais abaixo com tamanho padronizado
             # Bloco de cobertura total conforme especificação
             pdf.set_text_color(*pdf.baby_blue)
             pdf.set_font("Arial", 'B', 12)
@@ -679,8 +609,8 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                 imagem_pagina4 = locacao_imagem_path_db
 
             if imagem_pagina4:
-                # Calcular tamanho proporcional dentro de uma área reduzida em ~30% (119x84)
-                max_w, max_h = 119, 84
+                # Padronizar tamanho como página 7 (~70x24)
+                max_w, max_h = 70, 24
                 try:
                     from PIL import Image
                     img = Image.open(imagem_pagina4)
@@ -689,12 +619,9 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
                     w = iw * ratio
                     h = ih * ratio
                 except Exception:
-                    # Fallback simples caso PIL não esteja disponível
-                    w, h = 119, 84
-                # Inserir imagem deixando margem esquerda 20mm
-                x = 20
-                y = pdf.get_y() + 3
-                # Garantir que cabe na página; se não, nova página
+                    w, h = 70, 24
+                x = (210 - w) / 2
+                y = pdf.get_y() + 10
                 if y + h > 270:
                     pdf.add_page()
                     y = 35
@@ -1012,6 +939,49 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
 
             # Renderizar texto com quebras automáticas até o fim (páginas 7..13)
             pdf.multi_cell(0, 5, clean_text(full_text))
+            # Página 14 - Assinaturas e encerramento
+            pdf.add_page()
+            pdf.set_y(35)
+            pdf.set_text_color(*pdf.baby_blue)
+            pdf.set_font("Arial", 'B', 12)
+            pdf.cell(0, 8, clean_text("ENCERRAMENTO E ASSINATURAS"), 0, 1, 'L')
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Arial", '', 11)
+            texto_final = (
+                "Para dirimir definitivamente quaisquer dúvidas decorrentes do presente ajuste, as partes elegem, de comum acordo, o foro de São Bernardo do Campo, São Paulo, com renúncia expressa de qualquer outro, por mais especial que seja. \n\n"
+                "E, por estarem assim justas e contratadas, as partes assinam o presente instrumento em 02 (duas) vias de igual teor e para os mesmos fins e efeitos de direito, juntamente com as 02 (duas) testemunhas abaixo."
+            )
+            pdf.multi_cell(0, 6, clean_text(texto_final))
+            pdf.ln(8)
+            data_long = format_date_long_pt(data_criacao)
+            pdf.cell(0, 6, clean_text(f"São Bernardo do Campo, {data_long}."), 0, 1, 'L')
+            pdf.ln(16)
+            # Linhas e labels de assinatura
+            # Contratante
+            pdf.cell(90, 6, clean_text("______________________________________"), 0, 0, 'L')
+            pdf.cell(10, 6, "", 0, 0)
+            # Contratada
+            pdf.cell(90, 6, clean_text("______________________________________"), 0, 1, 'L')
+            pdf.cell(90, 6, clean_text(f"Contratante: {cliente_nome}"), 0, 0, 'L')
+            pdf.cell(10, 6, "", 0, 0)
+            pdf.cell(90, 6, clean_text(f"Contratada: {dados_filial.get('nome', '')}"), 0, 1, 'L')
+            # CNPJs
+            cnpj_cli = format_cnpj(cliente_cnpj) if cliente_cnpj else ""
+            pdf.cell(90, 6, clean_text(f"CNPJ: {cnpj_cli}"), 0, 0, 'L')
+            pdf.cell(10, 6, "", 0, 0)
+            pdf.cell(90, 6, clean_text(f"CNPJ: {dados_filial.get('cnpj', '')}"), 0, 1, 'L')
+            pdf.ln(16)
+            # Testemunhas (linhas duplas)
+            for i in range(2):
+                pdf.cell(90, 6, clean_text("______________________________________"), 0, 0, 'L')
+                pdf.cell(10, 6, "", 0, 0)
+                pdf.cell(90, 6, clean_text("_______________________________________"), 0, 1, 'L')
+                pdf.cell(90, 6, clean_text("Nome:"), 0, 0, 'L')
+                pdf.cell(10, 6, "", 0, 0)
+                pdf.cell(90, 6, clean_text("Nome:"), 0, 1, 'L')
+                pdf.cell(90, 6, clean_text("CPF:"), 0, 0, 'L')
+                pdf.cell(10, 6, "", 0, 0)
+                pdf.cell(90, 6, clean_text("CPF:"), 0, 1, 'L')
         else:
             # Compra: manter comportamento existente
             if esboco_servico:
@@ -1265,3 +1235,20 @@ Com uma equipe de técnicos altamente qualificados e constantemente treinados pa
 def gerar_pdf_cotacao(cotacao_id, db_name):
     """Função de compatibilidade que chama a nova versão"""
     return gerar_pdf_cotacao_nova(cotacao_id, db_name)
+
+# Utilitário para data longa em PT-BR
+def format_date_long_pt(date_obj):
+    try:
+        import locale
+        locale.setlocale(locale.LC_TIME, 'pt_BR.utf8')
+    except Exception:
+        pass
+    try:
+        meses = [
+            "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+            "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
+        ]
+        d = datetime.datetime.strptime(date_obj, '%Y-%m-%d').date() if isinstance(date_obj, str) else date_obj
+        return f"{d.day} de {meses[d.month-1]} de {d.year}"
+    except Exception:
+        return format_date(date_obj)

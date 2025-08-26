@@ -1424,6 +1424,7 @@ class CotacoesModule(BaseModule):
 				SELECT c.id, c.numero_proposta, cl.nome, c.data_criacao, c.valor_total, c.status
 				FROM cotacoes c
 				JOIN clientes cl ON c.cliente_id = cl.id
+				WHERE c.tipo_cotacao = 'Compra'
 				ORDER BY c.created_at DESC
 			""")
 			
@@ -1459,7 +1460,7 @@ class CotacoesModule(BaseModule):
 					SELECT c.id, c.numero_proposta, cl.nome, c.data_criacao, c.valor_total, c.status
 					FROM cotacoes c
 					JOIN clientes cl ON c.cliente_id = cl.id
-					WHERE c.numero_proposta LIKE ? OR cl.nome LIKE ?
+					WHERE c.tipo_cotacao = 'Compra' AND (c.numero_proposta LIKE ? OR cl.nome LIKE ?)
 					ORDER BY c.created_at DESC
 				""", (f"%{termo}%", f"%{termo}%"))
 			else:
@@ -1467,6 +1468,7 @@ class CotacoesModule(BaseModule):
 					SELECT c.id, c.numero_proposta, cl.nome, c.data_criacao, c.valor_total, c.status
 					FROM cotacoes c
 					JOIN clientes cl ON c.cliente_id = cl.id
+					WHERE c.tipo_cotacao = 'Compra'
 					ORDER BY c.created_at DESC
 				""")
 			
