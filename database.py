@@ -60,7 +60,6 @@ def criar_banco():
 		telefone TEXT,
 		email TEXT,
 		site TEXT,
-		prazo_pagamento TEXT,
 		ativo BOOLEAN DEFAULT 1,
 		prazo_pagamento TEXT,
 		created_at TIMESTAMP DEFAULT (datetime('now'))
